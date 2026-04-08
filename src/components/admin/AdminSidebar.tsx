@@ -1,0 +1,61 @@
+import { BarChart3, Package, Truck, Users, Settings } from 'lucide-react';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar';
+
+const navItems = [
+  { title: 'Vista General', icon: BarChart3, key: 'overview' },
+  { title: 'Inventario', icon: Package, key: 'inventory' },
+  { title: 'Pedidos y Envíos', icon: Truck, key: 'orders' },
+  { title: 'Clientes y Puntos', icon: Users, key: 'clients' },
+  { title: 'Configuración y SEO', icon: Settings, key: 'settings' },
+];
+
+interface AdminSidebarProps {
+  activeSection: string;
+  onNavigate: (key: string) => void;
+}
+
+const AdminSidebar = ({ activeSection, onNavigate }: AdminSidebarProps) => {
+  return (
+    <Sidebar collapsible="icon" className="border-r border-border">
+      <SidebarContent className="pt-6">
+        <div className="px-4 mb-8 group-data-[collapsible=icon]:hidden">
+          <span className="text-xl font-bold text-foreground tracking-tight">
+            WAXAPP<span className="text-primary">.</span>
+          </span>
+          <span className="text-xs text-muted-foreground ml-2">Admin</span>
+        </div>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map((item) => (
+                <SidebarMenuItem key={item.key}>
+                  <SidebarMenuButton
+                    onClick={() => onNavigate(item.key)}
+                    className={`cursor-pointer ${
+                      activeSection === item.key
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
+  );
+};
+
+export default AdminSidebar;
