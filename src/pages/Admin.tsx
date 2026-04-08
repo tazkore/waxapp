@@ -23,6 +23,13 @@ const Admin = () => {
   const [active, setActive] = useState('overview');
   const ActiveComponent = sections[active];
 
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/admin/login');
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
