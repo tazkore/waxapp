@@ -6,6 +6,9 @@ import TrustSignals from '@/components/TrustSignals';
 import ProductGrid from '@/components/ProductGrid';
 import CartDrawer from '@/components/CartDrawer';
 import Footer from '@/components/Footer';
+import NanoTechSection from '@/components/NanoTechSection';
+import LegalSection from '@/components/LegalSection';
+import FAQSection from '@/components/FAQSection';
 
 const Index = () => {
   const [verified, setVerified] = useState(false);
