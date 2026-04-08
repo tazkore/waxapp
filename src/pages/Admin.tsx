@@ -40,7 +40,12 @@ const Admin = () => {
             <span className="text-sm text-muted-foreground font-medium">
               WAXAPP<span className="text-primary">.</span> Admin Panel
             </span>
-          </header>
+            <div className="ml-auto">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive gap-2" onClick={handleLogout}>
+                <LogOut className="h-4 w-4" />
+                Cerrar Sesión
+              </Button>
+            </div>
           <main className="flex-1 p-6 md:p-8 overflow-auto">
             <ActiveComponent />
           </main>
