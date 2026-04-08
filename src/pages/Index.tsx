@@ -24,6 +24,9 @@ const Index = () => {
       <HeroSection />
       <TrustSignals />
       <ProductGrid />
+      <NanoTechSection />
+      <LegalSection />
+      <FAQSection />
       <Footer />
     </div>
   );
