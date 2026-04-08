@@ -1,5 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
+import { LogOut } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import OverviewSection from '@/components/admin/OverviewSection';
 import InventorySection from '@/components/admin/InventorySection';
@@ -19,6 +23,13 @@ const Admin = () => {
   const [active, setActive] = useState('overview');
   const ActiveComponent = sections[active];
 
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/admin/login');
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -29,6 +40,12 @@ const Admin = () => {
             <span className="text-sm text-muted-foreground font-medium">
               WAXAPP<span className="text-primary">.</span> Admin Panel
             </span>
+            <div className="ml-auto">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive gap-2" onClick={handleLogout}>
+                <LogOut className="h-4 w-4" />
+                Cerrar Sesión
+              </Button>
+            </div>
           </header>
           <main className="flex-1 p-6 md:p-8 overflow-auto">
             <ActiveComponent />
