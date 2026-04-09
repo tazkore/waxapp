@@ -39,7 +39,7 @@ const ClientAuth = () => {
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      toast({ title: 'Error', description: 'Credenciales inválidas.', variant: 'destructive' });
+      toast({ title: 'Error', description: error.message === 'Email not confirmed' ? 'Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.' : 'Credenciales inválidas.', variant: 'destructive' });
     } else {
       toast({ title: 'Bienvenido', description: 'Has iniciado sesión correctamente.' });
       navigate('/mi-cuenta');
