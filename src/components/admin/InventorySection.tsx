@@ -26,7 +26,7 @@ interface ProductForm {
 const emptyForm: ProductForm = { name: '', description: '', sku: '', category: '', price: '', stock: '' };
 const categories = ['Nano-Tech', 'Comestibles', 'Hardware', 'Accesorios'];
 
-const InventorySection = () => {
+const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -118,9 +118,11 @@ const InventorySection = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Inventario y Productos</h1>
-        <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-2" /> Agregar Nuevo Producto
-        </Button>
+        {isAdmin && (
+          <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-2" /> Agregar Nuevo Producto
+          </Button>
+        )}
       </div>
 
       <div className="rounded-lg border border-border overflow-hidden">
@@ -153,14 +155,16 @@ const InventorySection = () => {
                   </TableCell>
                   <TableCell className="text-right text-foreground">${p.price.toLocaleString()}</TableCell>
                   <TableCell className="text-center">
-                    <div className="flex justify-center gap-2">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEdit(p)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(p.id, p.sku)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    {isAdmin && (
+                      <div className="flex justify-center gap-2">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEdit(p)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(p.id, p.sku)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               );
