@@ -49,6 +49,22 @@ const Navbar = () => {
               </span>
             )}
           </button>
+
+          {session ? (
+            <a href="/mi-cuenta" className="rounded-lg p-2 text-foreground transition-colors hover:bg-muted" title="Mi Cuenta">
+              <User className="h-5 w-5" />
+            </a>
+          ) : (
+            <div className="hidden md:flex items-center gap-1">
+              <a href="/cliente" className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                <User className="h-4 w-4" /> Clientes
+              </a>
+              <a href="/admin/login" className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                <Shield className="h-4 w-4" /> Admin
+              </a>
+            </div>
+          )}
+
           <button onClick={() => setMobileOpen((v) => !v)} className="rounded-lg p-2 text-foreground hover:bg-muted md:hidden">
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
