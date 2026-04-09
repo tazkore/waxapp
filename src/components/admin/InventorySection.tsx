@@ -118,9 +118,11 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Inventario y Productos</h1>
-        <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-2" /> Agregar Nuevo Producto
-        </Button>
+        {isAdmin && (
+          <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-2" /> Agregar Nuevo Producto
+          </Button>
+        )}
       </div>
 
       <div className="rounded-lg border border-border overflow-hidden">
