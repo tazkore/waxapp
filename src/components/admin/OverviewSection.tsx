@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import { DollarSign, ShoppingCart, Users, TrendingUp, Loader2, Activity, Percent } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 
-const OverviewSection = () => {
+interface OverviewSectionProps {
+  onNavigate?: (section: string) => void;
+}
+
+const OverviewSection = ({ onNavigate }: OverviewSectionProps) => {
   const [loading, setLoading] = useState(true);
   const [kpis, setKpis] = useState({ totalSales: 0, activeOrders: 0, totalClients: 0, totalProducts: 0, conversionRate: 3.2 });
   const [salesByDay, setSalesByDay] = useState<{ day: string; ventas: number }[]>([]);
@@ -30,15 +34,13 @@ const OverviewSection = () => {
         conversionRate: orders.length > 0 ? Math.min(((orders.filter(o => o.status === 'delivered').length / Math.max(orders.length, 1)) * 100), 100) : 0,
       });
 
-      // Build sales by day (last 7 days)
       const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
       const salesMap: Record<string, number> = {};
       const now = new Date();
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(d.getDate() - i);
-        const key = days[d.getDay()];
-        salesMap[key] = 0;
+        salesMap[days[d.getDay()]] = 0;
       }
       orders.forEach(o => {
         const d = new Date(o.created_at);
@@ -50,19 +52,14 @@ const OverviewSection = () => {
       });
       setSalesByDay(Object.entries(salesMap).map(([day, ventas]) => ({ day, ventas })));
 
-      // Generate simulated live activity
-      const activities = [
-        { message: 'Alguien agregó Gomitas Artisan al carrito', type: 'cart' },
-        { message: 'Nuevo pedido #WX-1029 recibido', type: 'order' },
-        { message: 'Cliente María López inició sesión', type: 'login' },
-        { message: 'Stock de Vape Cerámica Pro bajo (8 uds)', type: 'stock' },
-        { message: 'Nuevo registro: carlos@email.com', type: 'signup' },
-        { message: 'Pedido #WX-1025 marcado como enviado', type: 'shipped' },
-      ];
-      setLiveActivity(activities.map((a, i) => ({
-        ...a,
-        time: `hace ${i + 1} min`,
-      })));
+      setLiveActivity([
+        { message: 'Alguien agregó Gomitas Artisan al carrito', type: 'cart', time: 'hace 1 min' },
+        { message: 'Nuevo pedido #WX-1029 recibido', type: 'order', time: 'hace 2 min' },
+        { message: 'Cliente María López inició sesión', type: 'login', time: 'hace 3 min' },
+        { message: 'Stock de Vape Cerámica Pro bajo (8 uds)', type: 'stock', time: 'hace 4 min' },
+        { message: 'Nuevo registro: carlos@email.com', type: 'signup', time: 'hace 5 min' },
+        { message: 'Pedido #WX-1025 marcado como enviado', type: 'shipped', time: 'hace 6 min' },
+      ]);
 
       setLoading(false);
     };
@@ -70,10 +67,10 @@ const OverviewSection = () => {
   }, []);
 
   const kpiCards = [
-    { label: 'Ventas Totales', value: `$${kpis.totalSales.toLocaleString()}`, icon: DollarSign, color: 'text-primary' },
-    { label: 'Pedidos Activos', value: kpis.activeOrders, icon: ShoppingCart, color: 'text-secondary' },
-    { label: 'Tasa de Conversión', value: `${kpis.conversionRate.toFixed(1)}%`, icon: Percent, color: 'text-primary' },
-    { label: 'Productos', value: kpis.totalProducts, icon: TrendingUp, color: 'text-foreground' },
+    { label: 'Ventas Totales', value: `$${kpis.totalSales.toLocaleString()}`, icon: DollarSign, color: 'text-primary', section: 'orders' },
+    { label: 'Pedidos Activos', value: kpis.activeOrders, icon: ShoppingCart, color: 'text-secondary', section: 'orders' },
+    { label: 'Tasa de Conversión', value: `${kpis.conversionRate.toFixed(1)}%`, icon: Percent, color: 'text-primary', section: 'clients' },
+    { label: 'Productos', value: kpis.totalProducts, icon: TrendingUp, color: 'text-foreground', section: 'inventory' },
   ];
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -84,7 +81,11 @@ const OverviewSection = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpiCards.map((k) => (
-          <Card key={k.label} className="bg-card border-border">
+          <Card
+            key={k.label}
+            className={`bg-card border-border ${onNavigate ? 'cursor-pointer hover:border-primary/50 transition-colors' : ''}`}
+            onClick={() => onNavigate?.(k.section)}
+          >
             <CardContent className="p-6 flex items-center gap-4">
               <div className="p-3 rounded-lg bg-muted">
                 <k.icon className={`h-5 w-5 ${k.color}`} />
@@ -99,7 +100,6 @@ const OverviewSection = () => {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Sales Chart */}
         <Card className="bg-card border-border lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-foreground text-lg">Ventas — Últimos 7 Días</CardTitle>
@@ -122,7 +122,6 @@ const OverviewSection = () => {
           </CardContent>
         </Card>
 
-        {/* Live Activity */}
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-foreground text-lg flex items-center gap-2">
