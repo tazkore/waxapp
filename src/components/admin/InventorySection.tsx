@@ -210,7 +210,27 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
                       {status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right text-foreground">${p.price.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">
+                    {isAdmin ? (
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={p.price}
+                        onChange={(e) => {
+                          const newPrice = parseFloat(e.target.value) || 0;
+                          setProducts(prev => prev.map(pr => pr.id === p.id ? { ...pr, price: newPrice } : pr));
+                        }}
+                        onBlur={async (e) => {
+                          const newPrice = parseFloat(e.target.value) || 0;
+                          await supabase.from('products').update({ price: newPrice }).eq('id', p.id);
+                        }}
+                        className="w-24 ml-auto text-right bg-muted border-border h-8 text-sm"
+                      />
+                    ) : (
+                      <span className="text-foreground">${p.price.toLocaleString()}</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-center">
                     {isAdmin && (
                       <div className="flex justify-center gap-2">
