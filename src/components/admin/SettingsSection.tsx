@@ -234,7 +234,35 @@ const SettingsSection = () => {
         </CardContent>
       </Card>
 
-      {/* User & Role Management */}
+      {/* Email Compose */}
+      <Card className="bg-card border-border">
+        <CardHeader className="flex flex-row items-center gap-2">
+          <Send className="h-5 w-5 text-primary" />
+          <CardTitle className="text-foreground text-lg">Enviar Correo</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 max-w-lg">
+          <div className="space-y-2">
+            <Label className="text-foreground">Destinatario *</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input type="email" placeholder="email@ejemplo.com" value={emailTo} onChange={e => setEmailTo(e.target.value)} className="pl-10 bg-muted border-border" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-foreground">Asunto *</Label>
+            <Input placeholder="Asunto del correo" value={emailSubject} onChange={e => setEmailSubject(e.target.value)} className="bg-muted border-border" />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-foreground">Mensaje *</Label>
+            <Textarea placeholder="Escribe tu mensaje aquí..." value={emailBody} onChange={e => setEmailBody(e.target.value)} className="bg-muted border-border" rows={5} />
+          </div>
+          <Button onClick={handleSendEmail} disabled={sendingEmail} className="gap-2">
+            {sendingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {sendingEmail ? 'Enviando...' : 'Enviar Correo'}
+          </Button>
+        </CardContent>
+      </Card>
+
       <Card className="bg-card border-border">
         <CardHeader className="flex flex-row items-center justify-between">
           <div className="flex items-center gap-2">
