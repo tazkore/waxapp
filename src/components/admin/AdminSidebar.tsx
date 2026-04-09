@@ -9,20 +9,23 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 
-const navItems = [
+const allNavItems = [
   { title: 'Vista General', icon: BarChart3, key: 'overview' },
   { title: 'Inventario', icon: Package, key: 'inventory' },
   { title: 'Pedidos y Envíos', icon: Truck, key: 'orders' },
   { title: 'Clientes y Puntos', icon: Users, key: 'clients' },
-  { title: 'Configuración y SEO', icon: Settings, key: 'settings' },
+  { title: 'Configuración y SEO', icon: Settings, key: 'settings', adminOnly: true },
 ];
 
 interface AdminSidebarProps {
   activeSection: string;
   onNavigate: (key: string) => void;
+  showSettings?: boolean;
 }
 
-const AdminSidebar = ({ activeSection, onNavigate }: AdminSidebarProps) => {
+const AdminSidebar = ({ activeSection, onNavigate, showSettings = true }: AdminSidebarProps) => {
+  const navItems = allNavItems.filter(item => !item.adminOnly || showSettings);
+
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
       <SidebarContent className="pt-6">

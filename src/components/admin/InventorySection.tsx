@@ -26,7 +26,7 @@ interface ProductForm {
 const emptyForm: ProductForm = { name: '', description: '', sku: '', category: '', price: '', stock: '' };
 const categories = ['Nano-Tech', 'Comestibles', 'Hardware', 'Accesorios'];
 
-const InventorySection = () => {
+const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
