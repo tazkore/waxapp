@@ -103,6 +103,21 @@ const ClientAuth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {signupDone ? (
+            <div className="text-center space-y-3 py-4">
+              <CheckCircle className="w-12 h-12 text-primary mx-auto" />
+              <h3 className="text-lg font-semibold text-foreground">¡Cuenta creada!</h3>
+              <p className="text-sm text-muted-foreground">
+                Hemos enviado un correo de verificación a <strong className="text-foreground">{email}</strong>.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Debes verificar tu email antes de poder iniciar sesión.
+              </p>
+              <Button variant="outline" onClick={() => { setSignupDone(false); setIsLogin(true); }} className="mt-2">
+                Ir a Iniciar Sesión
+              </Button>
+            </div>
+          ) : (
           <form onSubmit={isLogin ? handleLogin : handleRegister} className="space-y-4">
             {!isLogin && (
               <div className="space-y-2">
