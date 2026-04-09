@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Loader2, Shield, ShieldCheck, ShieldOff, UserCog, Lock, Eye, EyeOff, UserPlus, Mail } from 'lucide-react';
+import { Plus, Trash2, Loader2, Shield, ShieldCheck, ShieldOff, UserCog, Lock, Eye, EyeOff, UserPlus, Mail, Send } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,6 +36,50 @@ const SettingsSection = () => {
   const [staffPassword, setStaffPassword] = useState('');
   const [staffRole, setStaffRole] = useState('moderator');
   const [creatingStaff, setCreatingStaff] = useState(false);
+
+  // Email compose state
+  const [emailTo, setEmailTo] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
+
+  const handleSendEmail = async () => {
+    if (!emailTo || !emailSubject || !emailBody) {
+      toast({ title: 'Error', description: 'Completa todos los campos del correo.', variant: 'destructive' });
+      return;
+    }
+    setSendingEmail(true);
+    try {
+      const res = await supabase.functions.invoke('send-email', {
+        body: {
+          to: emailTo,
+          subject: emailSubject,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:30px;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb">
+            <div style="text-align:center;margin-bottom:24px">
+              <h1 style="color:#8B5CF6;font-size:28px;margin:0">WAXAPP OS</h1>
+              <p style="color:#6b7280;margin:4px 0 0">Sistema de Gestión</p>
+            </div>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0"/>
+            <h2 style="color:#1f2937;font-size:18px">${emailSubject}</h2>
+            <div style="color:#4b5563;line-height:1.6;white-space:pre-wrap">${emailBody}</div>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0"/>
+            <p style="color:#9ca3af;font-size:12px;text-align:center">Enviado desde WAXAPP OS</p>
+          </div>`,
+        },
+      });
+      if (res.error || res.data?.error) {
+        toast({ title: 'Error', description: res.data?.error || 'No se pudo enviar el correo.', variant: 'destructive' });
+      } else {
+        toast({ title: 'Correo enviado ✉️', description: `Enviado a ${emailTo} exitosamente.` });
+        setEmailTo('');
+        setEmailSubject('');
+        setEmailBody('');
+      }
+    } catch (err) {
+      toast({ title: 'Error', description: 'Error al enviar el correo.', variant: 'destructive' });
+    }
+    setSendingEmail(false);
+  };
 
   const handleCreateStaff = async () => {
     if (!staffEmail || !staffPassword) {
@@ -190,7 +234,35 @@ const SettingsSection = () => {
         </CardContent>
       </Card>
 
-      {/* User & Role Management */}
+      {/* Email Compose */}
+      <Card className="bg-card border-border">
+        <CardHeader className="flex flex-row items-center gap-2">
+          <Send className="h-5 w-5 text-primary" />
+          <CardTitle className="text-foreground text-lg">Enviar Correo</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 max-w-lg">
+          <div className="space-y-2">
+            <Label className="text-foreground">Destinatario *</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input type="email" placeholder="email@ejemplo.com" value={emailTo} onChange={e => setEmailTo(e.target.value)} className="pl-10 bg-muted border-border" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-foreground">Asunto *</Label>
+            <Input placeholder="Asunto del correo" value={emailSubject} onChange={e => setEmailSubject(e.target.value)} className="bg-muted border-border" />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-foreground">Mensaje *</Label>
+            <Textarea placeholder="Escribe tu mensaje aquí..." value={emailBody} onChange={e => setEmailBody(e.target.value)} className="bg-muted border-border" rows={5} />
+          </div>
+          <Button onClick={handleSendEmail} disabled={sendingEmail} className="gap-2">
+            {sendingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {sendingEmail ? 'Enviando...' : 'Enviar Correo'}
+          </Button>
+        </CardContent>
+      </Card>
+
       <Card className="bg-card border-border">
         <CardHeader className="flex flex-row items-center justify-between">
           <div className="flex items-center gap-2">
