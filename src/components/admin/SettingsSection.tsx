@@ -29,6 +29,14 @@ const SettingsSection = () => {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
 
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+
   const fetchUsers = async () => {
     setLoadingUsers(true);
     const { data: { session } } = await supabase.auth.getSession();
