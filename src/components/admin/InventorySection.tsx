@@ -136,6 +136,33 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
         )}
       </div>
 
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nombre, SKU o descripción..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10 bg-muted border-border"
+          />
+        </div>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-full sm:w-[200px] bg-muted border-border">
+            <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+            <SelectValue placeholder="Categoría" />
+          </SelectTrigger>
+          <SelectContent className="bg-card border-border">
+            <SelectItem value="all">Todas las categorías</SelectItem>
+            {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {filteredProducts.length === 0 && !loading ? (
+        <div className="text-center py-12 text-muted-foreground">
+          {products.length === 0 ? 'No hay productos en el inventario.' : 'No se encontraron productos con los filtros aplicados.'}
+        </div>
+      ) : (
       <div className="rounded-lg border border-border overflow-hidden">
         <Table>
           <TableHeader>
@@ -150,7 +177,7 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.map((p) => {
+            {filteredProducts.map((p) => {
               const status = getStatus(p.stock);
               return (
                 <TableRow key={p.id} className="border-border">
