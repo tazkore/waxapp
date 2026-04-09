@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { User, Mail, Eye, EyeOff, Lock, Phone, Globe } from 'lucide-react';
+import { User, Mail, Eye, EyeOff, Lock, Phone, Globe, CheckCircle } from 'lucide-react';
 
 const countries = [
   'México', 'Estados Unidos', 'España', 'Colombia', 'Argentina', 'Chile',
@@ -29,6 +29,7 @@ const ClientAuth = () => {
   const [state, setState] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [signupDone, setSignupDone] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -38,7 +39,7 @@ const ClientAuth = () => {
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      toast({ title: 'Error', description: 'Credenciales inválidas.', variant: 'destructive' });
+      toast({ title: 'Error', description: error.message === 'Email not confirmed' ? 'Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.' : 'Credenciales inválidas.', variant: 'destructive' });
     } else {
       toast({ title: 'Bienvenido', description: 'Has iniciado sesión correctamente.' });
       navigate('/mi-cuenta');
@@ -81,8 +82,7 @@ const ClientAuth = () => {
       if (profileError) {
         toast({ title: 'Error al crear perfil', description: profileError.message, variant: 'destructive' });
       } else {
-        toast({ title: 'Cuenta creada', description: 'Revisa tu correo para confirmar tu cuenta.' });
-        setIsLogin(true);
+        setSignupDone(true);
       }
     }
     setLoading(false);
@@ -103,6 +103,22 @@ const ClientAuth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {signupDone ? (
+            <div className="text-center space-y-3 py-4">
+              <CheckCircle className="w-12 h-12 text-primary mx-auto" />
+              <h3 className="text-lg font-semibold text-foreground">¡Cuenta creada!</h3>
+              <p className="text-sm text-muted-foreground">
+                Hemos enviado un correo de verificación a <strong className="text-foreground">{email}</strong>.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Debes verificar tu email antes de poder iniciar sesión.
+              </p>
+              <Button variant="outline" onClick={() => { setSignupDone(false); setIsLogin(true); }} className="mt-2">
+                Ir a Iniciar Sesión
+              </Button>
+            </div>
+          ) : (
+          <>
           <form onSubmit={isLogin ? handleLogin : handleRegister} className="space-y-4">
             {!isLogin && (
               <div className="space-y-2">
@@ -203,6 +219,8 @@ const ClientAuth = () => {
               Acceso administradores →
             </Link>
           </div>
+          </>
+          )}
         </CardContent>
       </Card>
     </div>
