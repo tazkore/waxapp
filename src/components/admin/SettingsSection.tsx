@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Loader2, Shield, ShieldCheck, ShieldOff, UserCog, Lock, Eye, EyeOff } from 'lucide-react';
+import { Plus, Trash2, Loader2, Shield, ShieldCheck, ShieldOff, UserCog, Lock, Eye, EyeOff, UserPlus, Mail } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { couponsData, Coupon } from '@/data/dashboardData';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,7 +30,42 @@ const SettingsSection = () => {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
 
-  // Password change state
+  // Create staff state
+  const [createStaffOpen, setCreateStaffOpen] = useState(false);
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffPassword, setStaffPassword] = useState('');
+  const [staffRole, setStaffRole] = useState('moderator');
+  const [creatingStaff, setCreatingStaff] = useState(false);
+
+  const handleCreateStaff = async () => {
+    if (!staffEmail || !staffPassword) {
+      toast({ title: 'Error', description: 'Email y contraseña son requeridos.', variant: 'destructive' });
+      return;
+    }
+    if (staffPassword.length < 6) {
+      toast({ title: 'Error', description: 'La contraseña debe tener al menos 6 caracteres.', variant: 'destructive' });
+      return;
+    }
+    setCreatingStaff(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await supabase.functions.invoke('manage-users', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+      body: { action: 'create_staff', email: staffEmail, password: staffPassword, role: staffRole },
+    });
+    if (res.error || res.data?.error) {
+      toast({ title: 'Error', description: res.data?.error || 'No se pudo crear el usuario.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Usuario staff creado', description: `${staffEmail} con rol ${staffRole}.` });
+      setCreateStaffOpen(false);
+      setStaffEmail('');
+      setStaffPassword('');
+      setStaffRole('moderator');
+      fetchUsers();
+    }
+    setCreatingStaff(false);
+  };
+
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
