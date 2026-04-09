@@ -118,7 +118,7 @@ const ClientAuth = () => {
               </Button>
             </div>
           ) : (
-          <form onSubmit={isLogin ? handleLogin : handleRegister} className="space-y-4">
+          <>
             {!isLogin && (
               <div className="space-y-2">
                 <Label htmlFor="fullName" className="text-foreground">Nombre completo *</Label>
