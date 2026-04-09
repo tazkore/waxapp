@@ -93,6 +93,11 @@ const AdminLogin = () => {
               {loading ? 'Verificando...' : 'Iniciar Sesión'}
             </Button>
           </form>
+          <div className="mt-4 text-center">
+            <Link to="/cliente" className="text-xs text-muted-foreground hover:text-foreground">
+              ← Acceso para clientes
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>
