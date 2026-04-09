@@ -82,8 +82,7 @@ const ClientAuth = () => {
       if (profileError) {
         toast({ title: 'Error al crear perfil', description: profileError.message, variant: 'destructive' });
       } else {
-        toast({ title: 'Cuenta creada', description: 'Revisa tu correo para confirmar tu cuenta.' });
-        setIsLogin(true);
+        setSignupDone(true);
       }
     }
     setLoading(false);
