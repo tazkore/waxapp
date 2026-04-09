@@ -324,6 +324,48 @@ const SettingsSection = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Create Staff Dialog */}
+      <Dialog open={createStaffOpen} onOpenChange={setCreateStaffOpen}>
+        <DialogContent className="bg-card border-border sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Crear Usuario Staff</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-foreground">Email *</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input type="email" value={staffEmail} onChange={e => setStaffEmail(e.target.value)} className="pl-10 bg-muted border-border" placeholder="staff@empresa.com" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Contraseña *</Label>
+              <Input type="password" value={staffPassword} onChange={e => setStaffPassword(e.target.value)} className="bg-muted border-border" placeholder="Mínimo 6 caracteres" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Rol</Label>
+              <Select value={staffRole} onValueChange={setStaffRole}>
+                <SelectTrigger className="bg-muted border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="moderator">Moderador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">El usuario será creado con email verificado y podrá acceder al panel inmediatamente.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateStaffOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreateStaff} disabled={creatingStaff}>
+              {creatingStaff ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <UserPlus className="h-4 w-4 mr-2" />}
+              Crear Usuario
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
