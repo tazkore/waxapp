@@ -67,7 +67,10 @@ const CartDrawer = () => {
                   <span>Subtotal</span>
                   <span>${total.toLocaleString()} MXN</span>
                 </div>
-                <button className="w-full rounded-lg bg-primary py-3 font-semibold text-primary-foreground transition-all hover:neon-glow hover:brightness-110">
+                <button
+                  onClick={() => { setCartOpen(false); navigate('/checkout'); }}
+                  className="w-full rounded-lg bg-primary py-3 font-semibold text-primary-foreground transition-all hover:neon-glow hover:brightness-110"
+                >
                   Proceder al Pago Seguro
                 </button>
               </div>
