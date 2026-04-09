@@ -37,7 +37,50 @@ const SettingsSection = () => {
   const [staffRole, setStaffRole] = useState('moderator');
   const [creatingStaff, setCreatingStaff] = useState(false);
 
-  const handleCreateStaff = async () => {
+  // Email compose state
+  const [emailTo, setEmailTo] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
+
+  const handleSendEmail = async () => {
+    if (!emailTo || !emailSubject || !emailBody) {
+      toast({ title: 'Error', description: 'Completa todos los campos del correo.', variant: 'destructive' });
+      return;
+    }
+    setSendingEmail(true);
+    try {
+      const res = await supabase.functions.invoke('send-email', {
+        body: {
+          to: emailTo,
+          subject: emailSubject,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:30px;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb">
+            <div style="text-align:center;margin-bottom:24px">
+              <h1 style="color:#8B5CF6;font-size:28px;margin:0">WAXAPP OS</h1>
+              <p style="color:#6b7280;margin:4px 0 0">Sistema de Gestión</p>
+            </div>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0"/>
+            <h2 style="color:#1f2937;font-size:18px">${emailSubject}</h2>
+            <div style="color:#4b5563;line-height:1.6;white-space:pre-wrap">${emailBody}</div>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0"/>
+            <p style="color:#9ca3af;font-size:12px;text-align:center">Enviado desde WAXAPP OS</p>
+          </div>`,
+        },
+      });
+      if (res.error || res.data?.error) {
+        toast({ title: 'Error', description: res.data?.error || 'No se pudo enviar el correo.', variant: 'destructive' });
+      } else {
+        toast({ title: 'Correo enviado ✉️', description: `Enviado a ${emailTo} exitosamente.` });
+        setEmailTo('');
+        setEmailSubject('');
+        setEmailBody('');
+      }
+    } catch (err) {
+      toast({ title: 'Error', description: 'Error al enviar el correo.', variant: 'destructive' });
+    }
+    setSendingEmail(false);
+  };
+
     if (!staffEmail || !staffPassword) {
       toast({ title: 'Error', description: 'Email y contraseña son requeridos.', variant: 'destructive' });
       return;
