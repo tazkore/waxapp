@@ -91,6 +91,16 @@ const Navbar = () => {
                   {l.label}
                 </a>
               ))}
+              {!session && (
+                <>
+                  <a href="/cliente" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                    <User className="h-4 w-4" /> Iniciar Sesión
+                  </a>
+                  <a href="/admin/login" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                    <Shield className="h-4 w-4" /> Admin
+                  </a>
+                </>
+              )}
             </div>
           </motion.div>
         )}
