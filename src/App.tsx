@@ -4,6 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
+import ProductDetail from "./pages/ProductDetail.tsx";
+import Checkout from "./pages/Checkout.tsx";
 import Admin from "./pages/Admin.tsx";
 import AdminLogin from "./pages/AdminLogin.tsx";
 import ClientAuth from "./pages/ClientAuth.tsx";
@@ -21,6 +23,8 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/producto/:id" element={<ProductDetail />} />
+          <Route path="/checkout" element={<Checkout />} />
           <Route path="/cliente" element={<ClientAuth />} />
           <Route path="/mi-cuenta" element={<ClientDashboard />} />
           <Route path="/admin/login" element={<AdminLogin />} />
