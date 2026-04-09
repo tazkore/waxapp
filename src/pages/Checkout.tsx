@@ -61,8 +61,57 @@ const Checkout = () => {
         items: items.map(i => ({ title: i.title, qty: i.quantity, price: i.price, variant: i.selectedVariant })),
         status: 'pending',
       });
+
+      // Send order confirmation email
+      const itemsHtml = items.map(i =>
+        `<tr>
+          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${i.title}${i.selectedVariant ? ` <span style="color:#9ca3af">(${i.selectedVariant})</span>` : ''}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${i.quantity}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right">$${(i.price * i.quantity).toLocaleString()}</td>
+        </tr>`
+      ).join('');
+
+      await supabase.functions.invoke('send-email', {
+        body: {
+          to: shipping.email,
+          subject: `Confirmación de Pedido ${num} - WAXAPP`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:30px;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb">
+            <div style="text-align:center;margin-bottom:24px">
+              <h1 style="color:#8B5CF6;font-size:28px;margin:0">WAXAPP</h1>
+              <p style="color:#6b7280;margin:4px 0 0">Confirmación de Pedido</p>
+            </div>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0"/>
+            <h2 style="color:#1f2937;font-size:20px;margin:0 0 8px">¡Gracias por tu compra, ${shipping.name}!</h2>
+            <p style="color:#4b5563;line-height:1.6">Tu pedido ha sido recibido y está siendo procesado.</p>
+            <div style="background:#f3f4f6;border-radius:10px;padding:16px;margin:20px 0;text-align:center">
+              <p style="color:#6b7280;font-size:13px;margin:0">Número de pedido</p>
+              <p style="color:#8B5CF6;font-size:28px;font-weight:bold;font-family:monospace;margin:4px 0 0">${num}</p>
+            </div>
+            <table style="width:100%;border-collapse:collapse;margin:20px 0">
+              <thead>
+                <tr style="background:#f9fafb">
+                  <th style="padding:8px 12px;text-align:left;font-size:13px;color:#6b7280;border-bottom:2px solid #e5e7eb">Producto</th>
+                  <th style="padding:8px 12px;text-align:center;font-size:13px;color:#6b7280;border-bottom:2px solid #e5e7eb">Cant.</th>
+                  <th style="padding:8px 12px;text-align:right;font-size:13px;color:#6b7280;border-bottom:2px solid #e5e7eb">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody style="font-size:14px;color:#1f2937">${itemsHtml}</tbody>
+            </table>
+            <div style="text-align:right;margin:16px 0;padding:12px;background:#f3f4f6;border-radius:8px">
+              <span style="font-size:13px;color:#6b7280">Envío: $${shippingCost === 0 ? 'Gratis' : shippingCost.toLocaleString()}</span><br/>
+              <span style="font-size:18px;font-weight:bold;color:#1f2937">Total: $${total.toLocaleString()} MXN</span>
+            </div>
+            <div style="margin:20px 0;padding:16px;background:#faf5ff;border-radius:8px;border-left:4px solid #8B5CF6">
+              <p style="margin:0;font-size:13px;color:#6b7280"><strong>Dirección de envío:</strong></p>
+              <p style="margin:4px 0 0;font-size:14px;color:#1f2937">${shipping.address}, ${shipping.city}, ${shipping.state} ${shipping.postalCode}</p>
+            </div>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0"/>
+            <p style="color:#9ca3af;font-size:12px;text-align:center">Este correo fue enviado automáticamente por WAXAPP. Si tienes dudas, contáctanos.</p>
+          </div>`,
+        },
+      });
     } catch (e) {
-      // Order created locally even if DB fails
+      // Order created locally even if email/DB fails
     }
 
     clearCart();
