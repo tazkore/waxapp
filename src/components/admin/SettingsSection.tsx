@@ -81,6 +81,7 @@ const SettingsSection = () => {
     setSendingEmail(false);
   };
 
+  const handleCreateStaff = async () => {
     if (!staffEmail || !staffPassword) {
       toast({ title: 'Error', description: 'Email y contraseña son requeridos.', variant: 'destructive' });
       return;
