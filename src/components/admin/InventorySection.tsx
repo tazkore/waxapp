@@ -184,7 +184,26 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
                   <TableCell className="font-mono text-muted-foreground text-sm">{p.sku ?? '—'}</TableCell>
                   <TableCell className="text-foreground font-medium">{p.name}</TableCell>
                   <TableCell className="text-muted-foreground">{p.category ?? '—'}</TableCell>
-                  <TableCell className="text-center text-foreground">{p.stock}</TableCell>
+                  <TableCell className="text-center">
+                    {isAdmin ? (
+                      <Input
+                        type="number"
+                        min="0"
+                        value={p.stock}
+                        onChange={async (e) => {
+                          const newStock = parseInt(e.target.value) || 0;
+                          setProducts(prev => prev.map(pr => pr.id === p.id ? { ...pr, stock: newStock } : pr));
+                        }}
+                        onBlur={async (e) => {
+                          const newStock = parseInt(e.target.value) || 0;
+                          await supabase.from('products').update({ stock: newStock }).eq('id', p.id);
+                        }}
+                        className="w-20 mx-auto text-center bg-muted border-border h-8 text-sm"
+                      />
+                    ) : (
+                      <span className="text-foreground">{p.stock}</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Badge variant={status === 'Óptimo' ? 'default' : 'destructive'}
                       className={status === 'Óptimo' ? 'bg-primary/20 text-primary border-primary/30' : ''}>
