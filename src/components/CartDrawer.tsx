@@ -5,6 +5,7 @@ import { useCartStore } from '@/store/cartStore';
 
 const CartDrawer = () => {
   const { items, isOpen, setCartOpen, removeItem, subtotal } = useCartStore();
+  const navigate = useNavigate();
   const total = subtotal();
 
   return (
