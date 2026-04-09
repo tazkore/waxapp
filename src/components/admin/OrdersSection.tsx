@@ -1,83 +1,171 @@
 import { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Eye, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Order = Tables<'orders'>;
 
-const statusLabel: Record<string, string> = {
-  pending: 'Preparando',
-  in_transit: 'En Tránsito',
-  delivered: 'Entregado',
-};
+const statusOptions = [
+  { value: 'pending', label: 'Pendiente' },
+  { value: 'packed', label: 'Empacado' },
+  { value: 'shipped', label: 'Enviado' },
+  { value: 'delivered', label: 'Entregado' },
+  { value: 'refunded', label: 'Reembolsado' },
+];
 
 const statusColor: Record<string, string> = {
   pending: 'bg-secondary/20 text-secondary border-secondary/30',
-  in_transit: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  packed: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  shipped: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   delivered: 'bg-primary/20 text-primary border-primary/30',
+  refunded: 'bg-destructive/20 text-destructive border-destructive/30',
+  in_transit: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+};
+
+const statusLabel: Record<string, string> = {
+  pending: 'Pendiente', packed: 'Empacado', shipped: 'Enviado',
+  delivered: 'Entregado', refunded: 'Reembolsado', in_transit: 'En Tránsito',
 };
 
 const OrdersSection = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [editAddress, setEditAddress] = useState('');
+  const [editStatus, setEditStatus] = useState('');
+  const [editTracking, setEditTracking] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const fetchOrders = async () => {
+    const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
+    if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    else setOrders(data ?? []);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    supabase.from('orders').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
-      if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      else setOrders(data ?? []);
-      setLoading(false);
-    });
+    fetchOrders();
+
+    // Realtime subscription
+    const channel = supabase
+      .channel('orders-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchOrders();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
-  const generateTracking = async (order: Order) => {
-    const tracking = `SKD-${Math.floor(10000 + Math.random() * 90000)}`;
-    const { error } = await supabase.from('orders').update({ tracking_number: tracking, status: 'in_transit' }).eq('id', order.id);
+  const filteredOrders = orders.filter(o =>
+    search === '' ||
+    o.order_number.toLowerCase().includes(search.toLowerCase()) ||
+    o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
+    o.customer_email.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const openDetail = (order: Order) => {
+    setSelectedOrder(order);
+    setEditAddress(order.shipping_address ?? '');
+    setEditStatus(order.status);
+    setEditTracking(order.tracking_number ?? '');
+    setDetailOpen(true);
+  };
+
+  const handleSaveDetail = async () => {
+    if (!selectedOrder) return;
+    setSaving(true);
+    const { error } = await supabase.from('orders').update({
+      shipping_address: editAddress || null,
+      status: editStatus,
+      tracking_number: editTracking || null,
+    }).eq('id', selectedOrder.id);
+
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, tracking_number: tracking, status: 'in_transit' } : o));
-      toast({ title: 'Guía generada', description: `Guía ${tracking} creada para ${order.order_number}` });
+      setOrders(prev => prev.map(o => o.id === selectedOrder.id
+        ? { ...o, shipping_address: editAddress, status: editStatus, tracking_number: editTracking }
+        : o
+      ));
+      toast({ title: 'Pedido actualizado' });
+      setDetailOpen(false);
     }
+    setSaving(false);
+  };
+
+  const handleRefund = async () => {
+    if (!selectedOrder) return;
+    setSaving(true);
+    const { error } = await supabase.from('orders').update({ status: 'refunded' }).eq('id', selectedOrder.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: 'refunded' } : o));
+      toast({ title: 'Reembolso procesado', description: `Pedido ${selectedOrder.order_number} reembolsado por $${selectedOrder.total.toLocaleString()} MXN` });
+      setRefundOpen(false);
+      setDetailOpen(false);
+    }
+    setSaving(false);
   };
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
+  const items = selectedOrder ? (Array.isArray(selectedOrder.items) ? selectedOrder.items as any[] : []) : [];
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">Pedidos y Envíos</h1>
+
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Buscar por orden, cliente o email..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10 bg-muted border-border" />
+      </div>
+
       <div className="rounded-lg border border-border overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50">
-              <TableHead className="text-muted-foreground">ID</TableHead>
+              <TableHead className="text-muted-foreground">Orden</TableHead>
               <TableHead className="text-muted-foreground">Cliente</TableHead>
               <TableHead className="text-muted-foreground">Fecha</TableHead>
               <TableHead className="text-muted-foreground text-right">Total</TableHead>
-              <TableHead className="text-muted-foreground">Envío</TableHead>
+              <TableHead className="text-muted-foreground">Estado</TableHead>
               <TableHead className="text-muted-foreground">Guía</TableHead>
-              <TableHead className="text-muted-foreground text-center">Acción</TableHead>
+              <TableHead className="text-muted-foreground text-center">Detalle</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orders.map((o) => (
-              <TableRow key={o.id} className="border-border">
-                <TableCell className="font-mono text-sm text-muted-foreground">{o.order_number}</TableCell>
-                <TableCell className="text-foreground font-medium">{o.customer_name}</TableCell>
-                <TableCell className="text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</TableCell>
-                <TableCell className="text-right text-foreground">${o.total.toLocaleString()}</TableCell>
+            {filteredOrders.map((o) => (
+              <TableRow key={o.id} className="border-border cursor-pointer hover:bg-muted/30" onClick={() => openDetail(o)}>
+                <TableCell className="font-mono text-sm text-foreground">{o.order_number}</TableCell>
                 <TableCell>
-                  <Badge className={statusColor[o.status] ?? ''}>{statusLabel[o.status] ?? o.status}</Badge>
+                  <div>
+                    <p className="text-foreground font-medium text-sm">{o.customer_name}</p>
+                    <p className="text-xs text-muted-foreground">{o.customer_email}</p>
+                  </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground text-sm">{new Date(o.created_at).toLocaleDateString('es-MX')}</TableCell>
+                <TableCell className="text-right text-foreground font-medium">${o.total.toLocaleString()}</TableCell>
+                <TableCell>
+                  <Badge className={statusColor[o.status] ?? statusColor.pending}>{statusLabel[o.status] ?? o.status}</Badge>
                 </TableCell>
                 <TableCell className="font-mono text-sm text-muted-foreground">{o.tracking_number ?? '—'}</TableCell>
                 <TableCell className="text-center">
-                  <Button size="sm" variant="outline" className="border-primary/40 text-primary hover:bg-primary/10"
-                    disabled={!!o.tracking_number}
-                    onClick={() => generateTracking(o)}>
-                    Generar Guía
+                  <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-primary">
+                    <Eye className="h-4 w-4" />
                   </Button>
                 </TableCell>
               </TableRow>
@@ -85,6 +173,110 @@ const OrdersSection = () => {
           </TableBody>
         </Table>
       </div>
+
+      {/* Order Detail Dialog */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="bg-card border-border sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-3">
+              Pedido {selectedOrder?.order_number}
+              {selectedOrder && <Badge className={statusColor[selectedOrder.status] ?? ''}>{statusLabel[selectedOrder.status] ?? selectedOrder.status}</Badge>}
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedOrder && (
+            <div className="space-y-6 py-2">
+              {/* Customer & Order Info */}
+              <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Cliente</p>
+                  <p className="text-foreground font-medium">{selectedOrder.customer_name}</p>
+                  <p className="text-muted-foreground">{selectedOrder.customer_email}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Fecha</p>
+                  <p className="text-foreground">{new Date(selectedOrder.created_at).toLocaleString('es-MX')}</p>
+                  <p className="text-lg font-bold text-primary">${selectedOrder.total.toLocaleString()} MXN</p>
+                </div>
+              </div>
+
+              {/* Items */}
+              {items.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">Productos</p>
+                  <div className="rounded-lg border border-border divide-y divide-border">
+                    {items.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between px-3 py-2 text-sm">
+                        <span className="text-foreground">{item.title} x{item.qty}{item.variant ? ` (${item.variant})` : ''}</span>
+                        <span className="text-foreground">${((item.price || 0) * (item.qty || 1)).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Editable Fields */}
+              <div className="space-y-4">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-foreground">Estado del pedido</Label>
+                    <Select value={editStatus} onValueChange={setEditStatus}>
+                      <SelectTrigger className="bg-muted border-border">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border">
+                        {statusOptions.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-foreground">Número de guía</Label>
+                    <Input value={editTracking} onChange={e => setEditTracking(e.target.value)} className="bg-muted border-border" placeholder="SKD-00000" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Dirección de envío</Label>
+                  <Textarea value={editAddress} onChange={e => setEditAddress(e.target.value)} className="bg-muted border-border resize-none" rows={2} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="destructive" className="sm:mr-auto" onClick={() => setRefundOpen(true)} disabled={selectedOrder?.status === 'refunded'}>
+              Emitir Reembolso
+            </Button>
+            <Button variant="outline" className="border-border" onClick={() => setDetailOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveDetail} disabled={saving} className="bg-primary text-primary-foreground">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Guardar Cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Refund Confirmation Dialog */}
+      <Dialog open={refundOpen} onOpenChange={setRefundOpen}>
+        <DialogContent className="bg-card border-border sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Confirmar Reembolso</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-center space-y-3">
+            <p className="text-muted-foreground">¿Estás seguro de que deseas emitir un reembolso para el pedido <strong className="text-foreground">{selectedOrder?.order_number}</strong>?</p>
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+              <p className="text-sm text-muted-foreground">Monto a reembolsar</p>
+              <p className="text-2xl font-bold text-destructive">${selectedOrder?.total.toLocaleString()} MXN</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRefundOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleRefund} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirmar Reembolso
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

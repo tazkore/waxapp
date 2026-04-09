@@ -1,13 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { products } from '@/data/products';
+import { supabase } from '@/integrations/supabase/client';
+import { Product } from '@/store/cartStore';
+import { products as staticProducts } from '@/data/products';
 import ProductCard from './ProductCard';
 
 const categories = ['Todos', 'Nano-Tech', 'Comestibles', 'Hardware'];
 
 const ProductGrid = () => {
   const [active, setActive] = useState('Todos');
-  const filtered = active === 'Todos' ? products : products.filter((p) => p.category === active);
+  const [dbStock, setDbStock] = useState<Record<string, number>>({});
+
+  // Fetch stock from DB for real-time sync
+  useEffect(() => {
+    const fetchStock = async () => {
+      const { data } = await supabase.from('products').select('name, stock');
+      if (data) {
+        const map: Record<string, number> = {};
+        data.forEach(p => { map[p.name] = p.stock; });
+        setDbStock(map);
+      }
+    };
+    fetchStock();
+
+    // Listen for realtime changes on products
+    const channel = supabase
+      .channel('products-stock')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        fetchStock();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  const productsWithStock = staticProducts.map(p => ({
+    ...p,
+    stock: dbStock[p.title] ?? 999, // default to in-stock if not in DB
+  }));
+
+  const filtered = active === 'Todos' ? productsWithStock : productsWithStock.filter((p) => p.category === active);
 
   return (
     <section id="tienda" className="py-20">
@@ -19,7 +51,6 @@ const ProductGrid = () => {
           Productos premium con la más alta calidad y tecnología de punta.
         </p>
 
-        {/* Category Filters */}
         <div className="flex flex-wrap justify-center gap-2 mb-10">
           {categories.map((cat) => (
             <button
@@ -38,7 +69,7 @@ const ProductGrid = () => {
 
         <motion.div layout className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((p) => (
-            <ProductCard key={p.id} product={p} />
+            <ProductCard key={p.id} product={p} outOfStock={(p as any).stock === 0} />
           ))}
         </motion.div>
       </div>

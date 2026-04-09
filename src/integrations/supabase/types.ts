@@ -95,6 +95,48 @@ export type Database = {
         }
         Relationships: []
       }
+      discounts: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_uses: number | null
+          min_purchase: number | null
+          type: string
+          updated_at: string
+          used_count: number
+          value: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          min_purchase?: number | null
+          type?: string
+          updated_at?: string
+          used_count?: number
+          value?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          min_purchase?: number | null
+          type?: string
+          updated_at?: string
+          used_count?: number
+          value?: number
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           created_at: string

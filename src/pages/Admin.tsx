@@ -11,6 +11,7 @@ import OverviewSection from '@/components/admin/OverviewSection';
 import InventorySection from '@/components/admin/InventorySection';
 import OrdersSection from '@/components/admin/OrdersSection';
 import ClientsSection from '@/components/admin/ClientsSection';
+import MarketingSection from '@/components/admin/MarketingSection';
 import SettingsSection from '@/components/admin/SettingsSection';
 
 const Admin = () => {
@@ -31,12 +32,12 @@ const Admin = () => {
     );
   }
 
-  // Filter sections based on role
   const sections: Record<string, React.FC<{ isAdmin?: boolean }>> = {
     overview: OverviewSection,
     inventory: InventorySection,
     orders: OrdersSection,
     clients: ClientsSection,
+    marketing: MarketingSection,
     ...(isAdmin ? { settings: SettingsSection } : {}),
   };
 
