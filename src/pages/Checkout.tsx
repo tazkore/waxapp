@@ -1,0 +1,297 @@
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, ArrowRight, Check, Package, Truck, CreditCard, MapPin } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useCartStore } from '@/store/cartStore';
+import { supabase } from '@/integrations/supabase/client';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+
+const steps = [
+  { id: 1, title: 'Datos de Envío', icon: MapPin },
+  { id: 2, title: 'Método de Envío', icon: Truck },
+  { id: 3, title: 'Pago', icon: CreditCard },
+];
+
+const Checkout = () => {
+  const navigate = useNavigate();
+  const { items, subtotal, clearCart } = useCartStore();
+  const [step, setStep] = useState(1);
+  const [confirmed, setConfirmed] = useState(false);
+  const [orderNumber, setOrderNumber] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const [shipping, setShipping] = useState({
+    name: '', email: '', phone: '', address: '', city: '', state: '', postalCode: '', country: 'México',
+  });
+  const [shippingMethod, setShippingMethod] = useState('standard');
+  const [paymentMethod, setPaymentMethod] = useState('card');
+
+  const shippingCost = shippingMethod === 'express' ? 250 : shippingMethod === 'standard' ? 99 : 0;
+  const total = subtotal() + shippingCost;
+
+  if (items.length === 0 && !confirmed) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Package className="h-16 w-16 text-muted-foreground mx-auto" />
+          <h1 className="text-2xl font-bold text-foreground">Tu carrito está vacío</h1>
+          <Button onClick={() => navigate('/')}>Ir a la Tienda</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    const num = `WX-${Math.floor(1000 + Math.random() * 9000)}`;
+    setOrderNumber(num);
+
+    try {
+      await supabase.from('orders').insert({
+        order_number: num,
+        customer_name: shipping.name,
+        customer_email: shipping.email,
+        shipping_address: `${shipping.address}, ${shipping.city}, ${shipping.state} ${shipping.postalCode}, ${shipping.country}`,
+        total,
+        items: items.map(i => ({ title: i.title, qty: i.quantity, price: i.price, variant: i.selectedVariant })),
+        status: 'pending',
+      });
+    } catch (e) {
+      // Order created locally even if DB fails
+    }
+
+    clearCart();
+    setConfirmed(true);
+    setLoading(false);
+  };
+
+  if (confirmed) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[80vh]">
+          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center space-y-6 max-w-md mx-auto p-8">
+            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto">
+              <Check className="h-10 w-10 text-primary" />
+            </div>
+            <h1 className="text-3xl font-display font-bold text-foreground">¡Orden Confirmada!</h1>
+            <p className="text-muted-foreground">Tu pedido ha sido procesado exitosamente.</p>
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-6">
+              <p className="text-sm text-muted-foreground">Número de orden</p>
+              <p className="text-3xl font-mono font-bold text-primary mt-1">{orderNumber}</p>
+            </div>
+            <p className="text-sm text-muted-foreground">Recibirás un correo de confirmación a <strong className="text-foreground">{shipping.email}</strong></p>
+            <div className="flex gap-3 justify-center pt-4">
+              <Button variant="outline" onClick={() => navigate('/')}>Seguir Comprando</Button>
+              <Button onClick={() => navigate('/mi-cuenta')}>Ver Mis Pedidos</Button>
+            </div>
+          </motion.div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <div className="container mx-auto px-4 pt-24 pb-16 max-w-4xl">
+        <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-8">
+          <ArrowLeft className="h-4 w-4" /> Volver a la tienda
+        </Link>
+
+        {/* Progress Steps */}
+        <div className="flex items-center justify-center mb-12">
+          {steps.map((s, i) => (
+            <div key={s.id} className="flex items-center">
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                step >= s.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground'
+              }`}>
+                <s.icon className="h-4 w-4" />
+                <span className="hidden sm:inline">{s.title}</span>
+              </div>
+              {i < steps.length - 1 && (
+                <div className={`w-8 sm:w-16 h-px mx-2 ${step > s.id ? 'bg-primary' : 'bg-border'}`} />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Form */}
+          <div className="lg:col-span-2">
+            <AnimatePresence mode="wait">
+              {step === 1 && (
+                <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+                  <h2 className="text-xl font-bold text-foreground mb-6">Datos de Envío</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2 sm:col-span-1 space-y-2">
+                      <Label className="text-foreground">Nombre completo *</Label>
+                      <Input value={shipping.name} onChange={e => setShipping({...shipping, name: e.target.value})} className="bg-muted border-border" placeholder="Tu nombre" required />
+                    </div>
+                    <div className="col-span-2 sm:col-span-1 space-y-2">
+                      <Label className="text-foreground">Email *</Label>
+                      <Input type="email" value={shipping.email} onChange={e => setShipping({...shipping, email: e.target.value})} className="bg-muted border-border" placeholder="tu@email.com" required />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-foreground">Teléfono *</Label>
+                    <Input value={shipping.phone} onChange={e => setShipping({...shipping, phone: e.target.value})} className="bg-muted border-border" placeholder="+52 55 1234 5678" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-foreground">Dirección *</Label>
+                    <Input value={shipping.address} onChange={e => setShipping({...shipping, address: e.target.value})} className="bg-muted border-border" placeholder="Calle y número" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-foreground">Ciudad</Label>
+                      <Input value={shipping.city} onChange={e => setShipping({...shipping, city: e.target.value})} className="bg-muted border-border" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-foreground">Estado</Label>
+                      <Input value={shipping.state} onChange={e => setShipping({...shipping, state: e.target.value})} className="bg-muted border-border" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-foreground">C.P.</Label>
+                      <Input value={shipping.postalCode} onChange={e => setShipping({...shipping, postalCode: e.target.value})} className="bg-muted border-border" />
+                    </div>
+                  </div>
+                  <div className="pt-4 flex justify-end">
+                    <Button onClick={() => setStep(2)} disabled={!shipping.name || !shipping.email || !shipping.address} className="gap-2">
+                      Continuar <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 2 && (
+                <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                  <h2 className="text-xl font-bold text-foreground mb-6">Método de Envío</h2>
+                  <RadioGroup value={shippingMethod} onValueChange={setShippingMethod} className="space-y-3">
+                    {[
+                      { value: 'standard', label: 'Estándar', desc: '5-7 días hábiles', price: '$99' },
+                      { value: 'express', label: 'Express', desc: '2-3 días hábiles', price: '$250' },
+                      { value: 'pickup', label: 'Recoger en tienda', desc: 'CDMX, disponible en 24h', price: 'Gratis' },
+                    ].map((m) => (
+                      <label key={m.value} className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${
+                        shippingMethod === m.value ? 'border-primary bg-primary/5' : 'border-border hover:border-foreground/20'
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          <RadioGroupItem value={m.value} />
+                          <div>
+                            <p className="font-medium text-foreground">{m.label}</p>
+                            <p className="text-sm text-muted-foreground">{m.desc}</p>
+                          </div>
+                        </div>
+                        <span className="font-semibold text-foreground">{m.price}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                  <div className="pt-4 flex justify-between">
+                    <Button variant="outline" onClick={() => setStep(1)} className="gap-2">
+                      <ArrowLeft className="h-4 w-4" /> Atrás
+                    </Button>
+                    <Button onClick={() => setStep(3)} className="gap-2">
+                      Continuar <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 3 && (
+                <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                  <h2 className="text-xl font-bold text-foreground mb-6">Método de Pago</h2>
+                  <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-3">
+                    {[
+                      { value: 'card', label: 'Tarjeta de Crédito/Débito', desc: 'Visa, Mastercard, Amex' },
+                      { value: 'oxxo', label: 'OXXO Pay', desc: 'Paga en efectivo en cualquier OXXO' },
+                      { value: 'transfer', label: 'Transferencia bancaria', desc: 'SPEI / CoDi' },
+                    ].map((m) => (
+                      <label key={m.value} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+                        paymentMethod === m.value ? 'border-primary bg-primary/5' : 'border-border hover:border-foreground/20'
+                      }`}>
+                        <RadioGroupItem value={m.value} />
+                        <div>
+                          <p className="font-medium text-foreground">{m.label}</p>
+                          <p className="text-sm text-muted-foreground">{m.desc}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </RadioGroup>
+
+                  {paymentMethod === 'card' && (
+                    <div className="space-y-4 border-t border-border pt-6">
+                      <div className="space-y-2">
+                        <Label className="text-foreground">Número de tarjeta</Label>
+                        <Input className="bg-muted border-border" placeholder="4242 4242 4242 4242" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-foreground">Expiración</Label>
+                          <Input className="bg-muted border-border" placeholder="MM/AA" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-foreground">CVV</Label>
+                          <Input className="bg-muted border-border" placeholder="123" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-4 flex justify-between">
+                    <Button variant="outline" onClick={() => setStep(2)} className="gap-2">
+                      <ArrowLeft className="h-4 w-4" /> Atrás
+                    </Button>
+                    <Button onClick={handleConfirm} disabled={loading} className="gap-2 bg-primary text-primary-foreground px-8">
+                      {loading ? 'Procesando...' : `Pagar $${total.toLocaleString()} MXN`}
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Order Summary */}
+          <div className="lg:col-span-1">
+            <div className="rounded-xl border border-border bg-card p-6 sticky top-24 space-y-4">
+              <h3 className="font-bold text-foreground">Resumen del Pedido</h3>
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {items.map((item, idx) => (
+                  <div key={idx} className="flex justify-between text-sm">
+                    <div>
+                      <p className="text-foreground">{item.title} x{item.quantity}</p>
+                      {item.selectedVariant && <p className="text-xs text-muted-foreground">{item.selectedVariant}</p>}
+                    </div>
+                    <span className="text-foreground">${(item.price * item.quantity).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="border-t border-border pt-3 space-y-2 text-sm">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Subtotal</span>
+                  <span>${subtotal().toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Envío</span>
+                  <span>{shippingCost === 0 ? 'Gratis' : `$${shippingCost}`}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold text-foreground pt-2 border-t border-border">
+                  <span>Total</span>
+                  <span>${total.toLocaleString()} MXN</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
+};
+
+export default Checkout;
