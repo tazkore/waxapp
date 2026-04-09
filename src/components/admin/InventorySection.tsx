@@ -33,6 +33,17 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch = search === '' || 
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.sku ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (p.description ?? '').toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
 
   const fetchProducts = async () => {
     const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
