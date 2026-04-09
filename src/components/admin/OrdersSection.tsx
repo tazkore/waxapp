@@ -47,6 +47,8 @@ const OrdersSection = () => {
   const [editStatus, setEditStatus] = useState('');
   const [editTracking, setEditTracking] = useState('');
   const [saving, setSaving] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newOrder, setNewOrder] = useState({ customer_name: '', customer_email: '', total: '', shipping_address: '', items_text: '' });
 
   const fetchOrders = async () => {
     const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
@@ -121,13 +123,46 @@ const OrdersSection = () => {
     setSaving(false);
   };
 
+  const handleCreateOrder = async () => {
+    if (!newOrder.customer_name || !newOrder.customer_email || !newOrder.total) {
+      toast({ title: 'Error', description: 'Nombre, email y total son requeridos.', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    const orderNumber = `WX-${Math.floor(1000 + Math.random() * 9000)}`;
+    const items = newOrder.items_text ? newOrder.items_text.split(',').map(i => ({ title: i.trim(), qty: 1, price: 0 })) : [];
+    const { error } = await supabase.from('orders').insert({
+      order_number: orderNumber,
+      customer_name: newOrder.customer_name,
+      customer_email: newOrder.customer_email,
+      total: parseFloat(newOrder.total),
+      shipping_address: newOrder.shipping_address || null,
+      items,
+      status: 'pending',
+    });
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Pedido creado', description: `Orden ${orderNumber} creada exitosamente.` });
+      setCreateOpen(false);
+      setNewOrder({ customer_name: '', customer_email: '', total: '', shipping_address: '', items_text: '' });
+      fetchOrders();
+    }
+    setSaving(false);
+  };
+
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   const items = selectedOrder ? (Array.isArray(selectedOrder.items) ? selectedOrder.items as any[] : []) : [];
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">Pedidos y Envíos</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-foreground">Pedidos y Envíos</h1>
+        <Button onClick={() => setCreateOpen(true)} className="gap-2">
+          <span className="text-lg leading-none">+</span> Crear Pedido Manual
+        </Button>
+      </div>
 
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
