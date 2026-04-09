@@ -1,7 +1,9 @@
-import { useState } from 'react';
-import { ShoppingCart, Menu, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ShoppingCart, Menu, X, User, Shield } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCartStore } from '@/store/cartStore';
+import { supabase } from '@/integrations/supabase/client';
+import type { Session } from '@supabase/supabase-js';
 
 const navLinks = [
   { label: 'Tienda', href: '#tienda' },
