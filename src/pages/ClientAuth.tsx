@@ -218,6 +218,7 @@ const ClientAuth = () => {
               Acceso administradores →
             </Link>
           </div>
+          )}
         </CardContent>
       </Card>
     </div>
