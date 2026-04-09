@@ -10,12 +10,13 @@ const categoryColors: Record<string, string> = {
   Hardware: 'text-foreground',
 };
 
-const ProductCard = ({ product }: { product: Product }) => {
+const ProductCard = ({ product, outOfStock = false }: { product: Product; outOfStock?: boolean }) => {
   const addItem = useCartStore((s) => s.addItem);
 
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (outOfStock) return;
     addItem(product);
     toast.success(`${product.title} agregado al carrito`);
   };
@@ -26,21 +27,30 @@ const ProductCard = ({ product }: { product: Product }) => {
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-primary/30"
+      className={`group relative flex flex-col overflow-hidden rounded-lg border bg-card transition-colors ${
+        outOfStock ? 'border-border/50 opacity-70' : 'border-border hover:border-primary/30'
+      }`}
     >
       <Link to={`/producto/${product.id}`} className="flex flex-col flex-1">
         <div className="relative flex h-52 items-center justify-center bg-muted">
           <span className="font-display text-lg text-muted-foreground/40">WAXAPP</span>
-          {product.badge && (
+          {product.badge && !outOfStock && (
             <span className="absolute right-3 top-3 rounded-md bg-secondary px-2 py-0.5 text-xs font-bold text-secondary-foreground amber-glow">
               {product.badge}
             </span>
           )}
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-            <span className="flex items-center gap-2 text-sm font-medium text-white">
-              <Eye className="h-4 w-4" /> Ver Detalle
+          {outOfStock && (
+            <span className="absolute right-3 top-3 rounded-md bg-destructive px-3 py-1 text-xs font-bold text-destructive-foreground">
+              Agotado
             </span>
-          </div>
+          )}
+          {!outOfStock && (
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+              <span className="flex items-center gap-2 text-sm font-medium text-white">
+                <Eye className="h-4 w-4" /> Ver Detalle
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex flex-1 flex-col gap-2 p-4">
           <span className={`text-xs font-semibold uppercase tracking-wider ${categoryColors[product.category] ?? 'text-muted-foreground'}`}>
@@ -58,9 +68,15 @@ const ProductCard = ({ product }: { product: Product }) => {
       <div className="px-4 pb-4">
         <button
           onClick={handleAdd}
-          className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary py-2.5 font-semibold text-primary-foreground transition-all hover:brightness-110"
+          disabled={outOfStock}
+          className={`w-full flex items-center justify-center gap-2 rounded-lg py-2.5 font-semibold transition-all ${
+            outOfStock
+              ? 'bg-muted text-muted-foreground cursor-not-allowed'
+              : 'bg-primary text-primary-foreground hover:brightness-110'
+          }`}
         >
-          <ShoppingCart className="h-4 w-4" /> Agregar al Carrito
+          <ShoppingCart className="h-4 w-4" />
+          {outOfStock ? 'Agotado' : 'Agregar al Carrito'}
         </button>
       </div>
     </motion.div>
