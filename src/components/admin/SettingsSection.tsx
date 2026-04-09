@@ -97,9 +97,62 @@ const SettingsSection = () => {
     return <Badge variant="outline" className="text-muted-foreground"><ShieldOff className="h-3 w-3 mr-1" />Sin Rol</Badge>;
   };
 
+  const handleChangePassword = async () => {
+    if (!newPassword || !confirmPassword) {
+      toast({ title: 'Error', description: 'Completa todos los campos.', variant: 'destructive' });
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast({ title: 'Error', description: 'La nueva contraseña debe tener al menos 6 caracteres.', variant: 'destructive' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: 'Error', description: 'Las contraseñas no coinciden.', variant: 'destructive' });
+      return;
+    }
+    setChangingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Contraseña actualizada', description: 'Tu contraseña ha sido cambiada exitosamente.' });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    }
+    setChangingPassword(false);
+  };
+
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-bold text-foreground">Configuración y SEO</h1>
+
+      {/* Change Password */}
+      <Card className="bg-card border-border">
+        <CardHeader className="flex flex-row items-center gap-2">
+          <Lock className="h-5 w-5 text-primary" />
+          <CardTitle className="text-foreground text-lg">Cambiar Contraseña</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 max-w-md">
+          <div className="space-y-2">
+            <Label className="text-foreground">Nueva contraseña</Label>
+            <div className="relative">
+              <Input type={showNewPassword ? 'text' : 'password'} placeholder="Mínimo 6 caracteres" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="pr-10 bg-muted border-border" />
+              <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-foreground">Confirmar nueva contraseña</Label>
+            <Input type="password" placeholder="Repite la contraseña" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="bg-muted border-border" />
+          </div>
+          <Button onClick={handleChangePassword} disabled={changingPassword} className="gap-2">
+            {changingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+            Cambiar Contraseña
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* User & Role Management */}
       <Card className="bg-card border-border">
