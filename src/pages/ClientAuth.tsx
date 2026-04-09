@@ -29,6 +29,7 @@ const ClientAuth = () => {
   const [state, setState] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [signupDone, setSignupDone] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
