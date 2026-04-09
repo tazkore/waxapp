@@ -210,6 +210,7 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
           </TableBody>
         </Table>
       </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-card border-border sm:max-w-lg">
