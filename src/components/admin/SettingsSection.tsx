@@ -192,9 +192,14 @@ const SettingsSection = () => {
 
       {/* User & Role Management */}
       <Card className="bg-card border-border">
-        <CardHeader className="flex flex-row items-center gap-2">
-          <UserCog className="h-5 w-5 text-primary" />
-          <CardTitle className="text-foreground text-lg">Gestión de Usuarios y Roles</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <UserCog className="h-5 w-5 text-primary" />
+            <CardTitle className="text-foreground text-lg">Gestión de Usuarios y Roles</CardTitle>
+          </div>
+          <Button size="sm" onClick={() => setCreateStaffOpen(true)} className="gap-2">
+            <UserPlus className="h-4 w-4" /> Crear Staff
+          </Button>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
