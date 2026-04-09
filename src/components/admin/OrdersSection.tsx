@@ -312,6 +312,46 @@ const OrdersSection = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Order Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="bg-card border-border sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Crear Pedido Manual</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-foreground">Nombre del cliente *</Label>
+                <Input value={newOrder.customer_name} onChange={e => setNewOrder(p => ({ ...p, customer_name: e.target.value }))} className="bg-muted border-border" placeholder="Juan Pérez" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-foreground">Email del cliente *</Label>
+                <Input type="email" value={newOrder.customer_email} onChange={e => setNewOrder(p => ({ ...p, customer_email: e.target.value }))} className="bg-muted border-border" placeholder="cliente@email.com" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Total (MXN) *</Label>
+              <Input type="number" min="0" step="0.01" value={newOrder.total} onChange={e => setNewOrder(p => ({ ...p, total: e.target.value }))} className="bg-muted border-border" placeholder="1500.00" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Productos (separados por coma)</Label>
+              <Input value={newOrder.items_text} onChange={e => setNewOrder(p => ({ ...p, items_text: e.target.value }))} className="bg-muted border-border" placeholder="Producto 1, Producto 2" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Dirección de envío</Label>
+              <Textarea value={newOrder.shipping_address} onChange={e => setNewOrder(p => ({ ...p, shipping_address: e.target.value }))} className="bg-muted border-border resize-none" rows={2} placeholder="Calle, Ciudad, Estado, CP" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreateOrder} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Crear Pedido
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
