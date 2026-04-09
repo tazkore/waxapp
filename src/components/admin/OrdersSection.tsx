@@ -47,6 +47,8 @@ const OrdersSection = () => {
   const [editStatus, setEditStatus] = useState('');
   const [editTracking, setEditTracking] = useState('');
   const [saving, setSaving] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newOrder, setNewOrder] = useState({ customer_name: '', customer_email: '', total: '', shipping_address: '', items_text: '' });
 
   const fetchOrders = async () => {
     const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
@@ -121,13 +123,46 @@ const OrdersSection = () => {
     setSaving(false);
   };
 
+  const handleCreateOrder = async () => {
+    if (!newOrder.customer_name || !newOrder.customer_email || !newOrder.total) {
+      toast({ title: 'Error', description: 'Nombre, email y total son requeridos.', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    const orderNumber = `WX-${Math.floor(1000 + Math.random() * 9000)}`;
+    const items = newOrder.items_text ? newOrder.items_text.split(',').map(i => ({ title: i.trim(), qty: 1, price: 0 })) : [];
+    const { error } = await supabase.from('orders').insert({
+      order_number: orderNumber,
+      customer_name: newOrder.customer_name,
+      customer_email: newOrder.customer_email,
+      total: parseFloat(newOrder.total),
+      shipping_address: newOrder.shipping_address || null,
+      items,
+      status: 'pending',
+    });
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Pedido creado', description: `Orden ${orderNumber} creada exitosamente.` });
+      setCreateOpen(false);
+      setNewOrder({ customer_name: '', customer_email: '', total: '', shipping_address: '', items_text: '' });
+      fetchOrders();
+    }
+    setSaving(false);
+  };
+
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   const items = selectedOrder ? (Array.isArray(selectedOrder.items) ? selectedOrder.items as any[] : []) : [];
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">Pedidos y Envíos</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-foreground">Pedidos y Envíos</h1>
+        <Button onClick={() => setCreateOpen(true)} className="gap-2">
+          <span className="text-lg leading-none">+</span> Crear Pedido Manual
+        </Button>
+      </div>
 
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -273,6 +308,46 @@ const OrdersSection = () => {
             <Button variant="destructive" onClick={handleRefund} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Confirmar Reembolso
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Order Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="bg-card border-border sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Crear Pedido Manual</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-foreground">Nombre del cliente *</Label>
+                <Input value={newOrder.customer_name} onChange={e => setNewOrder(p => ({ ...p, customer_name: e.target.value }))} className="bg-muted border-border" placeholder="Juan Pérez" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-foreground">Email del cliente *</Label>
+                <Input type="email" value={newOrder.customer_email} onChange={e => setNewOrder(p => ({ ...p, customer_email: e.target.value }))} className="bg-muted border-border" placeholder="cliente@email.com" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Total (MXN) *</Label>
+              <Input type="number" min="0" step="0.01" value={newOrder.total} onChange={e => setNewOrder(p => ({ ...p, total: e.target.value }))} className="bg-muted border-border" placeholder="1500.00" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Productos (separados por coma)</Label>
+              <Input value={newOrder.items_text} onChange={e => setNewOrder(p => ({ ...p, items_text: e.target.value }))} className="bg-muted border-border" placeholder="Producto 1, Producto 2" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Dirección de envío</Label>
+              <Textarea value={newOrder.shipping_address} onChange={e => setNewOrder(p => ({ ...p, shipping_address: e.target.value }))} className="bg-muted border-border resize-none" rows={2} placeholder="Calle, Ciudad, Estado, CP" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreateOrder} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Crear Pedido
             </Button>
           </DialogFooter>
         </DialogContent>

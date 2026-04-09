@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Loader2, Shield, ShieldCheck, ShieldOff, UserCog, Lock, Eye, EyeOff } from 'lucide-react';
+import { Plus, Trash2, Loader2, Shield, ShieldCheck, ShieldOff, UserCog, Lock, Eye, EyeOff, UserPlus, Mail } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { couponsData, Coupon } from '@/data/dashboardData';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,7 +30,42 @@ const SettingsSection = () => {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
 
-  // Password change state
+  // Create staff state
+  const [createStaffOpen, setCreateStaffOpen] = useState(false);
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffPassword, setStaffPassword] = useState('');
+  const [staffRole, setStaffRole] = useState('moderator');
+  const [creatingStaff, setCreatingStaff] = useState(false);
+
+  const handleCreateStaff = async () => {
+    if (!staffEmail || !staffPassword) {
+      toast({ title: 'Error', description: 'Email y contraseña son requeridos.', variant: 'destructive' });
+      return;
+    }
+    if (staffPassword.length < 6) {
+      toast({ title: 'Error', description: 'La contraseña debe tener al menos 6 caracteres.', variant: 'destructive' });
+      return;
+    }
+    setCreatingStaff(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await supabase.functions.invoke('manage-users', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+      body: { action: 'create_staff', email: staffEmail, password: staffPassword, role: staffRole },
+    });
+    if (res.error || res.data?.error) {
+      toast({ title: 'Error', description: res.data?.error || 'No se pudo crear el usuario.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Usuario staff creado', description: `${staffEmail} con rol ${staffRole}.` });
+      setCreateStaffOpen(false);
+      setStaffEmail('');
+      setStaffPassword('');
+      setStaffRole('moderator');
+      fetchUsers();
+    }
+    setCreatingStaff(false);
+  };
+
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -156,9 +192,14 @@ const SettingsSection = () => {
 
       {/* User & Role Management */}
       <Card className="bg-card border-border">
-        <CardHeader className="flex flex-row items-center gap-2">
-          <UserCog className="h-5 w-5 text-primary" />
-          <CardTitle className="text-foreground text-lg">Gestión de Usuarios y Roles</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <UserCog className="h-5 w-5 text-primary" />
+            <CardTitle className="text-foreground text-lg">Gestión de Usuarios y Roles</CardTitle>
+          </div>
+          <Button size="sm" onClick={() => setCreateStaffOpen(true)} className="gap-2">
+            <UserPlus className="h-4 w-4" /> Crear Staff
+          </Button>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
@@ -283,6 +324,48 @@ const SettingsSection = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Create Staff Dialog */}
+      <Dialog open={createStaffOpen} onOpenChange={setCreateStaffOpen}>
+        <DialogContent className="bg-card border-border sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Crear Usuario Staff</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-foreground">Email *</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input type="email" value={staffEmail} onChange={e => setStaffEmail(e.target.value)} className="pl-10 bg-muted border-border" placeholder="staff@empresa.com" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Contraseña *</Label>
+              <Input type="password" value={staffPassword} onChange={e => setStaffPassword(e.target.value)} className="bg-muted border-border" placeholder="Mínimo 6 caracteres" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Rol</Label>
+              <Select value={staffRole} onValueChange={setStaffRole}>
+                <SelectTrigger className="bg-muted border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="moderator">Moderador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">El usuario será creado con email verificado y podrá acceder al panel inmediatamente.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateStaffOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreateStaff} disabled={creatingStaff}>
+              {creatingStaff ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <UserPlus className="h-4 w-4 mr-2" />}
+              Crear Usuario
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

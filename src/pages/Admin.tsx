@@ -32,16 +32,17 @@ const Admin = () => {
     );
   }
 
-  const sections: Record<string, React.FC<{ isAdmin?: boolean }>> = {
-    overview: OverviewSection,
-    inventory: InventorySection,
-    orders: OrdersSection,
-    clients: ClientsSection,
-    marketing: MarketingSection,
-    ...(isAdmin ? { settings: SettingsSection } : {}),
+  const renderSection = () => {
+    switch (active) {
+      case 'overview': return <OverviewSection onNavigate={setActive} />;
+      case 'inventory': return <InventorySection />;
+      case 'orders': return <OrdersSection />;
+      case 'clients': return <ClientsSection />;
+      case 'marketing': return <MarketingSection />;
+      case 'settings': return isAdmin ? <SettingsSection /> : <OverviewSection onNavigate={setActive} />;
+      default: return <OverviewSection onNavigate={setActive} />;
+    }
   };
-
-  const ActiveComponent = sections[active] || OverviewSection;
 
   return (
     <SidebarProvider>
@@ -64,7 +65,7 @@ const Admin = () => {
             </div>
           </header>
           <main className="flex-1 p-6 md:p-8 overflow-auto">
-            <ActiveComponent isAdmin={isAdmin} />
+            {renderSection()}
           </main>
         </div>
       </div>
