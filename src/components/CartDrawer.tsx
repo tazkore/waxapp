@@ -1,9 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Trash2, ShoppingBag } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/store/cartStore';
 
 const CartDrawer = () => {
   const { items, isOpen, setCartOpen, removeItem, subtotal } = useCartStore();
+  const navigate = useNavigate();
   const total = subtotal();
 
   return (
@@ -65,7 +67,10 @@ const CartDrawer = () => {
                   <span>Subtotal</span>
                   <span>${total.toLocaleString()} MXN</span>
                 </div>
-                <button className="w-full rounded-lg bg-primary py-3 font-semibold text-primary-foreground transition-all hover:neon-glow hover:brightness-110">
+                <button
+                  onClick={() => { setCartOpen(false); navigate('/checkout'); }}
+                  className="w-full rounded-lg bg-primary py-3 font-semibold text-primary-foreground transition-all hover:neon-glow hover:brightness-110"
+                >
                   Proceder al Pago Seguro
                 </button>
               </div>
