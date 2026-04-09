@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { User, Mail, Eye, EyeOff, Lock, Phone, Globe } from 'lucide-react';
+import { User, Mail, Eye, EyeOff, Lock, Phone, Globe, CheckCircle } from 'lucide-react';
 
 const countries = [
   'México', 'Estados Unidos', 'España', 'Colombia', 'Argentina', 'Chile',
