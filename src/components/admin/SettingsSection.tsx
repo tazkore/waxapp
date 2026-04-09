@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Loader2, Shield, ShieldCheck, ShieldOff, UserCog, Lock, Eye, EyeOff, UserPlus, Mail } from 'lucide-react';
+import { Plus, Trash2, Loader2, Shield, ShieldCheck, ShieldOff, UserCog, Lock, Eye, EyeOff, UserPlus, Mail, Send } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
