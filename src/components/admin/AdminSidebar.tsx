@@ -1,4 +1,4 @@
-import { BarChart3, Package, Truck, Users, Settings } from 'lucide-react';
+import { BarChart3, Package, Truck, Users, Settings, Tag } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -13,8 +13,9 @@ const allNavItems = [
   { title: 'Vista General', icon: BarChart3, key: 'overview' },
   { title: 'Inventario', icon: Package, key: 'inventory' },
   { title: 'Pedidos y Envíos', icon: Truck, key: 'orders' },
-  { title: 'Clientes y Puntos', icon: Users, key: 'clients' },
-  { title: 'Configuración y SEO', icon: Settings, key: 'settings', adminOnly: true },
+  { title: 'Clientes y CRM', icon: Users, key: 'clients' },
+  { title: 'Marketing', icon: Tag, key: 'marketing' },
+  { title: 'Configuración', icon: Settings, key: 'settings', adminOnly: true },
 ];
 
 interface AdminSidebarProps {
