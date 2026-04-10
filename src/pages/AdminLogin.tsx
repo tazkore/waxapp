@@ -29,6 +29,10 @@ const AdminLogin = () => {
   const [signupPassword, setSignupPassword] = useState('');
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -73,6 +77,20 @@ const AdminLogin = () => {
     navigate('/admin');
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      setForgotSent(true);
+    }
+    setForgotLoading(false);
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <Card className="w-full max-w-md border-border/50 bg-card">
@@ -95,6 +113,38 @@ const AdminLogin = () => {
             </TabsList>
 
             <TabsContent value="login">
+              {forgotMode ? (
+                forgotSent ? (
+                  <div className="text-center space-y-3 py-4">
+                    <CheckCircle className="w-12 h-12 text-primary mx-auto" />
+                    <h3 className="text-lg font-semibold text-foreground">¡Correo enviado!</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Hemos enviado un enlace de recuperación a <strong className="text-foreground">{forgotEmail}</strong>.
+                    </p>
+                    <Button variant="outline" onClick={() => { setForgotMode(false); setForgotSent(false); }} className="mt-2">
+                      Volver al inicio de sesión
+                    </Button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                    <p className="text-sm text-muted-foreground">Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña.</p>
+                    <div className="space-y-2">
+                      <Label htmlFor="forgotEmail" className="text-foreground">Email</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input id="forgotEmail" type="email" placeholder="admin@waxapp.com" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} className="pl-10 bg-muted border-border" required />
+                      </div>
+                    </div>
+                    <Button type="submit" className="w-full" disabled={forgotLoading}>
+                      {forgotLoading ? 'Enviando...' : 'Enviar enlace de recuperación'}
+                    </Button>
+                    <button type="button" onClick={() => setForgotMode(false)} className="w-full text-sm text-muted-foreground hover:text-foreground">
+                      ← Volver al inicio de sesión
+                    </button>
+                  </form>
+                )
+              ) : (
+              <>
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-foreground">Email</Label>
@@ -104,7 +154,12 @@ const AdminLogin = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-foreground">Contraseña</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-foreground">Contraseña</Label>
+                    <button type="button" onClick={() => setForgotMode(true)} className="text-xs text-primary hover:underline">
+                      ¿Olvidaste tu contraseña?
+                    </button>
+                  </div>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input id="password" type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 pr-10 bg-muted border-border" required />
@@ -127,6 +182,8 @@ const AdminLogin = () => {
                 <GoogleIcon />
                 Continuar con Google
               </Button>
+              </>
+              )}
             </TabsContent>
 
             <TabsContent value="register">

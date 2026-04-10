@@ -11,6 +11,7 @@ import AdminLogin from "./pages/AdminLogin.tsx";
 import ClientAuth from "./pages/ClientAuth.tsx";
 import ClientDashboard from "./pages/ClientDashboard.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import ResetPassword from "./pages/ResetPassword.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/cliente" element={<ClientAuth />} />
           <Route path="/mi-cuenta" element={<ClientDashboard />} />
           <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
