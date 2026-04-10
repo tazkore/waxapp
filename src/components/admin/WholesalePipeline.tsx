@@ -242,6 +242,21 @@ const WholesalePipeline = () => {
         saving={saving}
         isEditing={!!editingLead}
       />
+
+      <AlertDialog open={!!deletingLead} onOpenChange={(open) => { if (!open) setDeletingLead(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar lead?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará permanentemente <span className="font-semibold">{deletingLead?.company_name}</span> del pipeline. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
