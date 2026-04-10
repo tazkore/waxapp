@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import WholesalePipeline from './WholesalePipeline';
 import {
   Dialog,
   DialogContent,
@@ -27,6 +29,7 @@ import {
   Clock,
   Package,
   GripVertical,
+  ClipboardList,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -248,6 +251,16 @@ const OperationsSection = () => {
           <h1 className="text-2xl font-bold text-foreground">Centro de Operaciones</h1>
           <p className="text-muted-foreground text-sm">Gestión de tareas internas y flujo de trabajo del equipo.</p>
         </div>
+      </div>
+
+      <Tabs defaultValue="tareas" className="w-full">
+        <TabsList className="bg-muted/50 border border-border">
+          <TabsTrigger value="tareas" className="gap-1.5 data-[state=active]:bg-background"><ClipboardList className="h-3.5 w-3.5" /> Tareas Internas</TabsTrigger>
+          <TabsTrigger value="mayoreo" className="gap-1.5 data-[state=active]:bg-background"><Package className="h-3.5 w-3.5" /> Pipeline Mayoreo</TabsTrigger>
+        </TabsList>
+        <TabsContent value="tareas">
+
+      <div className="flex justify-end">
         <Button className="gap-2" onClick={() => setModalOpen(true)}>
           <Plus className="h-4 w-4" /> Nueva Tarea Interna
         </Button>
@@ -439,6 +452,12 @@ const OperationsSection = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+        </TabsContent>
+        <TabsContent value="mayoreo">
+          <WholesalePipeline />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

@@ -1,5 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Loader2, Search, MessageSquare, Plus, Pencil, Trash2, Download, TrendingUp, Users, Crown, DollarSign } from 'lucide-react';
+import { Loader2, Search, MessageSquare, Plus, Pencil, Trash2, Download, TrendingUp, Users, Crown, DollarSign, CreditCard, Building2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import WholesaleCreditTab from './WholesaleCreditTab';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -192,12 +194,20 @@ const ClientsSection = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">CRM y Clientes</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={exportCSV}><Download className="h-4 w-4 mr-2" />Exportar CSV</Button>
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-2" />Nuevo Cliente
-          </Button>
-        </div>
+      </div>
+
+      <Tabs defaultValue="clientes" className="w-full">
+        <TabsList className="bg-muted/50 border border-border">
+          <TabsTrigger value="clientes" className="gap-1.5 data-[state=active]:bg-background"><Users className="h-3.5 w-3.5" /> Clientes</TabsTrigger>
+          <TabsTrigger value="credito_mayoreo" className="gap-1.5 data-[state=active]:bg-background"><CreditCard className="h-3.5 w-3.5" /> Crédito Mayoreo</TabsTrigger>
+        </TabsList>
+        <TabsContent value="clientes">
+
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={exportCSV}><Download className="h-4 w-4 mr-2" />Exportar CSV</Button>
+        <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={openCreate}>
+          <Plus className="h-4 w-4 mr-2" />Nuevo Cliente
+        </Button>
       </div>
 
       {/* KPI Cards */}
@@ -414,6 +424,12 @@ const ClientsSection = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+        </TabsContent>
+        <TabsContent value="credito_mayoreo">
+          <WholesaleCreditTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

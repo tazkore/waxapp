@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounts_payable: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string | null
+          id: string
+          notes: string | null
+          payment_date: string | null
+          purchase_order_id: string | null
+          status: string
+          supplier_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          payment_date?: string | null
+          purchase_order_id?: string | null
+          status?: string
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          payment_date?: string | null
+          purchase_order_id?: string | null
+          status?: string
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_payable_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounts_payable_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           created_at: string
@@ -310,6 +364,53 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_orders: {
+        Row: {
+          created_at: string
+          expected_delivery: string | null
+          id: string
+          items: Json
+          notes: string | null
+          order_number: string
+          status: string
+          supplier_id: string | null
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expected_delivery?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          order_number: string
+          status?: string
+          supplier_id?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expected_delivery?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          order_number?: string
+          status?: string
+          supplier_id?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seo_pages: {
         Row: {
           auto_sitemap: boolean
@@ -394,6 +495,48 @@ export type Database = {
         }
         Relationships: []
       }
+      suppliers: {
+        Row: {
+          address: string | null
+          category: string | null
+          contact_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          category?: string | null
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          category?: string | null
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -412,6 +555,57 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      wholesale_leads: {
+        Row: {
+          assigned_to: string | null
+          company_name: string
+          contact_name: string
+          created_at: string
+          credit_limit: number | null
+          credit_status: string | null
+          credit_terms: string | null
+          email: string | null
+          estimated_value: number
+          id: string
+          notes: string | null
+          phone: string | null
+          stage: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          company_name: string
+          contact_name: string
+          created_at?: string
+          credit_limit?: number | null
+          credit_status?: string | null
+          credit_terms?: string | null
+          email?: string | null
+          estimated_value?: number
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          stage?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          company_name?: string
+          contact_name?: string
+          created_at?: string
+          credit_limit?: number | null
+          credit_status?: string | null
+          credit_terms?: string | null
+          email?: string | null
+          estimated_value?: number
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          stage?: string
+          updated_at?: string
         }
         Relationships: []
       }
