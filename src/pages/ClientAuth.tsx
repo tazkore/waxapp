@@ -136,8 +136,7 @@ const ClientAuth = () => {
                 Ir a Iniciar Sesión
               </Button>
             </div>
-          ) : (
-          {forgotMode ? (
+          ) : forgotMode ? (
             forgotSent ? (
               <div className="text-center space-y-3 py-4">
                 <CheckCircle className="w-12 h-12 text-primary mx-auto" />
