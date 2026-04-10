@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Eye, Search, Clock } from 'lucide-react';
+import { Loader2, Eye, Search, Clock, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -234,17 +234,45 @@ const OrdersSection = () => {
     setSaving(false);
   };
 
+  const exportCSV = () => {
+    const headers = ['Orden', 'Cliente', 'Email', 'Fecha', 'Total', 'Estado', 'Guía', 'Dirección'];
+    const rows = filteredOrders.map(o => [
+      o.order_number,
+      o.customer_name,
+      o.customer_email,
+      new Date(o.created_at).toLocaleDateString('es-MX'),
+      o.total,
+      o.status,
+      o.tracking_number ?? '',
+      (o.shipping_address ?? '').replace(/,/g, ' '),
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pedidos_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Exportado', description: `${filteredOrders.length} pedidos exportados a CSV.` });
+  };
+
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   const items = selectedOrder ? (Array.isArray(selectedOrder.items) ? selectedOrder.items as any[] : []) : [];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-foreground">Pedidos y Envíos</h1>
-        <Button onClick={() => setCreateOpen(true)} className="gap-2">
-          <span className="text-lg leading-none">+</span> Crear Pedido Manual
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-2 border-border" onClick={exportCSV}>
+            <Download className="h-4 w-4" /> Exportar CSV
+          </Button>
+          <Button onClick={() => setCreateOpen(true)} className="gap-2">
+            <span className="text-lg leading-none">+</span> Crear Pedido Manual
+          </Button>
+        </div>
       </div>
 
       <div className="relative max-w-md">
