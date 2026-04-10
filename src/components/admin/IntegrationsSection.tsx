@@ -83,6 +83,10 @@ const IntegrationsSection = () => {
   const [showAddKey, setShowAddKey] = useState(false);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [savingKeys, setSavingKeys] = useState(false);
+  const [configFields, setConfigFields] = useState<Record<string, string>>({});
+  const [showAddConfig, setShowAddConfig] = useState(false);
+  const [newConfigKey, setNewConfigKey] = useState('');
+  const [newConfigValue, setNewConfigValue] = useState('');
   const { toast } = useToast();
 
   const fetchIntegrations = async () => {
@@ -141,18 +145,27 @@ const IntegrationsSection = () => {
 
   const openDetail = (app: Integration) => {
     setSelectedApp(app);
-    // Load API keys from config
-    const keys: Record<string, string> = {};
     const cfg = app.config as Record<string, unknown>;
+    // Load API keys
+    const keys: Record<string, string> = {};
     if (cfg.api_keys && typeof cfg.api_keys === 'object') {
       Object.entries(cfg.api_keys as Record<string, string>).forEach(([k, v]) => {
         keys[k] = v;
       });
     }
     setApiKeys(keys);
+    // Load non-key config fields
+    const fields: Record<string, string> = {};
+    Object.entries(cfg).filter(([k]) => k !== 'api_keys').forEach(([k, v]) => {
+      fields[k] = typeof v === 'string' ? v : JSON.stringify(v);
+    });
+    setConfigFields(fields);
     setShowAddKey(false);
+    setShowAddConfig(false);
     setNewKeyName('');
     setNewKeyValue('');
+    setNewConfigKey('');
+    setNewConfigValue('');
     setVisibleKeys(new Set());
     setDetailOpen(true);
   };
@@ -213,6 +226,43 @@ const IntegrationsSection = () => {
       else next.add(keyName);
       return next;
     });
+  };
+
+  const saveConfigFields = async (app: Integration, fields: Record<string, string>) => {
+    const currentConfig = (app.config || {}) as Record<string, unknown>;
+    const parsed: Record<string, unknown> = {};
+    Object.entries(fields).forEach(([k, v]) => {
+      try { parsed[k] = JSON.parse(v); } catch { parsed[k] = v; }
+    });
+    const newConfig = { ...parsed, api_keys: currentConfig.api_keys };
+    const { error } = await supabase.from('integrations').update({ config: newConfig as unknown as null }).eq('id', app.id);
+    if (error) {
+      toast({ title: 'Error', description: 'No se pudo guardar la configuración.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Guardado', description: 'Configuración actualizada.' });
+      setSelectedApp({ ...app, config: newConfig as Record<string, unknown> });
+      fetchIntegrations();
+    }
+  };
+
+  const addConfigField = () => {
+    if (!newConfigKey.trim()) {
+      toast({ title: 'Error', description: 'El nombre del campo es requerido.', variant: 'destructive' });
+      return;
+    }
+    const updated = { ...configFields, [newConfigKey.trim()]: newConfigValue.trim() };
+    setConfigFields(updated);
+    setNewConfigKey('');
+    setNewConfigValue('');
+    setShowAddConfig(false);
+    if (selectedApp) saveConfigFields(selectedApp, updated);
+  };
+
+  const removeConfigField = (key: string) => {
+    const updated = { ...configFields };
+    delete updated[key];
+    setConfigFields(updated);
+    if (selectedApp) saveConfigFields(selectedApp, updated);
   };
 
   const filtered = integrations.filter(
@@ -485,25 +535,77 @@ const IntegrationsSection = () => {
                   </div>
                 )}
 
-                {/* Non-key Config */}
-                {selectedApp.is_installed && (() => {
-                  const cfg = selectedApp.config as Record<string, unknown>;
-                  const nonKeyEntries = Object.entries(cfg).filter(([k]) => k !== 'api_keys');
-                  if (nonKeyEntries.length === 0) return null;
-                  return (
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium text-foreground">Configuración</h4>
-                      <div className="bg-muted/50 rounded-lg p-3 space-y-1">
-                        {nonKeyEntries.map(([key, value]) => (
-                          <div key={key} className="flex justify-between text-xs">
-                            <span className="text-muted-foreground font-mono">{key}</span>
-                            <span className="text-foreground">{JSON.stringify(value)}</span>
+                {/* Editable Config */}
+                {selectedApp.is_installed && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                        <Settings2 className="h-4 w-4" /> Configuración
+                      </h4>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs gap-1"
+                        onClick={() => setShowAddConfig(!showAddConfig)}
+                      >
+                        {showAddConfig ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                        {showAddConfig ? 'Cancelar' : 'Agregar campo'}
+                      </Button>
+                    </div>
+
+                    {showAddConfig && (
+                      <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                        <div>
+                          <Label className="text-xs">Nombre del campo</Label>
+                          <Input
+                            placeholder="ej: currency, webhook_url"
+                            value={newConfigKey}
+                            onChange={(e) => setNewConfigKey(e.target.value)}
+                            className="h-8 text-xs mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Valor</Label>
+                          <Input
+                            placeholder="ej: MXN, https://..."
+                            value={newConfigValue}
+                            onChange={(e) => setNewConfigValue(e.target.value)}
+                            className="h-8 text-xs mt-1"
+                          />
+                        </div>
+                        <Button size="sm" className="text-xs gap-1 w-full" onClick={addConfigField}>
+                          <Save className="h-3 w-3" /> Guardar campo
+                        </Button>
+                      </div>
+                    )}
+
+                    {Object.keys(configFields).length > 0 ? (
+                      <div className="space-y-2">
+                        {Object.entries(configFields).map(([fieldKey, fieldValue]) => (
+                          <div key={fieldKey} className="flex items-center gap-2 bg-muted/50 rounded-lg p-2.5">
+                            <span className="text-xs font-mono text-muted-foreground flex-shrink-0 min-w-[80px]">{fieldKey}</span>
+                            <Input
+                              value={fieldValue}
+                              onChange={(e) => setConfigFields({ ...configFields, [fieldKey]: e.target.value })}
+                              onBlur={() => { if (selectedApp) saveConfigFields(selectedApp, configFields); }}
+                              className="h-7 text-xs flex-1"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                              onClick={() => removeConfigField(fieldKey)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  );
-                })()}
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">No hay campos de configuración.</p>
+                    )}
+                  </div>
+                )}
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-2">
