@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Loader2, Building2, Phone, Mail, DollarSign, User, ArrowRight } from 'lucide-react';
+import { Plus, Loader2, Building2, Phone, Mail, DollarSign, User, ArrowRight, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface WholesaleLead {
