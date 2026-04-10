@@ -40,6 +40,14 @@ const Checkout = () => {
   const [cardData, setCardData] = useState({
     number: '', name: '', expMonth: '', expYear: '', cvv: '',
   });
+  const [clipPublicKey, setClipPublicKey] = useState('');
+
+  // Fetch Clip public key on mount
+  useEffect(() => {
+    supabase.functions.invoke('clip-config').then(({ data }) => {
+      if (data?.public_key) setClipPublicKey(data.public_key);
+    });
+  }, []);
 
   const shippingCost = shippingMethod === 'express' ? 250 : shippingMethod === 'standard' ? 99 : 0;
   const total = subtotal() + shippingCost;
