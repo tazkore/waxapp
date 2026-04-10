@@ -232,7 +232,46 @@ const ClientsSection = () => {
         </Card>
       </div>
 
-      <div className="relative max-w-md">
+      {/* Tier Distribution & New Clients */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card className="bg-card border-border">
+          <CardContent className="p-4 space-y-3">
+            <p className="text-sm font-semibold text-foreground">Distribución por Nivel</p>
+            {(['Bronze', 'Silver', 'VIP'] as const).map(tier => {
+              const count = tierDistribution[tier] || 0;
+              const pct = clients.length > 0 ? (count / clients.length) * 100 : 0;
+              return (
+                <div key={tier} className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">{tier}</span>
+                    <span className="text-foreground font-medium">{count} ({pct.toFixed(0)}%)</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${tier === 'VIP' ? 'bg-primary' : tier === 'Silver' ? 'bg-gray-400' : 'bg-orange-500'}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+        <Card className="bg-card border-border">
+          <CardContent className="p-4 space-y-3">
+            <p className="text-sm font-semibold text-foreground">Clientes Nuevos</p>
+            <div className="grid grid-cols-3 gap-3 pt-1">
+              {([['7 días', newClientsMetrics.last7], ['30 días', newClientsMetrics.last30], ['90 días', newClientsMetrics.last90]] as const).map(([label, count]) => (
+                <div key={label} className="text-center p-3 rounded-lg bg-muted">
+                  <p className="text-2xl font-bold text-foreground">{count}</p>
+                  <p className="text-xs text-muted-foreground">Últimos {label}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Buscar cliente..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10 bg-muted border-border" />
       </div>
