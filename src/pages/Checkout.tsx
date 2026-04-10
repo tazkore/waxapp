@@ -48,19 +48,25 @@ const Checkout = () => {
 
   const handleConfirm = async () => {
     setLoading(true);
-    const num = `WX-${Math.floor(1000 + Math.random() * 9000)}`;
-    setOrderNumber(num);
 
     try {
-      await supabase.from('orders').insert({
-        order_number: num,
-        customer_name: shipping.name,
-        customer_email: shipping.email,
-        shipping_address: `${shipping.address}, ${shipping.city}, ${shipping.state} ${shipping.postalCode}, ${shipping.country}`,
-        total,
-        items: items.map(i => ({ title: i.title, qty: i.quantity, price: i.price, variant: i.selectedVariant })),
-        status: 'pending',
+      // Create order via secure edge function (total calculated server-side)
+      const { data: orderData, error: orderError } = await supabase.functions.invoke('create-order', {
+        body: {
+          customer_name: shipping.name,
+          customer_email: shipping.email,
+          shipping_address: `${shipping.address}, ${shipping.city}, ${shipping.state} ${shipping.postalCode}, ${shipping.country}`,
+          items: items.map(i => ({ title: i.title, qty: i.quantity, price: i.price, variant: i.selectedVariant })),
+          shipping_method: shippingMethod,
+        },
       });
+
+      if (orderError || !orderData?.success) {
+        throw new Error(orderData?.error || 'Failed to create order');
+      }
+
+      const num = orderData.order_number;
+      setOrderNumber(num);
 
       // Send order confirmation email
       const itemsHtml = items.map(i =>
@@ -70,6 +76,9 @@ const Checkout = () => {
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right">$${(i.price * i.quantity).toLocaleString()}</td>
         </tr>`
       ).join('');
+
+      const serverTotal = orderData.total;
+      const serverShippingCost = orderData.shipping_cost;
 
       await supabase.functions.invoke('send-email', {
         body: {
@@ -98,8 +107,8 @@ const Checkout = () => {
               <tbody style="font-size:14px;color:#1f2937">${itemsHtml}</tbody>
             </table>
             <div style="text-align:right;margin:16px 0;padding:12px;background:#f3f4f6;border-radius:8px">
-              <span style="font-size:13px;color:#6b7280">Envío: $${shippingCost === 0 ? 'Gratis' : shippingCost.toLocaleString()}</span><br/>
-              <span style="font-size:18px;font-weight:bold;color:#1f2937">Total: $${total.toLocaleString()} MXN</span>
+              <span style="font-size:13px;color:#6b7280">Envío: $${serverShippingCost === 0 ? 'Gratis' : serverShippingCost.toLocaleString()}</span><br/>
+              <span style="font-size:18px;font-weight:bold;color:#1f2937">Total: $${serverTotal.toLocaleString()} MXN</span>
             </div>
             <div style="margin:20px 0;padding:16px;background:#faf5ff;border-radius:8px;border-left:4px solid #8B5CF6">
               <p style="margin:0;font-size:13px;color:#6b7280"><strong>Dirección de envío:</strong></p>
@@ -111,7 +120,7 @@ const Checkout = () => {
         },
       });
     } catch (e) {
-      // Order created locally even if email/DB fails
+      console.error('Order error:', e);
     }
 
     clearCart();
