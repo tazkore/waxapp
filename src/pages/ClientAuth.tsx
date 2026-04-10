@@ -137,6 +137,37 @@ const ClientAuth = () => {
               </Button>
             </div>
           ) : (
+          {forgotMode ? (
+            forgotSent ? (
+              <div className="text-center space-y-3 py-4">
+                <CheckCircle className="w-12 h-12 text-primary mx-auto" />
+                <h3 className="text-lg font-semibold text-foreground">¡Correo enviado!</h3>
+                <p className="text-sm text-muted-foreground">
+                  Hemos enviado un enlace de recuperación a <strong className="text-foreground">{forgotEmail}</strong>.
+                </p>
+                <Button variant="outline" onClick={() => { setForgotMode(false); setForgotSent(false); setIsLogin(true); }} className="mt-2">
+                  Volver al inicio de sesión
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <p className="text-sm text-muted-foreground">Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña.</p>
+                <div className="space-y-2">
+                  <Label htmlFor="forgotEmail" className="text-foreground">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input id="forgotEmail" type="email" placeholder="tu@email.com" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} className="pl-10 bg-muted border-border" required />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full" disabled={forgotLoading}>
+                  {forgotLoading ? 'Enviando...' : 'Enviar enlace de recuperación'}
+                </Button>
+                <button type="button" onClick={() => setForgotMode(false)} className="w-full text-sm text-muted-foreground hover:text-foreground">
+                  ← Volver al inicio de sesión
+                </button>
+              </form>
+            )
+          ) : (
           <>
           <form onSubmit={isLogin ? handleLogin : handleRegister} className="space-y-4">
             {!isLogin && (
@@ -158,7 +189,14 @@ const ClientAuth = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-foreground">Contraseña *</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-foreground">Contraseña *</Label>
+                {isLogin && (
+                  <button type="button" onClick={() => setForgotMode(true)} className="text-xs text-primary hover:underline">
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input id="password" type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 pr-10 bg-muted border-border" required minLength={6} />
