@@ -33,5 +33,6 @@ export const useUserRole = () => {
     fetchRole();
   }, []);
 
-  return { role, loading, isAdmin: role === 'admin', isModerator: role === 'moderator' };
+  const isSuperAdmin = role === 'super_admin';
+  return { role, loading, isAdmin: role === 'admin' || isSuperAdmin, isModerator: role === 'moderator', isSuperAdmin };
 };
