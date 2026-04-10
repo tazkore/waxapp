@@ -234,7 +234,8 @@ const ClientsSection = () => {
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => setImportOpen(true)}><Upload className="h-4 w-4 mr-2" />Importar</Button>
-        <Button variant="outline" onClick={exportCSV}><Download className="h-4 w-4 mr-2" />Exportar CSV</Button>
+        <Button variant="outline" onClick={exportCSV}><Download className="h-4 w-4 mr-2" />CSV</Button>
+        <Button variant="outline" onClick={exportXLSX}><FileSpreadsheet className="h-4 w-4 mr-2" />Excel</Button>
         <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={openCreate}>
           <Plus className="h-4 w-4 mr-2" />Nuevo Cliente
         </Button>
