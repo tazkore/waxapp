@@ -116,6 +116,18 @@ const WholesalePipeline = () => {
     if (error) fetchLeads();
   };
 
+  const handleDelete = async () => {
+    if (!deletingLead) return;
+    const { error } = await supabase.from('wholesale_leads').delete().eq('id', deletingLead.id);
+    if (error) {
+      toast({ title: 'Error', description: 'No se pudo eliminar el lead.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Lead eliminado', description: `${deletingLead.company_name} fue eliminado del pipeline.` });
+      setLeads(prev => prev.filter(l => l.id !== deletingLead.id));
+    }
+    setDeletingLead(null);
+  };
+
   const leadsByStage = (stage: string) => leads.filter(l => l.stage === stage);
 
   const bottleneck = (() => {
