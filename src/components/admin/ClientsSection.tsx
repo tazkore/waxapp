@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Loader2, Search, MessageSquare, Plus, Pencil, Trash2, Download, TrendingUp, Users, Crown, DollarSign, CreditCard, Building2 } from 'lucide-react';
+import { Loader2, Search, MessageSquare, Plus, Pencil, Trash2, Download, Upload, TrendingUp, Users, Crown, DollarSign, CreditCard, Building2 } from 'lucide-react';
+import ClientImportDialog from './ClientImportDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import WholesaleCreditTab from './WholesaleCreditTab';
 import { Badge } from '@/components/ui/badge';
@@ -52,13 +53,19 @@ const ClientsSection = () => {
   // Delete confirm
   const [deleteClient, setDeleteClient] = useState<Client | null>(null);
 
-  useEffect(() => {
+  // Import dialog
+  const [importOpen, setImportOpen] = useState(false);
+
+  const fetchClients = () => {
+    setLoading(true);
     supabase.from('clients').select('*').order('total_spent', { ascending: false }).then(({ data, error }) => {
       if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
       else setClients(data ?? []);
       setLoading(false);
     });
-  }, []);
+  };
+
+  useEffect(() => { fetchClients(); }, []);
 
   const filtered = clients.filter(c =>
     search === '' ||
@@ -204,6 +211,7 @@ const ClientsSection = () => {
         <TabsContent value="clientes">
 
       <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={() => setImportOpen(true)}><Upload className="h-4 w-4 mr-2" />Importar</Button>
         <Button variant="outline" onClick={exportCSV}><Download className="h-4 w-4 mr-2" />Exportar CSV</Button>
         <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={openCreate}>
           <Plus className="h-4 w-4 mr-2" />Nuevo Cliente
@@ -424,6 +432,8 @@ const ClientsSection = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ClientImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={fetchClients} />
 
         </TabsContent>
         <TabsContent value="credito_mayoreo">
