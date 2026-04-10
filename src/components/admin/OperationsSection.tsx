@@ -105,8 +105,8 @@ const OperationsSection = () => {
       setTasks(
         (data || []).map((t) => ({
           ...t,
-          checklist: (Array.isArray(t.checklist) ? t.checklist : []) as ChecklistItem[],
-        })) as StaffTask[]
+          checklist: (Array.isArray(t.checklist) ? t.checklist : []) as unknown as ChecklistItem[],
+        })) as unknown as StaffTask[]
       );
     }
     setLoading(false);
@@ -148,7 +148,7 @@ const OperationsSection = () => {
   const toggleChecklistItem = async (task: StaffTask, index: number) => {
     const updated = [...task.checklist];
     updated[index] = { ...updated[index], done: !updated[index].done };
-    await supabase.from('staff_tasks').update({ checklist: updated as unknown as Record<string, unknown>[] }).eq('id', task.id);
+    await supabase.from('staff_tasks').update({ checklist: updated as unknown as null }).eq('id', task.id);
     fetchTasks();
   };
 
