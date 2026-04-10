@@ -1,84 +1,174 @@
-import { useEffect, useState } from 'react';
-import { DollarSign, ShoppingCart, Users, TrendingUp, Loader2, Activity, Percent } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { DollarSign, ShoppingCart, TrendingUp, Loader2, Percent, Package, CalendarDays } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
+} from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 
 interface OverviewSectionProps {
   onNavigate?: (section: string) => void;
 }
 
+type Period = '7d' | '30d' | '90d' | 'all';
+
+const PERIOD_LABELS: Record<Period, string> = {
+  '7d': 'Últimos 7 días',
+  '30d': 'Últimos 30 días',
+  '90d': 'Últimos 90 días',
+  all: 'Todo el tiempo',
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  pending: '#f59e0b',
+  packed: '#3b82f6',
+  shipped: '#8b5cf6',
+  delivered: '#22c55e',
+  refunded: '#ef4444',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pendiente',
+  packed: 'Empacado',
+  shipped: 'Enviado',
+  delivered: 'Entregado',
+  refunded: 'Reembolsado',
+};
+
 const OverviewSection = ({ onNavigate }: OverviewSectionProps) => {
   const [loading, setLoading] = useState(true);
-  const [kpis, setKpis] = useState({ totalSales: 0, activeOrders: 0, totalClients: 0, totalProducts: 0, conversionRate: 3.2 });
-  const [salesByDay, setSalesByDay] = useState<{ day: string; ventas: number }[]>([]);
-  const [liveActivity, setLiveActivity] = useState<{ time: string; message: string; type: string }[]>([]);
+  const [period, setPeriod] = useState<Period>('30d');
+  const [orders, setOrders] = useState<any[]>([]);
+  const [clientCount, setClientCount] = useState(0);
+  const [productCount, setProductCount] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
       const [ordersRes, clientsRes, productsRes] = await Promise.all([
-        supabase.from('orders').select('total, status, created_at'),
+        supabase.from('orders').select('total, status, created_at, items'),
         supabase.from('clients').select('id', { count: 'exact', head: true }),
         supabase.from('products').select('id', { count: 'exact', head: true }),
       ]);
-
-      const orders = ordersRes.data ?? [];
-      const totalSales = orders.reduce((sum, o) => sum + Number(o.total), 0);
-      const activeOrders = orders.filter(o => o.status !== 'delivered' && o.status !== 'refunded').length;
-
-      setKpis({
-        totalSales,
-        activeOrders,
-        totalClients: clientsRes.count ?? 0,
-        totalProducts: productsRes.count ?? 0,
-        conversionRate: orders.length > 0 ? Math.min(((orders.filter(o => o.status === 'delivered').length / Math.max(orders.length, 1)) * 100), 100) : 0,
-      });
-
-      const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-      const salesMap: Record<string, number> = {};
-      const now = new Date();
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now);
-        d.setDate(d.getDate() - i);
-        salesMap[days[d.getDay()]] = 0;
-      }
-      orders.forEach(o => {
-        const d = new Date(o.created_at);
-        const diff = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-        if (diff < 7) {
-          const key = days[d.getDay()];
-          salesMap[key] = (salesMap[key] || 0) + Number(o.total);
-        }
-      });
-      setSalesByDay(Object.entries(salesMap).map(([day, ventas]) => ({ day, ventas })));
-
-      setLiveActivity([
-        { message: 'Alguien agregó Gomitas Artisan al carrito', type: 'cart', time: 'hace 1 min' },
-        { message: 'Nuevo pedido #WX-1029 recibido', type: 'order', time: 'hace 2 min' },
-        { message: 'Cliente María López inició sesión', type: 'login', time: 'hace 3 min' },
-        { message: 'Stock de Vape Cerámica Pro bajo (8 uds)', type: 'stock', time: 'hace 4 min' },
-        { message: 'Nuevo registro: carlos@email.com', type: 'signup', time: 'hace 5 min' },
-        { message: 'Pedido #WX-1025 marcado como enviado', type: 'shipped', time: 'hace 6 min' },
-      ]);
-
+      setOrders(ordersRes.data ?? []);
+      setClientCount(clientsRes.count ?? 0);
+      setProductCount(productsRes.count ?? 0);
       setLoading(false);
     };
     fetchData();
   }, []);
 
+  const filteredOrders = useMemo(() => {
+    if (period === 'all') return orders;
+    const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    return orders.filter(o => new Date(o.created_at) >= cutoff);
+  }, [orders, period]);
+
+  const kpis = useMemo(() => {
+    const totalSales = filteredOrders.reduce((s, o) => s + Number(o.total), 0);
+    const activeOrders = filteredOrders.filter(o => o.status !== 'delivered' && o.status !== 'refunded').length;
+    const delivered = filteredOrders.filter(o => o.status === 'delivered').length;
+    const conversionRate = filteredOrders.length > 0 ? (delivered / filteredOrders.length) * 100 : 0;
+    const avgTicket = filteredOrders.length > 0 ? totalSales / filteredOrders.length : 0;
+    return { totalSales, activeOrders, conversionRate, avgTicket, totalOrders: filteredOrders.length };
+  }, [filteredOrders]);
+
+  // Sales trend chart data
+  const salesTrend = useMemo(() => {
+    if (filteredOrders.length === 0) return [];
+    const days = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 365;
+    const bucketCount = Math.min(days, period === '7d' ? 7 : period === '30d' ? 30 : 12);
+    const bucketSize = Math.max(1, Math.floor(days / bucketCount));
+    const now = new Date();
+    const buckets: { label: string; ventas: number; pedidos: number }[] = [];
+
+    for (let i = bucketCount - 1; i >= 0; i--) {
+      const start = new Date(now);
+      start.setDate(start.getDate() - (i + 1) * bucketSize);
+      const end = new Date(now);
+      end.setDate(end.getDate() - i * bucketSize);
+
+      const inBucket = filteredOrders.filter(o => {
+        const d = new Date(o.created_at);
+        return d >= start && d < end;
+      });
+
+      const label = bucketSize <= 1
+        ? start.toLocaleDateString('es-MX', { weekday: 'short' })
+        : bucketSize <= 7
+          ? `${start.getDate()}/${start.getMonth() + 1}`
+          : start.toLocaleDateString('es-MX', { month: 'short' });
+
+      buckets.push({
+        label,
+        ventas: inBucket.reduce((s, o) => s + Number(o.total), 0),
+        pedidos: inBucket.length,
+      });
+    }
+    return buckets;
+  }, [filteredOrders, period]);
+
+  // Top selling products
+  const topProducts = useMemo(() => {
+    const map: Record<string, { name: string; qty: number; revenue: number }> = {};
+    filteredOrders.forEach(o => {
+      const items = Array.isArray(o.items) ? o.items : [];
+      items.forEach((item: any) => {
+        const name = item.title || item.name || 'Desconocido';
+        if (!map[name]) map[name] = { name, qty: 0, revenue: 0 };
+        map[name].qty += Number(item.qty || 1);
+        map[name].revenue += Number(item.price || 0) * Number(item.qty || 1);
+      });
+    });
+    return Object.values(map).sort((a, b) => b.revenue - a.revenue).slice(0, 8);
+  }, [filteredOrders]);
+
+  // Order status distribution
+  const statusDist = useMemo(() => {
+    const map: Record<string, number> = {};
+    filteredOrders.forEach(o => {
+      map[o.status] = (map[o.status] || 0) + 1;
+    });
+    return Object.entries(map).map(([status, count]) => ({
+      name: STATUS_LABELS[status] ?? status,
+      value: count,
+      color: STATUS_COLORS[status] ?? '#6b7280',
+    }));
+  }, [filteredOrders]);
+
   const kpiCards = [
-    { label: 'Ventas Totales', value: `$${kpis.totalSales.toLocaleString()}`, icon: DollarSign, color: 'text-primary', section: 'orders' },
-    { label: 'Pedidos Activos', value: kpis.activeOrders, icon: ShoppingCart, color: 'text-secondary', section: 'orders' },
-    { label: 'Tasa de Conversión', value: `${kpis.conversionRate.toFixed(1)}%`, icon: Percent, color: 'text-primary', section: 'clients' },
-    { label: 'Productos', value: kpis.totalProducts, icon: TrendingUp, color: 'text-foreground', section: 'inventory' },
+    { label: 'Ventas del Período', value: `$${kpis.totalSales.toLocaleString()}`, icon: DollarSign, color: 'text-primary', section: 'orders' },
+    { label: 'Pedidos', value: kpis.totalOrders, icon: ShoppingCart, color: 'text-secondary', section: 'orders' },
+    { label: 'Ticket Promedio', value: `$${kpis.avgTicket.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: TrendingUp, color: 'text-foreground', section: 'orders' },
+    { label: 'Tasa de Entrega', value: `${kpis.conversionRate.toFixed(1)}%`, icon: Percent, color: 'text-primary', section: 'clients' },
   ];
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-foreground">Vista General</h1>
+      {/* Header with period selector */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <h1 className="text-2xl font-bold text-foreground">Analíticas</h1>
+        <div className="flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
+            <SelectTrigger className="w-48 bg-muted border-border">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              {Object.entries(PERIOD_LABELS).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpiCards.map((k) => (
           <Card
@@ -99,53 +189,131 @@ const OverviewSection = ({ onNavigate }: OverviewSectionProps) => {
         ))}
       </div>
 
+      {/* Sales Trend Line Chart */}
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-foreground text-lg">Tendencia de Ventas — {PERIOD_LABELS[period]}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-72">
+            {salesTrend.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={salesTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(0 0% 18%)" />
+                  <XAxis dataKey="label" stroke="hsl(240 4% 66%)" fontSize={12} />
+                  <YAxis stroke="hsl(240 4% 66%)" fontSize={12} tickFormatter={(v: number) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+                  <Tooltip
+                    contentStyle={{ background: 'hsl(0 0% 10%)', border: '1px solid hsl(0 0% 18%)', borderRadius: 8, color: 'hsl(240 5% 96%)' }}
+                    formatter={(value: number, name: string) => [
+                      name === 'ventas' ? `$${value.toLocaleString()} MXN` : value,
+                      name === 'ventas' ? 'Ventas' : 'Pedidos',
+                    ]}
+                  />
+                  <Legend formatter={(v) => v === 'ventas' ? 'Ventas ($)' : 'Pedidos'} />
+                  <Line type="monotone" dataKey="ventas" stroke="hsl(145 100% 45%)" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="pedidos" stroke="hsl(260 80% 60%)" strokeWidth={2} dot={{ r: 3 }} yAxisId={0} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">Sin datos para este período</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Bottom row: Top Products + Status Distribution */}
       <div className="grid lg:grid-cols-3 gap-6">
+        {/* Top Products */}
         <Card className="bg-card border-border lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-foreground text-lg">Ventas — Últimos 7 Días</CardTitle>
+            <CardTitle className="text-foreground text-lg flex items-center gap-2">
+              <Package className="h-4 w-4 text-primary" /> Productos Más Vendidos
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={salesByDay}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(0 0% 18%)" />
-                  <XAxis dataKey="day" stroke="hsl(240 4% 66%)" fontSize={12} />
-                  <YAxis stroke="hsl(240 4% 66%)" fontSize={12} tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip
-                    contentStyle={{ background: 'hsl(0 0% 10%)', border: '1px solid hsl(0 0% 18%)', borderRadius: 8, color: 'hsl(240 5% 96%)' }}
-                    formatter={(value: number) => [`$${value.toLocaleString()} MXN`, 'Ventas']}
-                  />
-                  <Bar dataKey="ventas" fill="hsl(145 100% 45%)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {topProducts.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topProducts} layout="vertical" margin={{ left: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(0 0% 18%)" horizontal={false} />
+                    <XAxis type="number" stroke="hsl(240 4% 66%)" fontSize={12} tickFormatter={(v: number) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+                    <YAxis type="category" dataKey="name" stroke="hsl(240 4% 66%)" fontSize={11} width={140} tick={{ fill: 'hsl(240 5% 96%)' }} />
+                    <Tooltip
+                      contentStyle={{ background: 'hsl(0 0% 10%)', border: '1px solid hsl(0 0% 18%)', borderRadius: 8, color: 'hsl(240 5% 96%)' }}
+                      formatter={(value: number, name: string) => [
+                        name === 'revenue' ? `$${value.toLocaleString()} MXN` : `${value} uds`,
+                        name === 'revenue' ? 'Ingresos' : 'Cantidad',
+                      ]}
+                    />
+                    <Bar dataKey="revenue" fill="hsl(145 100% 45%)" radius={[0, 4, 4, 0]} barSize={20} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">Sin datos de productos</div>
+              )}
             </div>
           </CardContent>
         </Card>
 
+        {/* Order Status Pie */}
         <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-foreground text-lg flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary" />
-              Actividad en Vivo
-            </CardTitle>
+            <CardTitle className="text-foreground text-lg">Estado de Pedidos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {liveActivity.map((a, i) => (
-                <div key={i} className="flex items-start gap-3 text-sm">
-                  <div className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${
-                    a.type === 'order' ? 'bg-primary' :
-                    a.type === 'cart' ? 'bg-secondary' :
-                    a.type === 'stock' ? 'bg-destructive' :
-                    'bg-muted-foreground'
-                  }`} />
-                  <div className="flex-1">
-                    <p className="text-foreground">{a.message}</p>
-                    <p className="text-xs text-muted-foreground">{a.time}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="h-72">
+              {statusDist.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={statusDist}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      innerRadius={40}
+                      paddingAngle={3}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      labelLine={false}
+                      fontSize={11}
+                    >
+                      {statusDist.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: 'hsl(0 0% 10%)', border: '1px solid hsl(0 0% 18%)', borderRadius: 8, color: 'hsl(240 5% 96%)' }}
+                      formatter={(value: number) => [`${value} pedidos`, '']}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">Sin pedidos</div>
+              )}
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Summary row */}
+      <div className="grid sm:grid-cols-3 gap-4">
+        <Card className="bg-card border-border">
+          <CardContent className="p-5 text-center">
+            <p className="text-sm text-muted-foreground">Total Clientes</p>
+            <p className="text-2xl font-bold text-foreground">{clientCount}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-card border-border">
+          <CardContent className="p-5 text-center">
+            <p className="text-sm text-muted-foreground">Total Productos</p>
+            <p className="text-2xl font-bold text-foreground">{productCount}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-card border-border">
+          <CardContent className="p-5 text-center">
+            <p className="text-sm text-muted-foreground">Pedidos Activos</p>
+            <p className="text-2xl font-bold text-secondary">{kpis.activeOrders}</p>
           </CardContent>
         </Card>
       </div>
