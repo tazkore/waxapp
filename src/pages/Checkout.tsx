@@ -112,7 +112,7 @@ const Checkout = () => {
           form.appendChild(input);
         });
 
-        const clip = new ClipSDK(CLIP_PUBLIC_KEY);
+        const clip = new ClipSDK(clipPublicKey);
         let cardToken: string;
         try {
           cardToken = await clip.cardToken(form);
