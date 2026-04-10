@@ -4,13 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Loader2, Building2, Phone, Mail, DollarSign, User, ArrowRight, Pencil } from 'lucide-react';
+import { Plus, Loader2, Mail, User, ArrowRight, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import LeadFormModal, { emptyLeadForm, type LeadFormData } from './LeadFormModal';
 
 interface WholesaleLead {
   id: string;
@@ -38,16 +34,13 @@ const STAGES = [
   { key: 'entrega_cierre', label: 'Entrega/Cierre', color: 'text-emerald-400' },
 ];
 
-const STAFF = ['Ana López', 'Carlos Ruiz', 'María García', 'Jorge Mendoza'];
-
 const WholesalePipeline = () => {
   const [leads, setLeads] = useState<WholesaleLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<WholesaleLead | null>(null);
   const [saving, setSaving] = useState(false);
-  const emptyForm = { company_name: '', contact_name: '', email: '', phone: '', estimated_value: '', stage: 'prospecto', assigned_to: '', notes: '' };
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<LeadFormData>(emptyLeadForm);
   const { toast } = useToast();
 
   const fetchLeads = async () => {
@@ -61,7 +54,7 @@ const WholesalePipeline = () => {
 
   const openCreate = () => {
     setEditingLead(null);
-    setForm(emptyForm);
+    setForm(emptyLeadForm);
     setModalOpen(true);
   };
 
@@ -76,25 +69,27 @@ const WholesalePipeline = () => {
       stage: lead.stage,
       assigned_to: lead.assigned_to || '',
       notes: lead.notes || '',
+      credit_limit: String(lead.credit_limit || ''),
+      credit_status: lead.credit_status || 'sin_credito',
+      credit_terms: lead.credit_terms || '',
     });
     setModalOpen(true);
   };
 
-  const handleSave = async () => {
-    if (!form.company_name.trim() || !form.contact_name.trim()) {
-      toast({ title: 'Error', description: 'Empresa y contacto son requeridos.', variant: 'destructive' });
-      return;
-    }
+  const handleSave = async (): Promise<boolean> => {
     setSaving(true);
     const payload = {
-      company_name: form.company_name,
-      contact_name: form.contact_name,
+      company_name: form.company_name.trim(),
+      contact_name: form.contact_name.trim(),
       email: form.email || null,
       phone: form.phone || null,
       estimated_value: Number(form.estimated_value) || 0,
       stage: form.stage,
       assigned_to: form.assigned_to || null,
       notes: form.notes || null,
+      credit_limit: Number(form.credit_limit) || 0,
+      credit_status: form.credit_status,
+      credit_terms: form.credit_terms || null,
     };
 
     const { error } = editingLead
@@ -103,14 +98,14 @@ const WholesalePipeline = () => {
 
     if (error) {
       toast({ title: 'Error', description: editingLead ? 'No se pudo actualizar.' : 'No se pudo crear el lead.', variant: 'destructive' });
-    } else {
-      toast({ title: editingLead ? 'Lead actualizado' : 'Lead creado', description: `${form.company_name} ${editingLead ? 'actualizado' : 'agregado al pipeline'}.` });
-      setForm(emptyForm);
-      setEditingLead(null);
-      setModalOpen(false);
-      fetchLeads();
+      setSaving(false);
+      return false;
     }
+
+    toast({ title: editingLead ? 'Lead actualizado' : 'Lead creado', description: `${form.company_name} ${editingLead ? 'actualizado' : 'agregado al pipeline'}.` });
+    fetchLeads();
     setSaving(false);
+    return true;
   };
 
   const moveLead = async (lead: WholesaleLead, newStage: string) => {
@@ -121,7 +116,6 @@ const WholesalePipeline = () => {
 
   const leadsByStage = (stage: string) => leads.filter(l => l.stage === stage);
 
-  // Bottleneck detection
   const bottleneck = (() => {
     const counts = STAGES.map(s => ({ key: s.key, count: leadsByStage(s.key).length }));
     return counts.reduce((a, b) => b.count > a.count ? b : a, { key: '', count: 0 }).key;
@@ -133,7 +127,6 @@ const WholesalePipeline = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-foreground">Pipeline de Mayoreo</h2>
@@ -144,7 +137,6 @@ const WholesalePipeline = () => {
         </Button>
       </div>
 
-      {/* Visual Pipeline */}
       <Card className="border-border bg-card overflow-hidden">
         <CardContent className="p-4">
           <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wider">Embudo de Mayoreo</p>
@@ -155,9 +147,7 @@ const WholesalePipeline = () => {
               return (
                 <div key={stage.key} className="flex items-center flex-1 min-w-0">
                   <motion.div
-                    className={`flex-1 rounded-lg border-2 px-3 py-2 text-center transition-all ${
-                      isBn ? 'border-primary bg-primary/10' : 'border-border bg-muted/30'
-                    }`}
+                    className={`flex-1 rounded-lg border-2 px-3 py-2 text-center transition-all ${isBn ? 'border-primary bg-primary/10' : 'border-border bg-muted/30'}`}
                     animate={isBn ? { boxShadow: ['0 0 8px rgba(0,230,118,0.1)', '0 0 20px rgba(0,230,118,0.3)', '0 0 8px rgba(0,230,118,0.1)'] } : {}}
                     transition={isBn ? { duration: 2, repeat: Infinity } : {}}
                   >
@@ -172,7 +162,6 @@ const WholesalePipeline = () => {
         </CardContent>
       </Card>
 
-      {/* Leads by Stage — horizontal scroll columns */}
       <div className="flex gap-4 overflow-x-auto pb-4">
         {STAGES.map(stage => {
           const stageLeads = leadsByStage(stage.key);
@@ -211,7 +200,6 @@ const WholesalePipeline = () => {
                           <User className="h-3 w-3" /> {lead.assigned_to}
                         </div>
                       )}
-                      {/* Move buttons — show prev/next */}
                       <div className="flex gap-1 pt-1">
                         {STAGES.filter(s => s.key !== stage.key).slice(0, 3).map(target => (
                           <Button key={target.key} variant="ghost" size="sm" className="h-5 text-[9px] px-1.5 text-muted-foreground hover:text-foreground" onClick={() => moveLead(lead, target.key)}>
@@ -228,43 +216,15 @@ const WholesalePipeline = () => {
         })}
       </div>
 
-      <Dialog open={modalOpen} onOpenChange={(open) => { setModalOpen(open); if (!open) setEditingLead(null); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{editingLead ? 'Editar Lead' : 'Nuevo Lead de Mayoreo'}</DialogTitle></DialogHeader>
-          <div className="space-y-3 mt-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Empresa *</Label><Input placeholder="Nombre de empresa" value={form.company_name} onChange={e => setForm({ ...form, company_name: e.target.value })} className="mt-1" /></div>
-              <div><Label className="text-xs">Contacto *</Label><Input placeholder="Nombre contacto" value={form.contact_name} onChange={e => setForm({ ...form, contact_name: e.target.value })} className="mt-1" /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Email</Label><Input type="email" placeholder="email@empresa.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="mt-1" /></div>
-              <div><Label className="text-xs">Teléfono</Label><Input placeholder="+52..." value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="mt-1" /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Valor Estimado ($)</Label><Input type="number" placeholder="0" value={form.estimated_value} onChange={e => setForm({ ...form, estimated_value: e.target.value })} className="mt-1" /></div>
-              <div>
-                <Label className="text-xs">Etapa</Label>
-                <Select value={form.stage} onValueChange={v => setForm({ ...form, stage: v })}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>{STAGES.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div>
-              <Label className="text-xs">Asignar a</Label>
-              <Select value={form.assigned_to} onValueChange={v => setForm({ ...form, assigned_to: v })}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-                <SelectContent>{STAFF.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div><Label className="text-xs">Notas</Label><Textarea placeholder="Detalles..." value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="mt-1" rows={2} /></div>
-            <Button className="w-full gap-2" onClick={handleSave} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingLead ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {editingLead ? 'Guardar Cambios' : 'Crear Lead'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <LeadFormModal
+        open={modalOpen}
+        onOpenChange={(open) => { setModalOpen(open); if (!open) { setEditingLead(null); setForm(emptyLeadForm); } }}
+        form={form}
+        setForm={setForm}
+        onSave={handleSave}
+        saving={saving}
+        isEditing={!!editingLead}
+      />
     </div>
   );
 };
