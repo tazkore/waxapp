@@ -433,6 +433,8 @@ const ClientsSection = () => {
         </DialogContent>
       </Dialog>
 
+      <ClientImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={fetchClients} />
+
         </TabsContent>
         <TabsContent value="credito_mayoreo">
           <WholesaleCreditTab />
