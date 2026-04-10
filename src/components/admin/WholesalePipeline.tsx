@@ -228,10 +228,9 @@ const WholesalePipeline = () => {
         })}
       </div>
 
-      {/* New Lead Modal */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog open={modalOpen} onOpenChange={(open) => { setModalOpen(open); if (!open) setEditingLead(null); }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Nuevo Lead de Mayoreo</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingLead ? 'Editar Lead' : 'Nuevo Lead de Mayoreo'}</DialogTitle></DialogHeader>
           <div className="space-y-3 mt-2">
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">Empresa *</Label><Input placeholder="Nombre de empresa" value={form.company_name} onChange={e => setForm({ ...form, company_name: e.target.value })} className="mt-1" /></div>
@@ -259,8 +258,9 @@ const WholesalePipeline = () => {
               </Select>
             </div>
             <div><Label className="text-xs">Notas</Label><Textarea placeholder="Detalles..." value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="mt-1" rows={2} /></div>
-            <Button className="w-full gap-2" onClick={handleCreate} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Crear Lead
+            <Button className="w-full gap-2" onClick={handleSave} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingLead ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {editingLead ? 'Guardar Cambios' : 'Crear Lead'}
             </Button>
           </div>
         </DialogContent>
