@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Loader2, Building2, Phone, Mail, DollarSign, User, ArrowRight } from 'lucide-react';
+import { Plus, Loader2, Building2, Phone, Mail, DollarSign, User, ArrowRight, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface WholesaleLead {
@@ -44,11 +44,10 @@ const WholesalePipeline = () => {
   const [leads, setLeads] = useState<WholesaleLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingLead, setEditingLead] = useState<WholesaleLead | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    company_name: '', contact_name: '', email: '', phone: '',
-    estimated_value: '', stage: 'prospecto', assigned_to: '', notes: '',
-  });
+  const emptyForm = { company_name: '', contact_name: '', email: '', phone: '', estimated_value: '', stage: 'prospecto', assigned_to: '', notes: '' };
+  const [form, setForm] = useState(emptyForm);
   const { toast } = useToast();
 
   const fetchLeads = async () => {
@@ -60,13 +59,34 @@ const WholesalePipeline = () => {
 
   useEffect(() => { fetchLeads(); }, []);
 
-  const handleCreate = async () => {
+  const openCreate = () => {
+    setEditingLead(null);
+    setForm(emptyForm);
+    setModalOpen(true);
+  };
+
+  const openEdit = (lead: WholesaleLead) => {
+    setEditingLead(lead);
+    setForm({
+      company_name: lead.company_name,
+      contact_name: lead.contact_name,
+      email: lead.email || '',
+      phone: lead.phone || '',
+      estimated_value: String(lead.estimated_value),
+      stage: lead.stage,
+      assigned_to: lead.assigned_to || '',
+      notes: lead.notes || '',
+    });
+    setModalOpen(true);
+  };
+
+  const handleSave = async () => {
     if (!form.company_name.trim() || !form.contact_name.trim()) {
       toast({ title: 'Error', description: 'Empresa y contacto son requeridos.', variant: 'destructive' });
       return;
     }
     setSaving(true);
-    const { error } = await supabase.from('wholesale_leads').insert({
+    const payload = {
       company_name: form.company_name,
       contact_name: form.contact_name,
       email: form.email || null,
@@ -75,12 +95,18 @@ const WholesalePipeline = () => {
       stage: form.stage,
       assigned_to: form.assigned_to || null,
       notes: form.notes || null,
-    });
+    };
+
+    const { error } = editingLead
+      ? await supabase.from('wholesale_leads').update(payload).eq('id', editingLead.id)
+      : await supabase.from('wholesale_leads').insert(payload);
+
     if (error) {
-      toast({ title: 'Error', description: 'No se pudo crear el lead.', variant: 'destructive' });
+      toast({ title: 'Error', description: editingLead ? 'No se pudo actualizar.' : 'No se pudo crear el lead.', variant: 'destructive' });
     } else {
-      toast({ title: 'Lead creado', description: `${form.company_name} agregado al pipeline.` });
-      setForm({ company_name: '', contact_name: '', email: '', phone: '', estimated_value: '', stage: 'prospecto', assigned_to: '', notes: '' });
+      toast({ title: editingLead ? 'Lead actualizado' : 'Lead creado', description: `${form.company_name} ${editingLead ? 'actualizado' : 'agregado al pipeline'}.` });
+      setForm(emptyForm);
+      setEditingLead(null);
       setModalOpen(false);
       fetchLeads();
     }
@@ -113,7 +139,7 @@ const WholesalePipeline = () => {
           <h2 className="text-xl font-bold text-foreground">Pipeline de Mayoreo</h2>
           <p className="text-muted-foreground text-sm">Leads de negocios de mayoreo — 7 etapas del embudo.</p>
         </div>
-        <Button className="gap-2" onClick={() => setModalOpen(true)}>
+        <Button className="gap-2" onClick={openCreate}>
           <Plus className="h-4 w-4" /> Nuevo Lead
         </Button>
       </div>
@@ -166,9 +192,14 @@ const WholesalePipeline = () => {
                           <h4 className="text-sm font-medium text-foreground truncate">{lead.company_name}</h4>
                           <p className="text-[11px] text-muted-foreground truncate">{lead.contact_name}</p>
                         </div>
-                        <Badge variant="outline" className="text-[10px] shrink-0 bg-primary/10 text-primary border-primary/20">
-                          ${lead.estimated_value.toLocaleString()}
-                        </Badge>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground" onClick={() => openEdit(lead)}>
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
+                            ${lead.estimated_value.toLocaleString()}
+                          </Badge>
+                        </div>
                       </div>
                       {lead.email && (
                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -197,10 +228,9 @@ const WholesalePipeline = () => {
         })}
       </div>
 
-      {/* New Lead Modal */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog open={modalOpen} onOpenChange={(open) => { setModalOpen(open); if (!open) setEditingLead(null); }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Nuevo Lead de Mayoreo</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingLead ? 'Editar Lead' : 'Nuevo Lead de Mayoreo'}</DialogTitle></DialogHeader>
           <div className="space-y-3 mt-2">
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">Empresa *</Label><Input placeholder="Nombre de empresa" value={form.company_name} onChange={e => setForm({ ...form, company_name: e.target.value })} className="mt-1" /></div>
@@ -228,8 +258,9 @@ const WholesalePipeline = () => {
               </Select>
             </div>
             <div><Label className="text-xs">Notas</Label><Textarea placeholder="Detalles..." value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="mt-1" rows={2} /></div>
-            <Button className="w-full gap-2" onClick={handleCreate} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Crear Lead
+            <Button className="w-full gap-2" onClick={handleSave} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingLead ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {editingLead ? 'Guardar Cambios' : 'Crear Lead'}
             </Button>
           </div>
         </DialogContent>
