@@ -176,6 +176,7 @@ const OrdersSection = () => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       if (statusChanged) {
+        await logStatusChange(selectedOrder.id, selectedOrder.status, editStatus);
         sendStatusEmail(selectedOrder, editStatus, editTracking);
       }
       setOrders(prev => prev.map(o => o.id === selectedOrder.id
@@ -195,6 +196,7 @@ const OrdersSection = () => {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      await logStatusChange(selectedOrder.id, selectedOrder.status, 'refunded');
       sendStatusEmail(selectedOrder, 'refunded');
       setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: 'refunded' } : o));
       toast({ title: 'Reembolso procesado', description: `Pedido ${selectedOrder.order_number} reembolsado por $${selectedOrder.total.toLocaleString()} MXN` });
