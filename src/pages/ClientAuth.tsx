@@ -302,6 +302,7 @@ const ClientAuth = () => {
           </div>
           </>
           )}
+          
         </CardContent>
       </Card>
     </div>
