@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Loader2, Search, MessageSquare, Plus, Pencil, Trash2, Download } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { Loader2, Search, MessageSquare, Plus, Pencil, Trash2, Download, TrendingUp, Users, Crown, DollarSign } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
