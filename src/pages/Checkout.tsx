@@ -27,12 +27,19 @@ const Checkout = () => {
   const [confirmed, setConfirmed] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
   const [loading, setLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+  const cardFormRef = useRef<HTMLFormElement>(null);
 
   const [shipping, setShipping] = useState({
     name: '', email: '', phone: '', address: '', city: '', state: '', postalCode: '', country: 'México',
   });
   const [shippingMethod, setShippingMethod] = useState('standard');
   const [paymentMethod, setPaymentMethod] = useState('card');
+
+  // Card form state (for Clip SDK fields)
+  const [cardData, setCardData] = useState({
+    number: '', name: '', expMonth: '', expYear: '', cvv: '',
+  });
 
   const shippingCost = shippingMethod === 'express' ? 250 : shippingMethod === 'standard' ? 99 : 0;
   const total = subtotal() + shippingCost;
