@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Loader2, Search, MessageSquare, Plus, Pencil, Trash2, Download, TrendingUp, Users, Crown, DollarSign, CreditCard, Building2 } from 'lucide-react';
+import { Loader2, Search, MessageSquare, Plus, Pencil, Trash2, Download, Upload, TrendingUp, Users, Crown, DollarSign, CreditCard, Building2 } from 'lucide-react';
+import ClientImportDialog from './ClientImportDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import WholesaleCreditTab from './WholesaleCreditTab';
 import { Badge } from '@/components/ui/badge';
