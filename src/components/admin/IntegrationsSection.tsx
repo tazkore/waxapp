@@ -228,6 +228,43 @@ const IntegrationsSection = () => {
     });
   };
 
+  const saveConfigFields = async (app: Integration, fields: Record<string, string>) => {
+    const currentConfig = (app.config || {}) as Record<string, unknown>;
+    const parsed: Record<string, unknown> = {};
+    Object.entries(fields).forEach(([k, v]) => {
+      try { parsed[k] = JSON.parse(v); } catch { parsed[k] = v; }
+    });
+    const newConfig = { ...parsed, api_keys: currentConfig.api_keys };
+    const { error } = await supabase.from('integrations').update({ config: newConfig }).eq('id', app.id);
+    if (error) {
+      toast({ title: 'Error', description: 'No se pudo guardar la configuración.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Guardado', description: 'Configuración actualizada.' });
+      setSelectedApp({ ...app, config: newConfig as Record<string, unknown> });
+      fetchIntegrations();
+    }
+  };
+
+  const addConfigField = () => {
+    if (!newConfigKey.trim()) {
+      toast({ title: 'Error', description: 'El nombre del campo es requerido.', variant: 'destructive' });
+      return;
+    }
+    const updated = { ...configFields, [newConfigKey.trim()]: newConfigValue.trim() };
+    setConfigFields(updated);
+    setNewConfigKey('');
+    setNewConfigValue('');
+    setShowAddConfig(false);
+    if (selectedApp) saveConfigFields(selectedApp, updated);
+  };
+
+  const removeConfigField = (key: string) => {
+    const updated = { ...configFields };
+    delete updated[key];
+    setConfigFields(updated);
+    if (selectedApp) saveConfigFields(selectedApp, updated);
+  };
+
   const filtered = integrations.filter(
     (a) =>
       a.name.toLowerCase().includes(search.toLowerCase()) ||
