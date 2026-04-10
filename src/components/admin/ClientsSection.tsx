@@ -53,6 +53,18 @@ const ClientsSection = () => {
   // Delete confirm
   const [deleteClient, setDeleteClient] = useState<Client | null>(null);
 
+  // Import dialog
+  const [importOpen, setImportOpen] = useState(false);
+
+  const fetchClients = () => {
+    setLoading(true);
+    supabase.from('clients').select('*').order('total_spent', { ascending: false }).then(({ data, error }) => {
+      if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      else setClients(data ?? []);
+      setLoading(false);
+    });
+  };
+
   useEffect(() => {
     supabase.from('clients').select('*').order('total_spent', { ascending: false }).then(({ data, error }) => {
       if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
