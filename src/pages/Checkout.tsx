@@ -1,15 +1,18 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Check, Package, Truck, CreditCard, MapPin } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Package, Truck, CreditCard, MapPin, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCartStore } from '@/store/cartStore';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+
+
 
 const steps = [
   { id: 1, title: 'Datos de Envío', icon: MapPin },
@@ -24,12 +27,27 @@ const Checkout = () => {
   const [confirmed, setConfirmed] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
   const [loading, setLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+  const cardFormRef = useRef<HTMLFormElement>(null);
 
   const [shipping, setShipping] = useState({
     name: '', email: '', phone: '', address: '', city: '', state: '', postalCode: '', country: 'México',
   });
   const [shippingMethod, setShippingMethod] = useState('standard');
   const [paymentMethod, setPaymentMethod] = useState('card');
+
+  // Card form state (for Clip SDK fields)
+  const [cardData, setCardData] = useState({
+    number: '', name: '', expMonth: '', expYear: '', cvv: '',
+  });
+  const [clipPublicKey, setClipPublicKey] = useState('');
+
+  // Fetch Clip public key on mount
+  useEffect(() => {
+    supabase.functions.invoke('clip-config').then(({ data }) => {
+      if (data?.public_key) setClipPublicKey(data.public_key);
+    });
+  }, []);
 
   const shippingCost = shippingMethod === 'express' ? 250 : shippingMethod === 'standard' ? 99 : 0;
   const total = subtotal() + shippingCost;
@@ -48,9 +66,10 @@ const Checkout = () => {
 
   const handleConfirm = async () => {
     setLoading(true);
+    setPaymentError('');
 
     try {
-      // Create order via secure edge function (total calculated server-side)
+      // Step 1: Create order (pending) via edge function
       const { data: orderData, error: orderError } = await supabase.functions.invoke('create-order', {
         body: {
           customer_name: shipping.name,
@@ -66,9 +85,63 @@ const Checkout = () => {
       }
 
       const num = orderData.order_number;
+      const orderId = orderData.order_id;
+      const serverTotal = orderData.total;
+      const serverShippingCost = orderData.shipping_cost;
+
+      // Step 2: Process payment with Clip (card only)
+      if (paymentMethod === 'card') {
+        // Tokenize card using Clip SDK
+        if (typeof ClipSDK === 'undefined') {
+          throw new Error('El SDK de pagos no se cargó. Recarga la página e intenta de nuevo.');
+        }
+
+        // Create a temporary form for Clip SDK
+        const form = document.createElement('form');
+        const fields = [
+          { name: 'card_number', value: cardData.number.replace(/\s/g, '') },
+          { name: 'card_name', value: cardData.name },
+          { name: 'card_exp_month', value: cardData.expMonth },
+          { name: 'card_exp_year', value: cardData.expYear },
+          { name: 'card_cvv', value: cardData.cvv },
+        ];
+        fields.forEach(f => {
+          const input = document.createElement('input');
+          input.name = f.name;
+          input.value = f.value;
+          form.appendChild(input);
+        });
+
+        const clip = new ClipSDK(clipPublicKey);
+        let cardToken: string;
+        try {
+          cardToken = await clip.cardToken(form);
+        } catch (tokenErr: any) {
+          throw new Error('Error al procesar la tarjeta. Verifica los datos e intenta de nuevo.');
+        }
+
+        // Process payment via our edge function
+        const { data: payData, error: payError } = await supabase.functions.invoke('process-clip-payment', {
+          body: {
+            card_token: cardToken,
+            order_id: orderId,
+            amount: serverTotal,
+            currency: 'MXN',
+            customer_email: shipping.email,
+            customer_name: shipping.name,
+            customer_phone: shipping.phone,
+            description: `Pedido WAXAPP ${num}`,
+          },
+        });
+
+        if (payError || !payData?.success) {
+          throw new Error(payData?.error || 'Error al procesar el pago.');
+        }
+      }
+
       setOrderNumber(num);
 
-      // Send order confirmation email
+      // Send order confirmation email (fire-and-forget)
       const itemsHtml = items.map(i =>
         `<tr>
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${i.title}${i.selectedVariant ? ` <span style="color:#9ca3af">(${i.selectedVariant})</span>` : ''}</td>
@@ -77,10 +150,7 @@ const Checkout = () => {
         </tr>`
       ).join('');
 
-      const serverTotal = orderData.total;
-      const serverShippingCost = orderData.shipping_cost;
-
-      await supabase.functions.invoke('send-email', {
+      supabase.functions.invoke('send-email', {
         body: {
           to: shipping.email,
           subject: `Confirmación de Pedido ${num} - WAXAPP`,
@@ -118,13 +188,16 @@ const Checkout = () => {
             <p style="color:#9ca3af;font-size:12px;text-align:center">Este correo fue enviado automáticamente por WAXAPP. Si tienes dudas, contáctanos.</p>
           </div>`,
         },
-      });
-    } catch (e) {
-      console.error('Order error:', e);
+      }).catch(() => {});
+
+      clearCart();
+      setConfirmed(true);
+    } catch (e: any) {
+      console.error('Order/Payment error:', e);
+      setPaymentError(e.message || 'Ocurrió un error al procesar tu pedido.');
+      toast({ title: 'Error de pago', description: e.message || 'Intenta de nuevo.', variant: 'destructive' });
     }
 
-    clearCart();
-    setConfirmed(true);
     setLoading(false);
   };
 
@@ -284,20 +357,71 @@ const Checkout = () => {
 
                   {paymentMethod === 'card' && (
                     <div className="space-y-4 border-t border-border pt-6">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                        <ShieldCheck className="h-4 w-4 text-primary" />
+                        <span>Pago seguro procesado por Clip</span>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-foreground">Nombre en la tarjeta</Label>
+                        <Input
+                          value={cardData.name}
+                          onChange={e => setCardData({ ...cardData, name: e.target.value })}
+                          className="bg-muted border-border"
+                          placeholder="Como aparece en la tarjeta"
+                        />
+                      </div>
                       <div className="space-y-2">
                         <Label className="text-foreground">Número de tarjeta</Label>
-                        <Input className="bg-muted border-border" placeholder="4242 4242 4242 4242" />
+                        <Input
+                          value={cardData.number}
+                          onChange={e => {
+                            const v = e.target.value.replace(/\D/g, '').slice(0, 16);
+                            setCardData({ ...cardData, number: v.replace(/(.{4})/g, '$1 ').trim() });
+                          }}
+                          className="bg-muted border-border font-mono"
+                          placeholder="4242 4242 4242 4242"
+                          maxLength={19}
+                        />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
-                          <Label className="text-foreground">Expiración</Label>
-                          <Input className="bg-muted border-border" placeholder="MM/AA" />
+                          <Label className="text-foreground">Mes</Label>
+                          <Input
+                            value={cardData.expMonth}
+                            onChange={e => setCardData({ ...cardData, expMonth: e.target.value.replace(/\D/g, '').slice(0, 2) })}
+                            className="bg-muted border-border text-center"
+                            placeholder="MM"
+                            maxLength={2}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-foreground">Año</Label>
+                          <Input
+                            value={cardData.expYear}
+                            onChange={e => setCardData({ ...cardData, expYear: e.target.value.replace(/\D/g, '').slice(0, 2) })}
+                            className="bg-muted border-border text-center"
+                            placeholder="AA"
+                            maxLength={2}
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label className="text-foreground">CVV</Label>
-                          <Input className="bg-muted border-border" placeholder="123" />
+                          <Input
+                            value={cardData.cvv}
+                            onChange={e => setCardData({ ...cardData, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                            className="bg-muted border-border text-center"
+                            placeholder="123"
+                            maxLength={4}
+                            type="password"
+                          />
                         </div>
                       </div>
+
+                      {paymentError && (
+                        <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-3 text-sm text-destructive">
+                          {paymentError}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -305,8 +429,12 @@ const Checkout = () => {
                     <Button variant="outline" onClick={() => setStep(2)} className="gap-2">
                       <ArrowLeft className="h-4 w-4" /> Atrás
                     </Button>
-                    <Button onClick={handleConfirm} disabled={loading} className="gap-2 bg-primary text-primary-foreground px-8">
-                      {loading ? 'Procesando...' : `Pagar $${total.toLocaleString()} MXN`}
+                    <Button
+                      onClick={handleConfirm}
+                      disabled={loading || (paymentMethod === 'card' && (!cardData.number || !cardData.name || !cardData.expMonth || !cardData.expYear || !cardData.cvv))}
+                      className="gap-2 bg-primary text-primary-foreground px-8"
+                    >
+                      {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Procesando...</> : `Pagar $${total.toLocaleString()} MXN`}
                     </Button>
                   </div>
                 </motion.div>
