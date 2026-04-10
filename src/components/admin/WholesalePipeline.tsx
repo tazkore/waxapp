@@ -199,6 +199,9 @@ const WholesalePipeline = () => {
                           <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground" onClick={() => openEdit(lead)}>
                             <Pencil className="h-3 w-3" />
                           </Button>
+                          <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive" onClick={() => setDeletingLead(lead)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                           <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
                             ${lead.estimated_value.toLocaleString()}
                           </Badge>
