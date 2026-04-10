@@ -58,9 +58,10 @@ const Checkout = () => {
 
   const handleConfirm = async () => {
     setLoading(true);
+    setPaymentError('');
 
     try {
-      // Create order via secure edge function (total calculated server-side)
+      // Step 1: Create order (pending) via edge function
       const { data: orderData, error: orderError } = await supabase.functions.invoke('create-order', {
         body: {
           customer_name: shipping.name,
@@ -76,9 +77,63 @@ const Checkout = () => {
       }
 
       const num = orderData.order_number;
+      const orderId = orderData.order_id;
+      const serverTotal = orderData.total;
+      const serverShippingCost = orderData.shipping_cost;
+
+      // Step 2: Process payment with Clip (card only)
+      if (paymentMethod === 'card') {
+        // Tokenize card using Clip SDK
+        if (typeof ClipSDK === 'undefined') {
+          throw new Error('El SDK de pagos no se cargó. Recarga la página e intenta de nuevo.');
+        }
+
+        // Create a temporary form for Clip SDK
+        const form = document.createElement('form');
+        const fields = [
+          { name: 'card_number', value: cardData.number.replace(/\s/g, '') },
+          { name: 'card_name', value: cardData.name },
+          { name: 'card_exp_month', value: cardData.expMonth },
+          { name: 'card_exp_year', value: cardData.expYear },
+          { name: 'card_cvv', value: cardData.cvv },
+        ];
+        fields.forEach(f => {
+          const input = document.createElement('input');
+          input.name = f.name;
+          input.value = f.value;
+          form.appendChild(input);
+        });
+
+        const clip = new ClipSDK(CLIP_PUBLIC_KEY);
+        let cardToken: string;
+        try {
+          cardToken = await clip.cardToken(form);
+        } catch (tokenErr: any) {
+          throw new Error('Error al procesar la tarjeta. Verifica los datos e intenta de nuevo.');
+        }
+
+        // Process payment via our edge function
+        const { data: payData, error: payError } = await supabase.functions.invoke('process-clip-payment', {
+          body: {
+            card_token: cardToken,
+            order_id: orderId,
+            amount: serverTotal,
+            currency: 'MXN',
+            customer_email: shipping.email,
+            customer_name: shipping.name,
+            customer_phone: shipping.phone,
+            description: `Pedido WAXAPP ${num}`,
+          },
+        });
+
+        if (payError || !payData?.success) {
+          throw new Error(payData?.error || 'Error al procesar el pago.');
+        }
+      }
+
       setOrderNumber(num);
 
-      // Send order confirmation email
+      // Send order confirmation email (fire-and-forget)
       const itemsHtml = items.map(i =>
         `<tr>
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${i.title}${i.selectedVariant ? ` <span style="color:#9ca3af">(${i.selectedVariant})</span>` : ''}</td>
@@ -87,10 +142,7 @@ const Checkout = () => {
         </tr>`
       ).join('');
 
-      const serverTotal = orderData.total;
-      const serverShippingCost = orderData.shipping_cost;
-
-      await supabase.functions.invoke('send-email', {
+      supabase.functions.invoke('send-email', {
         body: {
           to: shipping.email,
           subject: `Confirmación de Pedido ${num} - WAXAPP`,
@@ -128,13 +180,16 @@ const Checkout = () => {
             <p style="color:#9ca3af;font-size:12px;text-align:center">Este correo fue enviado automáticamente por WAXAPP. Si tienes dudas, contáctanos.</p>
           </div>`,
         },
-      });
-    } catch (e) {
-      console.error('Order error:', e);
+      }).catch(() => {});
+
+      clearCart();
+      setConfirmed(true);
+    } catch (e: any) {
+      console.error('Order/Payment error:', e);
+      setPaymentError(e.message || 'Ocurrió un error al procesar tu pedido.');
+      toast({ title: 'Error de pago', description: e.message || 'Intenta de nuevo.', variant: 'destructive' });
     }
 
-    clearCart();
-    setConfirmed(true);
     setLoading(false);
   };
 
