@@ -449,6 +449,12 @@ const OperationsSection = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+        </TabsContent>
+        <TabsContent value="mayoreo">
+          <WholesalePipeline />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
