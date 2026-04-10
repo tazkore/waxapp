@@ -27,7 +27,14 @@ import {
   Circle,
   Puzzle,
   Loader2,
+  Key,
+  Plus,
+  Eye,
+  EyeOff,
+  Save,
+  X,
 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
 interface Integration {
