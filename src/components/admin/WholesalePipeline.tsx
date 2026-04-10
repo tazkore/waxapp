@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -116,6 +117,15 @@ const WholesalePipeline = () => {
     if (error) fetchLeads();
   };
 
+  const onDragEnd = useCallback((result: DropResult) => {
+    const { draggableId, destination } = result;
+    if (!destination) return;
+    const newStage = destination.droppableId;
+    const lead = leads.find(l => l.id === draggableId);
+    if (!lead || lead.stage === newStage) return;
+    moveLead(lead, newStage);
+  }, [leads]);
+
   const handleDelete = async () => {
     if (!deletingLead) return;
     const { error } = await supabase.from('wholesale_leads').delete().eq('id', deletingLead.id);
@@ -176,62 +186,76 @@ const WholesalePipeline = () => {
         </CardContent>
       </Card>
 
-      <div className="flex gap-4 overflow-x-auto pb-4">
-        {STAGES.map(stage => {
-          const stageLeads = leadsByStage(stage.key);
-          return (
-            <div key={stage.key} className="min-w-[260px] w-[260px] shrink-0 space-y-2">
-              <div className="flex items-center gap-2 px-1">
-                <span className={`h-2 w-2 rounded-full ${stage.color.replace('text-', 'bg-')}`} />
-                <h3 className="text-xs font-semibold text-foreground">{stage.label}</h3>
-                <Badge variant="secondary" className="text-[10px] ml-auto">{stageLeads.length}</Badge>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {STAGES.map(stage => {
+            const stageLeads = leadsByStage(stage.key);
+            return (
+              <div key={stage.key} className="min-w-[260px] w-[260px] shrink-0 space-y-2">
+                <div className="flex items-center gap-2 px-1">
+                  <span className={`h-2 w-2 rounded-full ${stage.color.replace('text-', 'bg-')}`} />
+                  <h3 className="text-xs font-semibold text-foreground">{stage.label}</h3>
+                  <Badge variant="secondary" className="text-[10px] ml-auto">{stageLeads.length}</Badge>
+                </div>
+                <Droppable droppableId={stage.key}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`space-y-2 min-h-[120px] rounded-lg p-1 transition-colors ${snapshot.isDraggingOver ? 'bg-primary/5 ring-1 ring-primary/30' : ''}`}
+                    >
+                      {stageLeads.map((lead, index) => (
+                        <Draggable key={lead.id} draggableId={lead.id} index={index}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                            >
+                              <Card className={`border-border bg-card hover:border-primary/30 transition-colors ${snapshot.isDragging ? 'shadow-lg shadow-primary/20 border-primary/40 rotate-1' : ''}`}>
+                                <CardContent className="p-3 space-y-2">
+                                  <div className="flex items-start justify-between gap-1">
+                                    <div className="min-w-0">
+                                      <h4 className="text-sm font-medium text-foreground truncate">{lead.company_name}</h4>
+                                      <p className="text-[11px] text-muted-foreground truncate">{lead.contact_name}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground" onClick={() => openEdit(lead)}>
+                                        <Pencil className="h-3 w-3" />
+                                      </Button>
+                                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive" onClick={() => setDeletingLead(lead)}>
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                      <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
+                                        ${lead.estimated_value.toLocaleString()}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  {lead.email && (
+                                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                      <Mail className="h-3 w-3" /> {lead.email}
+                                    </div>
+                                  )}
+                                  {lead.assigned_to && (
+                                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                      <User className="h-3 w-3" /> {lead.assigned_to}
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
               </div>
-              <div className="space-y-2 min-h-[120px]">
-                {stageLeads.map(lead => (
-                  <Card key={lead.id} className="border-border bg-card hover:border-primary/30 transition-colors">
-                    <CardContent className="p-3 space-y-2">
-                      <div className="flex items-start justify-between gap-1">
-                        <div className="min-w-0">
-                          <h4 className="text-sm font-medium text-foreground truncate">{lead.company_name}</h4>
-                          <p className="text-[11px] text-muted-foreground truncate">{lead.contact_name}</p>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground" onClick={() => openEdit(lead)}>
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive" onClick={() => setDeletingLead(lead)}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                          <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
-                            ${lead.estimated_value.toLocaleString()}
-                          </Badge>
-                        </div>
-                      </div>
-                      {lead.email && (
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                          <Mail className="h-3 w-3" /> {lead.email}
-                        </div>
-                      )}
-                      {lead.assigned_to && (
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                          <User className="h-3 w-3" /> {lead.assigned_to}
-                        </div>
-                      )}
-                      <div className="flex gap-1 pt-1">
-                        {STAGES.filter(s => s.key !== stage.key).slice(0, 3).map(target => (
-                          <Button key={target.key} variant="ghost" size="sm" className="h-5 text-[9px] px-1.5 text-muted-foreground hover:text-foreground" onClick={() => moveLead(lead, target.key)}>
-                            → {target.label.split('/')[0].substring(0, 10)}
-                          </Button>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </DragDropContext>
 
       <LeadFormModal
         open={modalOpen}
