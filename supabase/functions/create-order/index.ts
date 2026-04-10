@@ -161,6 +161,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
+      order_id: data.id,
       order_number: orderNumber,
       total,
       shipping_cost: shippingCost,
