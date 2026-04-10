@@ -397,20 +397,113 @@ const IntegrationsSection = () => {
                   )}
                 </div>
 
-                {/* Config */}
-                {selectedApp.is_installed && Object.keys(selectedApp.config).length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-foreground">Configuración</h4>
-                    <div className="bg-muted/50 rounded-lg p-3 space-y-1">
-                      {Object.entries(selectedApp.config).map(([key, value]) => (
-                        <div key={key} className="flex justify-between text-xs">
-                          <span className="text-muted-foreground font-mono">{key}</span>
-                          <span className="text-foreground">{JSON.stringify(value)}</span>
-                        </div>
-                      ))}
+                {/* API Keys */}
+                {selectedApp.is_installed && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                        <Key className="h-4 w-4" /> API Keys
+                      </h4>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs gap-1"
+                        onClick={() => setShowAddKey(!showAddKey)}
+                      >
+                        {showAddKey ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                        {showAddKey ? 'Cancelar' : 'Agregar'}
+                      </Button>
                     </div>
+
+                    {showAddKey && (
+                      <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                        <div>
+                          <Label className="text-xs">Nombre</Label>
+                          <Input
+                            placeholder="ej: API_KEY, SECRET_KEY"
+                            value={newKeyName}
+                            onChange={(e) => setNewKeyName(e.target.value)}
+                            className="h-8 text-xs mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Valor</Label>
+                          <Input
+                            placeholder="sk_live_..."
+                            value={newKeyValue}
+                            onChange={(e) => setNewKeyValue(e.target.value)}
+                            className="h-8 text-xs mt-1 font-mono"
+                            type="password"
+                          />
+                        </div>
+                        <Button size="sm" className="text-xs gap-1 w-full" onClick={addApiKey} disabled={savingKeys}>
+                          {savingKeys ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                          Guardar Key
+                        </Button>
+                      </div>
+                    )}
+
+                    {Object.keys(apiKeys).length > 0 ? (
+                      <div className="space-y-2">
+                        {Object.entries(apiKeys).map(([keyName, keyValue]) => (
+                          <div key={keyName} className="flex items-center gap-2 bg-muted/50 rounded-lg p-2.5">
+                            <span className="text-xs font-mono text-muted-foreground flex-shrink-0">{keyName}</span>
+                            <div className="flex-1 min-w-0">
+                              {visibleKeys.has(keyName) ? (
+                                <Input
+                                  value={keyValue}
+                                  onChange={(e) => updateApiKeyValue(keyName, e.target.value)}
+                                  onBlur={() => { if (selectedApp) saveApiKeys(selectedApp, apiKeys); }}
+                                  className="h-7 text-xs font-mono"
+                                />
+                              ) : (
+                                <span className="text-xs font-mono text-foreground">{maskValue(keyValue)}</span>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => toggleKeyVisibility(keyName)}
+                            >
+                              {visibleKeys.has(keyName) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                              onClick={() => removeApiKey(keyName)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">No hay API keys configuradas.</p>
+                    )}
                   </div>
                 )}
+
+                {/* Non-key Config */}
+                {selectedApp.is_installed && (() => {
+                  const cfg = selectedApp.config as Record<string, unknown>;
+                  const nonKeyEntries = Object.entries(cfg).filter(([k]) => k !== 'api_keys');
+                  if (nonKeyEntries.length === 0) return null;
+                  return (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-foreground">Configuración</h4>
+                      <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+                        {nonKeyEntries.map(([key, value]) => (
+                          <div key={key} className="flex justify-between text-xs">
+                            <span className="text-muted-foreground font-mono">{key}</span>
+                            <span className="text-foreground">{JSON.stringify(value)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-2">
