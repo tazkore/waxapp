@@ -117,6 +117,15 @@ const WholesalePipeline = () => {
     if (error) fetchLeads();
   };
 
+  const onDragEnd = useCallback((result: DropResult) => {
+    const { draggableId, destination } = result;
+    if (!destination) return;
+    const newStage = destination.droppableId;
+    const lead = leads.find(l => l.id === draggableId);
+    if (!lead || lead.stage === newStage) return;
+    moveLead(lead, newStage);
+  }, [leads]);
+
   const handleDelete = async () => {
     if (!deletingLead) return;
     const { error } = await supabase.from('wholesale_leads').delete().eq('id', deletingLead.id);
