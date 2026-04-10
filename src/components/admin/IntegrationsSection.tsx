@@ -141,7 +141,78 @@ const IntegrationsSection = () => {
 
   const openDetail = (app: Integration) => {
     setSelectedApp(app);
+    // Load API keys from config
+    const keys: Record<string, string> = {};
+    const cfg = app.config as Record<string, unknown>;
+    if (cfg.api_keys && typeof cfg.api_keys === 'object') {
+      Object.entries(cfg.api_keys as Record<string, string>).forEach(([k, v]) => {
+        keys[k] = v;
+      });
+    }
+    setApiKeys(keys);
+    setShowAddKey(false);
+    setNewKeyName('');
+    setNewKeyValue('');
+    setVisibleKeys(new Set());
     setDetailOpen(true);
+  };
+
+  const maskValue = (val: string) => {
+    if (val.length <= 8) return '••••••••';
+    return val.slice(0, 4) + '••••' + val.slice(-4);
+  };
+
+  const saveApiKeys = async (app: Integration, keys: Record<string, string>) => {
+    setSavingKeys(true);
+    const currentConfig = (app.config || {}) as Record<string, unknown>;
+    const newConfig = { ...currentConfig, api_keys: keys };
+    const { error } = await supabase
+      .from('integrations')
+      .update({ config: newConfig })
+      .eq('id', app.id);
+
+    if (error) {
+      toast({ title: 'Error', description: 'No se pudieron guardar las API keys.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Guardado', description: 'API keys actualizadas correctamente.' });
+      setSelectedApp({ ...app, config: newConfig });
+      fetchIntegrations();
+    }
+    setSavingKeys(false);
+  };
+
+  const addApiKey = () => {
+    if (!newKeyName.trim() || !newKeyValue.trim()) {
+      toast({ title: 'Error', description: 'Nombre y valor son requeridos.', variant: 'destructive' });
+      return;
+    }
+    const updated = { ...apiKeys, [newKeyName.trim()]: newKeyValue.trim() };
+    setApiKeys(updated);
+    setNewKeyName('');
+    setNewKeyValue('');
+    setShowAddKey(false);
+    if (selectedApp) saveApiKeys(selectedApp, updated);
+  };
+
+  const removeApiKey = (keyName: string) => {
+    const updated = { ...apiKeys };
+    delete updated[keyName];
+    setApiKeys(updated);
+    if (selectedApp) saveApiKeys(selectedApp, updated);
+  };
+
+  const updateApiKeyValue = (keyName: string, value: string) => {
+    const updated = { ...apiKeys, [keyName]: value };
+    setApiKeys(updated);
+  };
+
+  const toggleKeyVisibility = (keyName: string) => {
+    setVisibleKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(keyName)) next.delete(keyName);
+      else next.add(keyName);
+      return next;
+    });
   };
 
   const filtered = integrations.filter(
