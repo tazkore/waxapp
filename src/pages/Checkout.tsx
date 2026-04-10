@@ -1,15 +1,18 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Check, Package, Truck, CreditCard, MapPin } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Package, Truck, CreditCard, MapPin, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCartStore } from '@/store/cartStore';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+
+const CLIP_PUBLIC_KEY = import.meta.env.VITE_CLIP_PUBLIC_KEY || '';
 
 const steps = [
   { id: 1, title: 'Datos de Envío', icon: MapPin },
