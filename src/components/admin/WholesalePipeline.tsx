@@ -4,8 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Loader2, Mail, User, ArrowRight, Pencil } from 'lucide-react';
+import { Plus, Loader2, Mail, User, ArrowRight, Pencil, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import LeadFormModal, { emptyLeadForm, type LeadFormData } from './LeadFormModal';
 
 interface WholesaleLead {
@@ -41,6 +42,7 @@ const WholesalePipeline = () => {
   const [editingLead, setEditingLead] = useState<WholesaleLead | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<LeadFormData>(emptyLeadForm);
+  const [deletingLead, setDeletingLead] = useState<WholesaleLead | null>(null);
   const { toast } = useToast();
 
   const fetchLeads = async () => {
@@ -114,6 +116,18 @@ const WholesalePipeline = () => {
     if (error) fetchLeads();
   };
 
+  const handleDelete = async () => {
+    if (!deletingLead) return;
+    const { error } = await supabase.from('wholesale_leads').delete().eq('id', deletingLead.id);
+    if (error) {
+      toast({ title: 'Error', description: 'No se pudo eliminar el lead.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Lead eliminado', description: `${deletingLead.company_name} fue eliminado del pipeline.` });
+      setLeads(prev => prev.filter(l => l.id !== deletingLead.id));
+    }
+    setDeletingLead(null);
+  };
+
   const leadsByStage = (stage: string) => leads.filter(l => l.stage === stage);
 
   const bottleneck = (() => {
@@ -185,6 +199,9 @@ const WholesalePipeline = () => {
                           <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground" onClick={() => openEdit(lead)}>
                             <Pencil className="h-3 w-3" />
                           </Button>
+                          <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive" onClick={() => setDeletingLead(lead)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                           <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
                             ${lead.estimated_value.toLocaleString()}
                           </Badge>
@@ -225,6 +242,21 @@ const WholesalePipeline = () => {
         saving={saving}
         isEditing={!!editingLead}
       />
+
+      <AlertDialog open={!!deletingLead} onOpenChange={(open) => { if (!open) setDeletingLead(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar lead?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará permanentemente <span className="font-semibold">{deletingLead?.company_name}</span> del pipeline. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
