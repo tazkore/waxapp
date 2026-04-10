@@ -235,7 +235,7 @@ const IntegrationsSection = () => {
       try { parsed[k] = JSON.parse(v); } catch { parsed[k] = v; }
     });
     const newConfig = { ...parsed, api_keys: currentConfig.api_keys };
-    const { error } = await supabase.from('integrations').update({ config: newConfig }).eq('id', app.id);
+    const { error } = await supabase.from('integrations').update({ config: newConfig as unknown as null }).eq('id', app.id);
     if (error) {
       toast({ title: 'Error', description: 'No se pudo guardar la configuración.', variant: 'destructive' });
     } else {
