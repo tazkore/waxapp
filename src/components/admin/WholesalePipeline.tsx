@@ -192,9 +192,14 @@ const WholesalePipeline = () => {
                           <h4 className="text-sm font-medium text-foreground truncate">{lead.company_name}</h4>
                           <p className="text-[11px] text-muted-foreground truncate">{lead.contact_name}</p>
                         </div>
-                        <Badge variant="outline" className="text-[10px] shrink-0 bg-primary/10 text-primary border-primary/20">
-                          ${lead.estimated_value.toLocaleString()}
-                        </Badge>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground" onClick={() => openEdit(lead)}>
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
+                            ${lead.estimated_value.toLocaleString()}
+                          </Badge>
+                        </div>
                       </div>
                       {lead.email && (
                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
