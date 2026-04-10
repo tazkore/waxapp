@@ -215,7 +215,7 @@ const SeoSection = () => {
                       <p className="text-[11px] text-muted-foreground font-mono truncate">{page.page_path}</p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                      {hasIssues && <AlertCircle className="h-3.5 w-3.5 text-amber-400" />}
+                      {hasIssues && <AlertCircle className="h-3.5 w-3.5 text-accent" />}
                       {page.is_indexed ? (
                         <Badge variant="outline" className="text-[9px] text-primary border-primary/30">Indexada</Badge>
                       ) : (
