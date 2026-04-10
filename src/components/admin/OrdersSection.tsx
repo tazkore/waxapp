@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Eye, Search } from 'lucide-react';
+import { Loader2, Eye, Search, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +49,8 @@ const OrdersSection = () => {
   const [editNotes, setEditNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [statusHistory, setStatusHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [newOrder, setNewOrder] = useState({ customer_name: '', customer_email: '', total: '', shipping_address: '', items_text: '' });
 
   const fetchOrders = async () => {
@@ -79,6 +81,27 @@ const OrdersSection = () => {
     o.customer_email.toLowerCase().includes(search.toLowerCase())
   );
 
+  const fetchStatusHistory = async (orderId: string) => {
+    setHistoryLoading(true);
+    const { data } = await supabase
+      .from('order_status_history')
+      .select('*')
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: false });
+    setStatusHistory(data ?? []);
+    setHistoryLoading(false);
+  };
+
+  const logStatusChange = async (orderId: string, prevStatus: string, newStatus: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('order_status_history').insert({
+      order_id: orderId,
+      previous_status: prevStatus,
+      new_status: newStatus,
+      changed_by: user?.email ?? 'unknown',
+    } as any);
+  };
+
   const openDetail = (order: Order) => {
     setSelectedOrder(order);
     setEditAddress(order.shipping_address ?? '');
@@ -86,6 +109,7 @@ const OrdersSection = () => {
     setEditTracking(order.tracking_number ?? '');
     setEditNotes((order as any).admin_notes ?? '');
     setDetailOpen(true);
+    fetchStatusHistory(order.id);
   };
 
   const sendStatusEmail = async (order: Order, newStatus: string, trackingNumber?: string) => {
