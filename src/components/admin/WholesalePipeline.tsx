@@ -44,11 +44,10 @@ const WholesalePipeline = () => {
   const [leads, setLeads] = useState<WholesaleLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingLead, setEditingLead] = useState<WholesaleLead | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    company_name: '', contact_name: '', email: '', phone: '',
-    estimated_value: '', stage: 'prospecto', assigned_to: '', notes: '',
-  });
+  const emptyForm = { company_name: '', contact_name: '', email: '', phone: '', estimated_value: '', stage: 'prospecto', assigned_to: '', notes: '' };
+  const [form, setForm] = useState(emptyForm);
   const { toast } = useToast();
 
   const fetchLeads = async () => {
