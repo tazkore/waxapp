@@ -174,6 +174,28 @@ const ClientsSection = () => {
     URL.revokeObjectURL(url);
   };
 
+  /* ── Export XLSX ── */
+  const exportXLSX = async () => {
+    const XLSX = await import('xlsx');
+    const headers = ['Nombre', 'Email', 'Teléfono', 'Total Gastado', 'WAX Points', 'Nivel', 'Último Pedido', 'Creado'];
+    const data = filtered.map(c => ({
+      Nombre: c.name,
+      Email: c.email,
+      Teléfono: c.phone ?? '',
+      'Total Gastado': Number(c.total_spent),
+      'WAX Points': c.loyalty_points,
+      Nivel: c.membership_tier,
+      'Último Pedido': c.last_order_date ?? '',
+      Creado: c.created_at,
+    }));
+    const ws = XLSX.utils.json_to_sheet(data, { header: headers });
+    // Auto-size columns
+    ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length, 14) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
+    XLSX.writeFile(wb, `clientes_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   const totalLTV = clients.reduce((sum, c) => sum + Number(c.total_spent), 0);
   const avgLTV = clients.length > 0 ? totalLTV / clients.length : 0;
 
