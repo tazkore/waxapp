@@ -139,7 +139,7 @@ const WholesalePipeline = () => {
           <h2 className="text-xl font-bold text-foreground">Pipeline de Mayoreo</h2>
           <p className="text-muted-foreground text-sm">Leads de negocios de mayoreo — 7 etapas del embudo.</p>
         </div>
-        <Button className="gap-2" onClick={() => setModalOpen(true)}>
+        <Button className="gap-2" onClick={openCreate}>
           <Plus className="h-4 w-4" /> Nuevo Lead
         </Button>
       </div>
