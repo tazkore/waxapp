@@ -77,6 +77,12 @@ const IntegrationsSection = () => {
   const [search, setSearch] = useState('');
   const [selectedApp, setSelectedApp] = useState<Integration | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyValue, setNewKeyValue] = useState('');
+  const [showAddKey, setShowAddKey] = useState(false);
+  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
+  const [savingKeys, setSavingKeys] = useState(false);
   const { toast } = useToast();
 
   const fetchIntegrations = async () => {
