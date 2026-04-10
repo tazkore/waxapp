@@ -137,6 +137,54 @@ export type Database = {
         }
         Relationships: []
       }
+      integrations: {
+        Row: {
+          api_docs_url: string | null
+          category: string
+          config: Json
+          created_at: string
+          description: string | null
+          icon_url: string | null
+          id: string
+          is_active: boolean
+          is_installed: boolean
+          name: string
+          slug: string
+          updated_at: string
+          version: string | null
+        }
+        Insert: {
+          api_docs_url?: string | null
+          category?: string
+          config?: Json
+          created_at?: string
+          description?: string | null
+          icon_url?: string | null
+          id?: string
+          is_active?: boolean
+          is_installed?: boolean
+          name: string
+          slug: string
+          updated_at?: string
+          version?: string | null
+        }
+        Update: {
+          api_docs_url?: string | null
+          category?: string
+          config?: Json
+          created_at?: string
+          description?: string | null
+          icon_url?: string | null
+          id?: string
+          is_active?: boolean
+          is_installed?: boolean
+          name?: string
+          slug?: string
+          updated_at?: string
+          version?: string | null
+        }
+        Relationships: []
+      }
       order_status_history: {
         Row: {
           changed_by: string | null
