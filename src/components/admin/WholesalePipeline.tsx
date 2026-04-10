@@ -59,13 +59,34 @@ const WholesalePipeline = () => {
 
   useEffect(() => { fetchLeads(); }, []);
 
-  const handleCreate = async () => {
+  const openCreate = () => {
+    setEditingLead(null);
+    setForm(emptyForm);
+    setModalOpen(true);
+  };
+
+  const openEdit = (lead: WholesaleLead) => {
+    setEditingLead(lead);
+    setForm({
+      company_name: lead.company_name,
+      contact_name: lead.contact_name,
+      email: lead.email || '',
+      phone: lead.phone || '',
+      estimated_value: String(lead.estimated_value),
+      stage: lead.stage,
+      assigned_to: lead.assigned_to || '',
+      notes: lead.notes || '',
+    });
+    setModalOpen(true);
+  };
+
+  const handleSave = async () => {
     if (!form.company_name.trim() || !form.contact_name.trim()) {
       toast({ title: 'Error', description: 'Empresa y contacto son requeridos.', variant: 'destructive' });
       return;
     }
     setSaving(true);
-    const { error } = await supabase.from('wholesale_leads').insert({
+    const payload = {
       company_name: form.company_name,
       contact_name: form.contact_name,
       email: form.email || null,
@@ -74,12 +95,18 @@ const WholesalePipeline = () => {
       stage: form.stage,
       assigned_to: form.assigned_to || null,
       notes: form.notes || null,
-    });
+    };
+
+    const { error } = editingLead
+      ? await supabase.from('wholesale_leads').update(payload).eq('id', editingLead.id)
+      : await supabase.from('wholesale_leads').insert(payload);
+
     if (error) {
-      toast({ title: 'Error', description: 'No se pudo crear el lead.', variant: 'destructive' });
+      toast({ title: 'Error', description: editingLead ? 'No se pudo actualizar.' : 'No se pudo crear el lead.', variant: 'destructive' });
     } else {
-      toast({ title: 'Lead creado', description: `${form.company_name} agregado al pipeline.` });
-      setForm({ company_name: '', contact_name: '', email: '', phone: '', estimated_value: '', stage: 'prospecto', assigned_to: '', notes: '' });
+      toast({ title: editingLead ? 'Lead actualizado' : 'Lead creado', description: `${form.company_name} ${editingLead ? 'actualizado' : 'agregado al pipeline'}.` });
+      setForm(emptyForm);
+      setEditingLead(null);
       setModalOpen(false);
       fetchLeads();
     }
