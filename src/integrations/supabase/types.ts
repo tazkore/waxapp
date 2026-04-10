@@ -310,6 +310,90 @@ export type Database = {
         }
         Relationships: []
       }
+      seo_pages: {
+        Row: {
+          auto_sitemap: boolean
+          created_at: string
+          id: string
+          is_indexed: boolean
+          keywords: string[]
+          meta_description: string | null
+          meta_title: string | null
+          og_image_url: string | null
+          page_path: string
+          page_title: string
+          updated_at: string
+        }
+        Insert: {
+          auto_sitemap?: boolean
+          created_at?: string
+          id?: string
+          is_indexed?: boolean
+          keywords?: string[]
+          meta_description?: string | null
+          meta_title?: string | null
+          og_image_url?: string | null
+          page_path: string
+          page_title: string
+          updated_at?: string
+        }
+        Update: {
+          auto_sitemap?: boolean
+          created_at?: string
+          id?: string
+          is_indexed?: boolean
+          keywords?: string[]
+          meta_description?: string | null
+          meta_title?: string | null
+          og_image_url?: string | null
+          page_path?: string
+          page_title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      staff_tasks: {
+        Row: {
+          assigned_avatar: string | null
+          assigned_to: string | null
+          checklist: Json
+          created_at: string
+          description: string | null
+          id: string
+          order_id: string | null
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_avatar?: string | null
+          assigned_to?: string | null
+          checklist?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          order_id?: string | null
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_avatar?: string | null
+          assigned_to?: string | null
+          checklist?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          order_id?: string | null
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
