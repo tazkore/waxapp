@@ -46,6 +46,7 @@ const OrdersSection = () => {
   const [editAddress, setEditAddress] = useState('');
   const [editStatus, setEditStatus] = useState('');
   const [editTracking, setEditTracking] = useState('');
+  const [editNotes, setEditNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [newOrder, setNewOrder] = useState({ customer_name: '', customer_email: '', total: '', shipping_address: '', items_text: '' });
@@ -83,6 +84,7 @@ const OrdersSection = () => {
     setEditAddress(order.shipping_address ?? '');
     setEditStatus(order.status);
     setEditTracking(order.tracking_number ?? '');
+    setEditNotes((order as any).admin_notes ?? '');
     setDetailOpen(true);
   };
 
@@ -143,7 +145,8 @@ const OrdersSection = () => {
       shipping_address: editAddress || null,
       status: editStatus,
       tracking_number: editTracking || null,
-    }).eq('id', selectedOrder.id);
+      admin_notes: editNotes || null,
+    } as any).eq('id', selectedOrder.id);
 
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -326,6 +329,10 @@ const OrdersSection = () => {
                 <div className="space-y-2">
                   <Label className="text-foreground">Dirección de envío</Label>
                   <Textarea value={editAddress} onChange={e => setEditAddress(e.target.value)} className="bg-muted border-border resize-none" rows={2} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Notas internas (solo admin)</Label>
+                  <Textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} className="bg-muted border-border resize-none" rows={3} placeholder="Notas visibles solo para administradores..." />
                 </div>
               </div>
             </div>
