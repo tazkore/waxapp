@@ -86,9 +86,59 @@ const OrdersSection = () => {
     setDetailOpen(true);
   };
 
+  const sendStatusEmail = async (order: Order, newStatus: string, trackingNumber?: string) => {
+    const statusMessages: Record<string, { emoji: string; title: string; body: string }> = {
+      packed: { emoji: '📦', title: 'Tu pedido está siendo empacado', body: 'Estamos preparando tu pedido con mucho cuidado. Pronto será enviado.' },
+      shipped: { emoji: '🚚', title: 'Tu pedido ha sido enviado', body: 'Tu pedido está en camino. Puedes rastrear tu envío con el número de guía proporcionado.' },
+      delivered: { emoji: '✅', title: 'Tu pedido ha sido entregado', body: '¡Tu pedido ha llegado! Esperamos que disfrutes tu compra.' },
+      refunded: { emoji: '💸', title: 'Tu pedido ha sido reembolsado', body: 'Hemos procesado tu reembolso. El monto será reflejado en tu cuenta en los próximos días.' },
+    };
+
+    const msg = statusMessages[newStatus];
+    if (!msg) return;
+
+    try {
+      await supabase.functions.invoke('send-email', {
+        body: {
+          to: order.customer_email,
+          subject: `${msg.emoji} ${msg.title} — Pedido ${order.order_number}`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:30px;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb">
+            <div style="text-align:center;margin-bottom:20px">
+              <h1 style="color:#8B5CF6;font-size:28px;margin:0">WAXAPP</h1>
+              <p style="color:#6b7280;margin:4px 0 0">Actualización de Pedido</p>
+            </div>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0"/>
+            <div style="text-align:center;margin:24px 0">
+              <span style="font-size:48px">${msg.emoji}</span>
+              <h2 style="color:#1f2937;font-size:20px;margin:12px 0 8px">${msg.title}</h2>
+              <p style="color:#4b5563;line-height:1.6;margin:0">${msg.body}</p>
+            </div>
+            <div style="background:#f3f4f6;border-radius:10px;padding:16px;margin:20px 0;text-align:center">
+              <p style="color:#6b7280;font-size:13px;margin:0">Número de pedido</p>
+              <p style="color:#8B5CF6;font-size:24px;font-weight:bold;font-family:monospace;margin:4px 0 0">${order.order_number}</p>
+            </div>
+            ${trackingNumber && newStatus === 'shipped' ? `<div style="background:#faf5ff;border-radius:8px;padding:16px;margin:16px 0;border-left:4px solid #8B5CF6">
+              <p style="margin:0;font-size:13px;color:#6b7280"><strong>Número de guía:</strong></p>
+              <p style="margin:4px 0 0;font-size:18px;font-weight:bold;color:#1f2937;font-family:monospace">${trackingNumber}</p>
+            </div>` : ''}
+            <div style="text-align:center;margin:20px 0;padding:12px;background:#f3f4f6;border-radius:8px">
+              <span style="font-size:16px;font-weight:bold;color:#1f2937">Total: $${order.total.toLocaleString()} MXN</span>
+            </div>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0"/>
+            <p style="color:#9ca3af;font-size:12px;text-align:center">Este correo fue enviado automáticamente por WAXAPP. Si tienes dudas, contáctanos.</p>
+          </div>`,
+        },
+      });
+    } catch (e) {
+      console.error('Status email error:', e);
+    }
+  };
+
   const handleSaveDetail = async () => {
     if (!selectedOrder) return;
     setSaving(true);
+    const statusChanged = editStatus !== selectedOrder.status;
+
     const { error } = await supabase.from('orders').update({
       shipping_address: editAddress || null,
       status: editStatus,
@@ -98,6 +148,9 @@ const OrdersSection = () => {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      if (statusChanged) {
+        sendStatusEmail(selectedOrder, editStatus, editTracking);
+      }
       setOrders(prev => prev.map(o => o.id === selectedOrder.id
         ? { ...o, shipping_address: editAddress, status: editStatus, tracking_number: editTracking }
         : o
