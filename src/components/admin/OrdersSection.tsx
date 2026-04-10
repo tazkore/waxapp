@@ -168,6 +168,7 @@ const OrdersSection = () => {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      sendStatusEmail(selectedOrder, 'refunded');
       setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: 'refunded' } : o));
       toast({ title: 'Reembolso procesado', description: `Pedido ${selectedOrder.order_number} reembolsado por $${selectedOrder.total.toLocaleString()} MXN` });
       setRefundOpen(false);
