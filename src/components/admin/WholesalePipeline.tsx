@@ -256,10 +256,6 @@ const WholesalePipeline = () => {
           })}
         </div>
       </DragDropContext>
-            </div>
-          );
-        })}
-      </div>
 
       <LeadFormModal
         open={modalOpen}
