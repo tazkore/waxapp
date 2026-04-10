@@ -83,6 +83,10 @@ const IntegrationsSection = () => {
   const [showAddKey, setShowAddKey] = useState(false);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [savingKeys, setSavingKeys] = useState(false);
+  const [configFields, setConfigFields] = useState<Record<string, string>>({});
+  const [showAddConfig, setShowAddConfig] = useState(false);
+  const [newConfigKey, setNewConfigKey] = useState('');
+  const [newConfigValue, setNewConfigValue] = useState('');
   const { toast } = useToast();
 
   const fetchIntegrations = async () => {
