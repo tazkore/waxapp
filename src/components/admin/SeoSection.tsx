@@ -1,0 +1,449 @@
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Rocket,
+  Globe,
+  Search,
+  ExternalLink,
+  Save,
+  Loader2,
+  X,
+  FileText,
+  Image,
+  Settings2,
+  CheckCircle2,
+  AlertCircle,
+} from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+interface SeoPage {
+  id: string;
+  page_path: string;
+  page_title: string;
+  meta_title: string | null;
+  meta_description: string | null;
+  keywords: string[];
+  og_image_url: string | null;
+  is_indexed: boolean;
+  auto_sitemap: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+const SeoSection = () => {
+  const [pages, setPages] = useState<SeoPage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedPage, setSelectedPage] = useState<SeoPage | null>(null);
+  const [editData, setEditData] = useState({
+    meta_title: '',
+    meta_description: '',
+    keywords: [] as string[],
+    og_image_url: '',
+    is_indexed: true,
+    auto_sitemap: true,
+  });
+  const [keywordInput, setKeywordInput] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [globalSitemap, setGlobalSitemap] = useState(true);
+  const [globalRobots, setGlobalRobots] = useState(true);
+  const { toast } = useToast();
+
+  const fetchPages = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('seo_pages')
+      .select('*')
+      .order('page_path');
+    if (error) {
+      toast({ title: 'Error', description: 'No se pudieron cargar las páginas SEO.', variant: 'destructive' });
+    } else {
+      setPages((data as unknown as SeoPage[]) || []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchPages(); }, []);
+
+  const selectPage = (page: SeoPage) => {
+    setSelectedPage(page);
+    setEditData({
+      meta_title: page.meta_title || '',
+      meta_description: page.meta_description || '',
+      keywords: page.keywords || [],
+      og_image_url: page.og_image_url || '',
+      is_indexed: page.is_indexed,
+      auto_sitemap: page.auto_sitemap,
+    });
+  };
+
+  const handleSave = async () => {
+    if (!selectedPage) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from('seo_pages')
+      .update({
+        meta_title: editData.meta_title || null,
+        meta_description: editData.meta_description || null,
+        keywords: editData.keywords,
+        og_image_url: editData.og_image_url || null,
+        is_indexed: editData.is_indexed,
+        auto_sitemap: editData.auto_sitemap,
+      })
+      .eq('id', selectedPage.id);
+    if (error) {
+      toast({ title: 'Error', description: 'No se pudo guardar.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Guardado', description: `SEO de "${selectedPage.page_title}" actualizado.` });
+      fetchPages();
+    }
+    setSaving(false);
+  };
+
+  const addKeyword = () => {
+    const kw = keywordInput.trim();
+    if (kw && !editData.keywords.includes(kw)) {
+      setEditData({ ...editData, keywords: [...editData.keywords, kw] });
+      setKeywordInput('');
+    }
+  };
+
+  const removeKeyword = (kw: string) => {
+    setEditData({ ...editData, keywords: editData.keywords.filter((k) => k !== kw) });
+  };
+
+  const handleKeywordKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); addKeyword(); }
+  };
+
+  // Health score calculation
+  const calculateHealth = () => {
+    if (pages.length === 0) return 0;
+    let score = 0;
+    let total = 0;
+    pages.forEach((p) => {
+      total += 4;
+      if (p.meta_title && p.meta_title.length <= 60) score++;
+      if (p.meta_description && p.meta_description.length <= 160) score++;
+      if (p.keywords.length > 0) score++;
+      if (p.is_indexed) score++;
+    });
+    return Math.round((score / total) * 100);
+  };
+
+  const healthScore = calculateHealth();
+  const metaTitleLen = editData.meta_title.length;
+  const metaDescLen = editData.meta_description.length;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <Rocket className="h-6 w-6 text-primary" /> SEO & Indexación
+        </h1>
+        <p className="text-muted-foreground text-sm">Control total sobre cómo los motores de búsqueda ven tu tienda.</p>
+      </div>
+
+      {/* Health Score */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+        <Card className="border-border bg-card overflow-hidden">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${healthScore >= 80 ? 'bg-primary/20' : healthScore >= 50 ? 'bg-amber-500/20' : 'bg-destructive/20'}`}>
+                  {healthScore >= 80 ? (
+                    <CheckCircle2 className="h-6 w-6 text-primary" />
+                  ) : (
+                    <AlertCircle className={`h-6 w-6 ${healthScore >= 50 ? 'text-amber-400' : 'text-destructive'}`} />
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-foreground">Salud del Sitio: {healthScore}% Optimizado</h2>
+                  <p className="text-xs text-muted-foreground">{pages.length} páginas analizadas</p>
+                </div>
+              </div>
+            </div>
+            <Progress value={healthScore} className="h-3" />
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Main Content */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Pages List */}
+        <div className="xl:col-span-1 space-y-2">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 px-1">
+            <Globe className="h-4 w-4" /> Páginas ({pages.length})
+          </h3>
+          <div className="space-y-1">
+            {pages.map((page) => {
+              const isSelected = selectedPage?.id === page.id;
+              const hasIssues = !page.meta_title || !page.meta_description || page.keywords.length === 0;
+              return (
+                <motion.button
+                  key={page.id}
+                  className={`w-full text-left p-3 rounded-lg border transition-all ${
+                    isSelected
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border bg-card hover:border-primary/30'
+                  }`}
+                  onClick={() => selectPage(page)}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{page.page_title}</p>
+                      <p className="text-[11px] text-muted-foreground font-mono truncate">{page.page_path}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      {hasIssues && <AlertCircle className="h-3.5 w-3.5 text-amber-400" />}
+                      {page.is_indexed ? (
+                        <Badge variant="outline" className="text-[9px] text-primary border-primary/30">Indexada</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[9px] text-muted-foreground">No-index</Badge>
+                      )}
+                    </div>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Editor */}
+        <div className="xl:col-span-2">
+          {selectedPage ? (
+            <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} key={selectedPage.id}>
+              <Card className="border-border bg-card">
+                <CardContent className="p-6 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-semibold text-foreground">{selectedPage.page_title}</h3>
+                    <Button size="sm" className="gap-1.5" onClick={handleSave} disabled={saving}>
+                      {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                      Guardar
+                    </Button>
+                  </div>
+
+                  <Tabs defaultValue="meta">
+                    <TabsList>
+                      <TabsTrigger value="meta" className="gap-1.5 text-xs">
+                        <FileText className="h-3.5 w-3.5" /> Meta Tags
+                      </TabsTrigger>
+                      <TabsTrigger value="og" className="gap-1.5 text-xs">
+                        <Image className="h-3.5 w-3.5" /> OpenGraph
+                      </TabsTrigger>
+                      <TabsTrigger value="tech" className="gap-1.5 text-xs">
+                        <Settings2 className="h-3.5 w-3.5" /> Técnico
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {/* Meta Tags Tab */}
+                    <TabsContent value="meta" className="mt-4 space-y-5">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                        {/* Inputs */}
+                        <div className="space-y-4">
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <Label className="text-xs">Meta Título (Max 60 caracteres)</Label>
+                              <span className={`text-[10px] font-mono ${metaTitleLen > 60 ? 'text-destructive' : metaTitleLen > 50 ? 'text-amber-400' : 'text-muted-foreground'}`}>
+                                {metaTitleLen}/60
+                              </span>
+                            </div>
+                            <Input
+                              value={editData.meta_title}
+                              onChange={(e) => setEditData({ ...editData, meta_title: e.target.value })}
+                              placeholder="Título optimizado para SEO..."
+                              className={metaTitleLen > 60 ? 'border-destructive' : ''}
+                            />
+                          </div>
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <Label className="text-xs">Meta Descripción (Max 160 caracteres)</Label>
+                              <span className={`text-[10px] font-mono ${metaDescLen > 160 ? 'text-destructive' : metaDescLen > 140 ? 'text-amber-400' : 'text-muted-foreground'}`}>
+                                {metaDescLen}/160
+                              </span>
+                            </div>
+                            <Textarea
+                              value={editData.meta_description}
+                              onChange={(e) => setEditData({ ...editData, meta_description: e.target.value })}
+                              placeholder="Descripción atractiva para resultados de búsqueda..."
+                              rows={3}
+                              className={metaDescLen > 160 ? 'border-destructive' : ''}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs mb-1 block">Keywords de Enfoque</Label>
+                            <div className="flex gap-2">
+                              <Input
+                                value={keywordInput}
+                                onChange={(e) => setKeywordInput(e.target.value)}
+                                onKeyDown={handleKeywordKeyDown}
+                                placeholder="Escribe y presiona Enter..."
+                                className="flex-1"
+                              />
+                              <Button variant="outline" size="sm" onClick={addKeyword}>+</Button>
+                            </div>
+                            {editData.keywords.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 mt-2">
+                                {editData.keywords.map((kw) => (
+                                  <Badge
+                                    key={kw}
+                                    variant="secondary"
+                                    className="text-xs gap-1 cursor-pointer hover:bg-destructive/20"
+                                    onClick={() => removeKeyword(kw)}
+                                  >
+                                    {kw} <X className="h-3 w-3" />
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Live Preview */}
+                        <div>
+                          <Label className="text-xs mb-2 block">Previsualización en Google</Label>
+                          <div className="rounded-lg border border-border bg-background p-4 space-y-1">
+                            <p className="text-sm text-primary hover:underline cursor-pointer leading-tight font-medium">
+                              {editData.meta_title || 'Título de la página'}
+                            </p>
+                            <p className="text-xs text-primary/60 font-mono">
+                              waxapp.lovable.app{selectedPage.page_path}
+                            </p>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              {editData.meta_description || 'Agrega una meta descripción para ver cómo aparecerá en los resultados de búsqueda.'}
+                            </p>
+                          </div>
+                          {editData.keywords.length > 0 && (
+                            <div className="mt-3">
+                              <p className="text-[10px] text-muted-foreground mb-1">Keywords objetivo:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {editData.keywords.map((kw) => (
+                                  <span key={kw} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono">{kw}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    {/* OpenGraph Tab */}
+                    <TabsContent value="og" className="mt-4 space-y-4">
+                      <div>
+                        <Label className="text-xs">Imagen OpenGraph (URL)</Label>
+                        <Input
+                          value={editData.og_image_url}
+                          onChange={(e) => setEditData({ ...editData, og_image_url: e.target.value })}
+                          placeholder="https://..."
+                          className="mt-1"
+                        />
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Imagen que aparecerá al compartir en WhatsApp, Twitter y Facebook. Tamaño recomendado: 1200x630px.
+                        </p>
+                      </div>
+                      {editData.og_image_url && (
+                        <div className="rounded-lg border border-border overflow-hidden">
+                          <img
+                            src={editData.og_image_url}
+                            alt="OG Preview"
+                            className="w-full h-40 object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                          <div className="p-3 bg-card">
+                            <p className="text-[10px] text-muted-foreground uppercase">waxapp.lovable.app</p>
+                            <p className="text-sm font-medium text-foreground">{editData.meta_title || selectedPage.page_title}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-2">{editData.meta_description}</p>
+                          </div>
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    {/* Technical Tab */}
+                    <TabsContent value="tech" className="mt-4 space-y-4">
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Permitir indexación</p>
+                          <p className="text-[11px] text-muted-foreground">Permitir que Google indexe esta página</p>
+                        </div>
+                        <Switch
+                          checked={editData.is_indexed}
+                          onCheckedChange={(v) => setEditData({ ...editData, is_indexed: v })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Incluir en Sitemap</p>
+                          <p className="text-[11px] text-muted-foreground">Agregar automáticamente al sitemap.xml</p>
+                        </div>
+                        <Switch
+                          checked={editData.auto_sitemap}
+                          onCheckedChange={(v) => setEditData({ ...editData, auto_sitemap: v })}
+                        />
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ) : (
+            <Card className="border-border bg-card">
+              <CardContent className="py-20 text-center">
+                <Search className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">Selecciona una página de la lista para editar su SEO.</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Global Technical Controls */}
+      <Card className="border-border bg-card">
+        <CardContent className="p-6">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-4">
+            <Settings2 className="h-4 w-4" /> Herramientas Técnicas Globales
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/30">
+              <div>
+                <p className="text-sm font-medium text-foreground">Auto-Generar Sitemap.xml</p>
+                <p className="text-[11px] text-muted-foreground">Genera automáticamente el sitemap con todas las páginas indexadas</p>
+              </div>
+              <Switch checked={globalSitemap} onCheckedChange={setGlobalSitemap} />
+            </div>
+            <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/30">
+              <div>
+                <p className="text-sm font-medium text-foreground">Indexar en Google (robots.txt)</p>
+                <p className="text-[11px] text-muted-foreground">Permitir/Bloquear el rastreo de bots en todo el sitio</p>
+              </div>
+              <Switch checked={globalRobots} onCheckedChange={setGlobalRobots} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default SeoSection;
