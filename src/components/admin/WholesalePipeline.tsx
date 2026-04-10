@@ -42,6 +42,7 @@ const WholesalePipeline = () => {
   const [editingLead, setEditingLead] = useState<WholesaleLead | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<LeadFormData>(emptyLeadForm);
+  const [deletingLead, setDeletingLead] = useState<WholesaleLead | null>(null);
   const { toast } = useToast();
 
   const fetchLeads = async () => {
