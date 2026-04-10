@@ -29,6 +29,7 @@ import {
   Clock,
   Package,
   GripVertical,
+  ClipboardList,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
