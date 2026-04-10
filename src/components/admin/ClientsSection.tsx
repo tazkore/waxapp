@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Loader2, Search, MessageSquare, Plus, Pencil, Trash2, Download } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { Loader2, Search, MessageSquare, Plus, Pencil, Trash2, Download, TrendingUp, Users, Crown, DollarSign } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -166,6 +166,25 @@ const ClientsSection = () => {
   };
 
   const totalLTV = clients.reduce((sum, c) => sum + Number(c.total_spent), 0);
+  const avgLTV = clients.length > 0 ? totalLTV / clients.length : 0;
+
+  const tierDistribution = useMemo(() => {
+    const counts: Record<string, number> = { Bronze: 0, Silver: 0, VIP: 0 };
+    clients.forEach(c => { counts[c.membership_tier] = (counts[c.membership_tier] || 0) + 1; });
+    return counts;
+  }, [clients]);
+
+  const newClientsMetrics = useMemo(() => {
+    const now = new Date();
+    const d7 = new Date(now.getTime() - 7 * 86400000);
+    const d30 = new Date(now.getTime() - 30 * 86400000);
+    const d90 = new Date(now.getTime() - 90 * 86400000);
+    return {
+      last7: clients.filter(c => new Date(c.created_at) >= d7).length,
+      last30: clients.filter(c => new Date(c.created_at) >= d30).length,
+      last90: clients.filter(c => new Date(c.created_at) >= d90).length,
+    };
+  }, [clients]);
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
@@ -181,24 +200,74 @@ const ClientsSection = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card className="bg-card border-border">
           <CardContent className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Total Clientes</p>
+            <Users className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">Total Clientes</p>
             <p className="text-2xl font-bold text-foreground">{clients.length}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border">
           <CardContent className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">LTV Total</p>
+            <DollarSign className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">LTV Total</p>
             <p className="text-2xl font-bold text-primary">${totalLTV.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border">
           <CardContent className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Clientes VIP</p>
-            <p className="text-2xl font-bold text-secondary">{clients.filter(c => c.membership_tier === 'VIP').length}</p>
+            <TrendingUp className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">LTV Promedio</p>
+            <p className="text-2xl font-bold text-foreground">${avgLTV.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-card border-border">
+          <CardContent className="p-4 text-center">
+            <Crown className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">Clientes VIP</p>
+            <p className="text-2xl font-bold text-secondary">{tierDistribution.VIP}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tier Distribution & New Clients */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card className="bg-card border-border">
+          <CardContent className="p-4 space-y-3">
+            <p className="text-sm font-semibold text-foreground">Distribución por Nivel</p>
+            {(['Bronze', 'Silver', 'VIP'] as const).map(tier => {
+              const count = tierDistribution[tier] || 0;
+              const pct = clients.length > 0 ? (count / clients.length) * 100 : 0;
+              return (
+                <div key={tier} className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">{tier}</span>
+                    <span className="text-foreground font-medium">{count} ({pct.toFixed(0)}%)</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${tier === 'VIP' ? 'bg-primary' : tier === 'Silver' ? 'bg-gray-400' : 'bg-orange-500'}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+        <Card className="bg-card border-border">
+          <CardContent className="p-4 space-y-3">
+            <p className="text-sm font-semibold text-foreground">Clientes Nuevos</p>
+            <div className="grid grid-cols-3 gap-3 pt-1">
+              {([['7 días', newClientsMetrics.last7], ['30 días', newClientsMetrics.last30], ['90 días', newClientsMetrics.last90]] as const).map(([label, count]) => (
+                <div key={label} className="text-center p-3 rounded-lg bg-muted">
+                  <p className="text-2xl font-bold text-foreground">{count}</p>
+                  <p className="text-xs text-muted-foreground">Últimos {label}</p>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
