@@ -254,8 +254,8 @@ const OperationsSection = () => {
 
       <Tabs defaultValue="tareas" className="w-full">
         <TabsList className="bg-muted/50 border border-border">
-          <TabsTrigger value="tareas" className="gap-1.5 data-[state=active]:bg-background"><ClipboardIcon className="h-3.5 w-3.5" /> Tareas Internas</TabsTrigger>
-          <TabsTrigger value="mayoreo" className="gap-1.5 data-[state=active]:bg-background"><Building2Icon className="h-3.5 w-3.5" /> Pipeline Mayoreo</TabsTrigger>
+          <TabsTrigger value="tareas" className="gap-1.5 data-[state=active]:bg-background"><ClipboardList className="h-3.5 w-3.5" /> Tareas Internas</TabsTrigger>
+          <TabsTrigger value="mayoreo" className="gap-1.5 data-[state=active]:bg-background"><Package className="h-3.5 w-3.5" /> Pipeline Mayoreo</TabsTrigger>
         </TabsList>
         <TabsContent value="tareas">
 
