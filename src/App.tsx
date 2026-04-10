@@ -13,6 +13,7 @@ import ClientDashboard from "./pages/ClientDashboard.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
+import SeoHead from "./components/SeoHead.tsx";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <SeoHead />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/producto/:id" element={<ProductDetail />} />
