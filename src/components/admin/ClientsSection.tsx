@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Loader2, Search, MessageSquare, Plus, Pencil, Trash2, Download, Upload, TrendingUp, Users, Crown, DollarSign, CreditCard, Building2 } from 'lucide-react';
+import { Loader2, Search, MessageSquare, Plus, Pencil, Trash2, Download, Upload, FileSpreadsheet, TrendingUp, Users, Crown, DollarSign, CreditCard, Building2 } from 'lucide-react';
 import ClientImportDialog from './ClientImportDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import WholesaleCreditTab from './WholesaleCreditTab';
@@ -174,6 +174,28 @@ const ClientsSection = () => {
     URL.revokeObjectURL(url);
   };
 
+  /* ── Export XLSX ── */
+  const exportXLSX = async () => {
+    const XLSX = await import('xlsx');
+    const headers = ['Nombre', 'Email', 'Teléfono', 'Total Gastado', 'WAX Points', 'Nivel', 'Último Pedido', 'Creado'];
+    const data = filtered.map(c => ({
+      Nombre: c.name,
+      Email: c.email,
+      Teléfono: c.phone ?? '',
+      'Total Gastado': Number(c.total_spent),
+      'WAX Points': c.loyalty_points,
+      Nivel: c.membership_tier,
+      'Último Pedido': c.last_order_date ?? '',
+      Creado: c.created_at,
+    }));
+    const ws = XLSX.utils.json_to_sheet(data, { header: headers });
+    // Auto-size columns
+    ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length, 14) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
+    XLSX.writeFile(wb, `clientes_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   const totalLTV = clients.reduce((sum, c) => sum + Number(c.total_spent), 0);
   const avgLTV = clients.length > 0 ? totalLTV / clients.length : 0;
 
@@ -212,7 +234,8 @@ const ClientsSection = () => {
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => setImportOpen(true)}><Upload className="h-4 w-4 mr-2" />Importar</Button>
-        <Button variant="outline" onClick={exportCSV}><Download className="h-4 w-4 mr-2" />Exportar CSV</Button>
+        <Button variant="outline" onClick={exportCSV}><Download className="h-4 w-4 mr-2" />CSV</Button>
+        <Button variant="outline" onClick={exportXLSX}><FileSpreadsheet className="h-4 w-4 mr-2" />Excel</Button>
         <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={openCreate}>
           <Plus className="h-4 w-4 mr-2" />Nuevo Cliente
         </Button>
