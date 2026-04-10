@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Eye, Search } from 'lucide-react';
+import { Loader2, Eye, Search, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +49,8 @@ const OrdersSection = () => {
   const [editNotes, setEditNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [statusHistory, setStatusHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [newOrder, setNewOrder] = useState({ customer_name: '', customer_email: '', total: '', shipping_address: '', items_text: '' });
 
   const fetchOrders = async () => {
@@ -79,6 +81,27 @@ const OrdersSection = () => {
     o.customer_email.toLowerCase().includes(search.toLowerCase())
   );
 
+  const fetchStatusHistory = async (orderId: string) => {
+    setHistoryLoading(true);
+    const { data } = await supabase
+      .from('order_status_history')
+      .select('*')
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: false });
+    setStatusHistory(data ?? []);
+    setHistoryLoading(false);
+  };
+
+  const logStatusChange = async (orderId: string, prevStatus: string, newStatus: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('order_status_history').insert({
+      order_id: orderId,
+      previous_status: prevStatus,
+      new_status: newStatus,
+      changed_by: user?.email ?? 'unknown',
+    } as any);
+  };
+
   const openDetail = (order: Order) => {
     setSelectedOrder(order);
     setEditAddress(order.shipping_address ?? '');
@@ -86,6 +109,7 @@ const OrdersSection = () => {
     setEditTracking(order.tracking_number ?? '');
     setEditNotes((order as any).admin_notes ?? '');
     setDetailOpen(true);
+    fetchStatusHistory(order.id);
   };
 
   const sendStatusEmail = async (order: Order, newStatus: string, trackingNumber?: string) => {
@@ -152,6 +176,7 @@ const OrdersSection = () => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       if (statusChanged) {
+        await logStatusChange(selectedOrder.id, selectedOrder.status, editStatus);
         sendStatusEmail(selectedOrder, editStatus, editTracking);
       }
       setOrders(prev => prev.map(o => o.id === selectedOrder.id
@@ -171,6 +196,7 @@ const OrdersSection = () => {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      await logStatusChange(selectedOrder.id, selectedOrder.status, 'refunded');
       sendStatusEmail(selectedOrder, 'refunded');
       setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: 'refunded' } : o));
       toast({ title: 'Reembolso procesado', description: `Pedido ${selectedOrder.order_number} reembolsado por $${selectedOrder.total.toLocaleString()} MXN` });
@@ -306,6 +332,38 @@ const OrdersSection = () => {
                   </div>
                 </div>
               )}
+
+              {/* Status History */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" /> Historial de estados
+                </p>
+                {historyLoading ? (
+                  <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                ) : statusHistory.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">Sin cambios de estado registrados.</p>
+                ) : (
+                  <div className="max-h-40 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+                    {statusHistory.map((h: any) => (
+                      <div key={h.id} className="px-3 py-2 text-xs flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Badge className={`${statusColor[h.previous_status] ?? 'bg-muted text-muted-foreground'} text-[10px] px-1.5 py-0`}>
+                            {statusLabel[h.previous_status] ?? h.previous_status}
+                          </Badge>
+                          <span className="text-muted-foreground">→</span>
+                          <Badge className={`${statusColor[h.new_status] ?? 'bg-muted text-muted-foreground'} text-[10px] px-1.5 py-0`}>
+                            {statusLabel[h.new_status] ?? h.new_status}
+                          </Badge>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-muted-foreground">{h.changed_by}</p>
+                          <p className="text-muted-foreground/70">{new Date(h.created_at).toLocaleString('es-MX')}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Editable Fields */}
               <div className="space-y-4">
