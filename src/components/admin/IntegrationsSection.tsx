@@ -94,7 +94,7 @@ const IntegrationsSection = () => {
     const newInstalled = !app.is_installed;
     const { error } = await supabase
       .from('integrations')
-      .update({ is_installed: newInstalled, is_active: newInstalled ? app.is_active : false } as Record<string, unknown>)
+      .update({ is_installed: newInstalled, is_active: newInstalled ? app.is_active : false })
       .eq('id', app.id);
 
     if (error) {
@@ -112,7 +112,7 @@ const IntegrationsSection = () => {
     const newActive = !app.is_active;
     const { error } = await supabase
       .from('integrations')
-      .update({ is_active: newActive } as Record<string, unknown>)
+      .update({ is_active: newActive })
       .eq('id', app.id);
 
     if (error) {
@@ -160,7 +160,7 @@ const IntegrationsSection = () => {
               <div className="flex items-center gap-2 mb-1">
                 <h3 className="font-semibold text-sm text-foreground truncate">{app.name}</h3>
                 {app.is_active && (
-                  <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
                 )}
               </div>
               <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{app.description}</p>
