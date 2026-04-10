@@ -12,7 +12,7 @@ import { toast } from '@/hooks/use-toast';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
-const CLIP_PUBLIC_KEY = import.meta.env.VITE_CLIP_PUBLIC_KEY || '';
+
 
 const steps = [
   { id: 1, title: 'Datos de Envío', icon: MapPin },
