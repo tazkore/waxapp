@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -23,35 +22,32 @@ import {
 } from '@/components/ui/select';
 import {
   Plus,
-  ChevronDown,
-  ChevronUp,
   Loader2,
-  GripVertical,
   AlertTriangle,
-  CheckCircle2,
   Clock,
   Package,
-  User,
+  GripVertical,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+  type DragOverEvent,
+  useDroppable,
+} from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import KanbanCard, { type StaffTask, priorityConfig } from './KanbanCard';
 
 interface ChecklistItem {
   text: string;
   done: boolean;
-}
-
-interface StaffTask {
-  id: string;
-  title: string;
-  description: string | null;
-  status: string;
-  priority: string;
-  assigned_to: string | null;
-  assigned_avatar: string | null;
-  order_id: string | null;
-  checklist: ChecklistItem[];
-  created_at: string;
-  updated_at: string;
 }
 
 const COLUMNS = [
@@ -68,19 +64,26 @@ const PIPELINE_STAGES = [
   { label: 'Despacho', key: 'despacho' },
 ];
 
-const priorityConfig: Record<string, { label: string; className: string }> = {
-  normal: { label: 'Normal', className: 'bg-primary/20 text-primary border-primary/30' },
-  alta: { label: 'Alta', className: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-  urgente: { label: 'Urgente', className: 'bg-destructive/20 text-destructive border-destructive/30' },
-};
-
 const STAFF_MEMBERS = ['Ana López', 'Carlos Ruiz', 'María García', 'Jorge Mendoza'];
+
+const DroppableColumn = ({ id, children }: { id: string; children: React.ReactNode }) => {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`space-y-3 min-h-[200px] rounded-lg p-1 transition-colors ${isOver ? 'bg-primary/5 ring-2 ring-primary/20' : ''}`}
+    >
+      {children}
+    </div>
+  );
+};
 
 const OperationsSection = () => {
   const [tasks, setTasks] = useState<StaffTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [expandedChecklist, setExpandedChecklist] = useState<Set<string>>(new Set());
+  const [activeTask, setActiveTask] = useState<StaffTask | null>(null);
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -91,6 +94,11 @@ const OperationsSection = () => {
   });
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -141,8 +149,10 @@ const OperationsSection = () => {
   };
 
   const moveTask = async (task: StaffTask, newStatus: string) => {
+    // Optimistic update
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t)));
     const { error } = await supabase.from('staff_tasks').update({ status: newStatus }).eq('id', task.id);
-    if (!error) fetchTasks();
+    if (error) fetchTasks();
   };
 
   const toggleChecklistItem = async (task: StaffTask, index: number) => {
@@ -161,7 +171,54 @@ const OperationsSection = () => {
     });
   };
 
-  // Detect bottleneck — stage with most tasks
+  // DnD handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const task = tasks.find((t) => t.id === event.active.id);
+    if (task) setActiveTask(task);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const overId = over.id as string;
+    // Check if dropping over a column
+    const overColumn = COLUMNS.find((c) => c.key === overId);
+    if (overColumn) {
+      const activeTaskItem = tasks.find((t) => t.id === active.id);
+      if (activeTaskItem && activeTaskItem.status !== overColumn.key) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === active.id ? { ...t, status: overColumn.key } : t))
+        );
+      }
+      return;
+    }
+
+    // Dropping over another task
+    const overTask = tasks.find((t) => t.id === overId);
+    if (overTask) {
+      const activeTaskItem = tasks.find((t) => t.id === active.id);
+      if (activeTaskItem && activeTaskItem.status !== overTask.status) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === active.id ? { ...t, status: overTask.status } : t))
+        );
+      }
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active } = event;
+    setActiveTask(null);
+
+    const task = tasks.find((t) => t.id === active.id);
+    if (!task) return;
+
+    // Persist the new status
+    const { error } = await supabase.from('staff_tasks').update({ status: task.status }).eq('id', task.id);
+    if (error) fetchTasks();
+  };
+
+  // Detect bottleneck
   const bottleneckStage = (() => {
     const counts: Record<string, number> = { nueva: 0, verificacion: 0, almacen: 0, despacho: 0 };
     tasks.forEach((t) => {
@@ -222,7 +279,7 @@ const OperationsSection = () => {
                     )}
                   </motion.div>
                   {i < PIPELINE_STAGES.length - 1 && (
-                    <div className={`mx-1 text-xs font-bold ${i < PIPELINE_STAGES.length - 1 ? 'text-muted-foreground/50' : ''}`}>➔</div>
+                    <div className="mx-1 text-xs font-bold text-muted-foreground/50">➔</div>
                   )}
                 </div>
               );
@@ -231,127 +288,77 @@ const OperationsSection = () => {
         </CardContent>
       </Card>
 
-      {/* Kanban Board */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {COLUMNS.map((col) => {
-          const colTasks = tasksByStatus(col.key);
-          const ColIcon = col.icon;
-          return (
-            <div key={col.key} className="space-y-3">
-              <div className="flex items-center gap-2 px-1">
-                <ColIcon className={`h-4 w-4 ${col.color}`} />
-                <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
-                <Badge variant="secondary" className="text-[10px] ml-auto">{colTasks.length}</Badge>
+      {/* Kanban Board with DnD */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          {COLUMNS.map((col) => {
+            const colTasks = tasksByStatus(col.key);
+            const ColIcon = col.icon;
+            return (
+              <div key={col.key} className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                  <ColIcon className={`h-4 w-4 ${col.color}`} />
+                  <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
+                  <Badge variant="secondary" className="text-[10px] ml-auto">{colTasks.length}</Badge>
+                </div>
+                <DroppableColumn id={col.key}>
+                  <SortableContext items={colTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                    <AnimatePresence>
+                      {colTasks.map((task) => (
+                        <motion.div
+                          key={task.id}
+                          layout
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <KanbanCard
+                            task={task}
+                            isExpanded={expandedChecklist.has(task.id)}
+                            onToggleChecklist={toggleChecklist}
+                            onToggleChecklistItem={toggleChecklistItem}
+                            columns={COLUMNS}
+                            currentColumnKey={col.key}
+                            onMoveTask={moveTask}
+                          />
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </SortableContext>
+                </DroppableColumn>
               </div>
-              <div className="space-y-3 min-h-[200px]">
-                <AnimatePresence>
-                  {colTasks.map((task) => {
-                    const pCfg = priorityConfig[task.priority] || priorityConfig.normal;
-                    const checklistDone = task.checklist.filter((c) => c.done).length;
-                    const isExpanded = expandedChecklist.has(task.id);
-                    return (
-                      <motion.div
-                        key={task.id}
-                        layout
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <Card className="border-border bg-card hover:border-primary/30 transition-colors">
-                          <CardContent className="p-4 space-y-3">
-                            {/* Title & Priority */}
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                {task.order_id && (
-                                  <span className="text-[10px] font-mono text-primary/70">#{task.order_id}</span>
-                                )}
-                                <h4 className="text-sm font-medium text-foreground leading-tight truncate">{task.title}</h4>
-                              </div>
-                              <Badge variant="outline" className={`text-[10px] shrink-0 ${pCfg.className}`}>
-                                {pCfg.label}
-                              </Badge>
-                            </div>
+            );
+          })}
+        </div>
 
-                            {task.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
-                            )}
-
-                            {/* Assigned */}
-                            {task.assigned_to && (
-                              <div className="flex items-center gap-1.5">
-                                <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center">
-                                  <User className="h-3 w-3 text-primary" />
-                                </div>
-                                <span className="text-[11px] text-muted-foreground">{task.assigned_to}</span>
-                              </div>
-                            )}
-
-                            {/* Checklist Toggle */}
-                            {task.checklist.length > 0 && (
-                              <div>
-                                <button
-                                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
-                                  onClick={() => toggleChecklist(task.id)}
-                                >
-                                  <CheckCircle2 className="h-3.5 w-3.5" />
-                                  <span>{checklistDone}/{task.checklist.length} subtareas</span>
-                                  {isExpanded ? <ChevronUp className="h-3 w-3 ml-auto" /> : <ChevronDown className="h-3 w-3 ml-auto" />}
-                                </button>
-                                <AnimatePresence>
-                                  {isExpanded && (
-                                    <motion.div
-                                      initial={{ height: 0, opacity: 0 }}
-                                      animate={{ height: 'auto', opacity: 1 }}
-                                      exit={{ height: 0, opacity: 0 }}
-                                      transition={{ duration: 0.2 }}
-                                      className="overflow-hidden"
-                                    >
-                                      <div className="mt-2 space-y-1.5 pl-1">
-                                        {task.checklist.map((item, idx) => (
-                                          <div
-                                            key={idx}
-                                            className="flex items-center gap-2 cursor-pointer"
-                                            onClick={() => toggleChecklistItem(task, idx)}
-                                          >
-                                            <Checkbox checked={item.done} className="h-3.5 w-3.5" />
-                                            <span className={`text-xs ${item.done ? 'line-through text-muted-foreground/60' : 'text-foreground'}`}>
-                                              {item.text}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </div>
-                            )}
-
-                            {/* Move actions */}
-                            <div className="flex gap-1 pt-1">
-                              {COLUMNS.filter((c) => c.key !== col.key).map((target) => (
-                                <Button
-                                  key={target.key}
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 text-[10px] px-2 text-muted-foreground hover:text-foreground"
-                                  onClick={() => moveTask(task, target.key)}
-                                >
-                                  → {target.label.split('/')[0]}
-                                </Button>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
+        {/* Drag overlay for smooth visual feedback */}
+        <DragOverlay>
+          {activeTask && (
+            <div className="opacity-90 rotate-2 w-[280px]">
+              <Card className="border-primary/40 bg-card shadow-xl shadow-primary/10">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="text-sm font-medium text-foreground truncate">{activeTask.title}</h4>
+                    <Badge variant="outline" className={`text-[10px] shrink-0 ${(priorityConfig[activeTask.priority] || priorityConfig.normal).className}`}>
+                      {(priorityConfig[activeTask.priority] || priorityConfig.normal).label}
+                    </Badge>
+                  </div>
+                  {activeTask.assigned_to && (
+                    <p className="text-[11px] text-muted-foreground mt-2">{activeTask.assigned_to}</p>
+                  )}
+                </CardContent>
+              </Card>
             </div>
-          );
-        })}
-      </div>
+          )}
+        </DragOverlay>
+      </DndContext>
 
       {/* New Task Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
