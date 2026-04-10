@@ -349,20 +349,71 @@ const Checkout = () => {
 
                   {paymentMethod === 'card' && (
                     <div className="space-y-4 border-t border-border pt-6">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                        <ShieldCheck className="h-4 w-4 text-primary" />
+                        <span>Pago seguro procesado por Clip</span>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-foreground">Nombre en la tarjeta</Label>
+                        <Input
+                          value={cardData.name}
+                          onChange={e => setCardData({ ...cardData, name: e.target.value })}
+                          className="bg-muted border-border"
+                          placeholder="Como aparece en la tarjeta"
+                        />
+                      </div>
                       <div className="space-y-2">
                         <Label className="text-foreground">Número de tarjeta</Label>
-                        <Input className="bg-muted border-border" placeholder="4242 4242 4242 4242" />
+                        <Input
+                          value={cardData.number}
+                          onChange={e => {
+                            const v = e.target.value.replace(/\D/g, '').slice(0, 16);
+                            setCardData({ ...cardData, number: v.replace(/(.{4})/g, '$1 ').trim() });
+                          }}
+                          className="bg-muted border-border font-mono"
+                          placeholder="4242 4242 4242 4242"
+                          maxLength={19}
+                        />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
-                          <Label className="text-foreground">Expiración</Label>
-                          <Input className="bg-muted border-border" placeholder="MM/AA" />
+                          <Label className="text-foreground">Mes</Label>
+                          <Input
+                            value={cardData.expMonth}
+                            onChange={e => setCardData({ ...cardData, expMonth: e.target.value.replace(/\D/g, '').slice(0, 2) })}
+                            className="bg-muted border-border text-center"
+                            placeholder="MM"
+                            maxLength={2}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-foreground">Año</Label>
+                          <Input
+                            value={cardData.expYear}
+                            onChange={e => setCardData({ ...cardData, expYear: e.target.value.replace(/\D/g, '').slice(0, 2) })}
+                            className="bg-muted border-border text-center"
+                            placeholder="AA"
+                            maxLength={2}
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label className="text-foreground">CVV</Label>
-                          <Input className="bg-muted border-border" placeholder="123" />
+                          <Input
+                            value={cardData.cvv}
+                            onChange={e => setCardData({ ...cardData, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                            className="bg-muted border-border text-center"
+                            placeholder="123"
+                            maxLength={4}
+                            type="password"
+                          />
                         </div>
                       </div>
+
+                      {paymentError && (
+                        <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-3 text-sm text-destructive">
+                          {paymentError}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -370,8 +421,12 @@ const Checkout = () => {
                     <Button variant="outline" onClick={() => setStep(2)} className="gap-2">
                       <ArrowLeft className="h-4 w-4" /> Atrás
                     </Button>
-                    <Button onClick={handleConfirm} disabled={loading} className="gap-2 bg-primary text-primary-foreground px-8">
-                      {loading ? 'Procesando...' : `Pagar $${total.toLocaleString()} MXN`}
+                    <Button
+                      onClick={handleConfirm}
+                      disabled={loading || (paymentMethod === 'card' && (!cardData.number || !cardData.name || !cardData.expMonth || !cardData.expYear || !cardData.cvv))}
+                      className="gap-2 bg-primary text-primary-foreground px-8"
+                    >
+                      {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Procesando...</> : `Pagar $${total.toLocaleString()} MXN`}
                     </Button>
                   </div>
                 </motion.div>
