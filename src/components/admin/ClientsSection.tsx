@@ -65,13 +65,7 @@ const ClientsSection = () => {
     });
   };
 
-  useEffect(() => {
-    supabase.from('clients').select('*').order('total_spent', { ascending: false }).then(({ data, error }) => {
-      if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      else setClients(data ?? []);
-      setLoading(false);
-    });
-  }, []);
+  useEffect(() => { fetchClients(); }, []);
 
   const filtered = clients.filter(c =>
     search === '' ||
