@@ -13,6 +13,7 @@ import OrdersSection from '@/components/admin/OrdersSection';
 import ClientsSection from '@/components/admin/ClientsSection';
 import MarketingSection from '@/components/admin/MarketingSection';
 import SettingsSection from '@/components/admin/SettingsSection';
+import IntegrationsSection from '@/components/admin/IntegrationsSection';
 
 const Admin = () => {
   const [active, setActive] = useState('overview');
@@ -39,6 +40,7 @@ const Admin = () => {
       case 'orders': return <OrdersSection />;
       case 'clients': return <ClientsSection />;
       case 'marketing': return <MarketingSection />;
+      case 'integrations': return isAdmin ? <IntegrationsSection /> : <OverviewSection onNavigate={setActive} />;
       case 'settings': return isAdmin ? <SettingsSection /> : <OverviewSection onNavigate={setActive} />;
       default: return <OverviewSection onNavigate={setActive} />;
     }
