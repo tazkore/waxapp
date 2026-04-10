@@ -145,18 +145,27 @@ const IntegrationsSection = () => {
 
   const openDetail = (app: Integration) => {
     setSelectedApp(app);
-    // Load API keys from config
-    const keys: Record<string, string> = {};
     const cfg = app.config as Record<string, unknown>;
+    // Load API keys
+    const keys: Record<string, string> = {};
     if (cfg.api_keys && typeof cfg.api_keys === 'object') {
       Object.entries(cfg.api_keys as Record<string, string>).forEach(([k, v]) => {
         keys[k] = v;
       });
     }
     setApiKeys(keys);
+    // Load non-key config fields
+    const fields: Record<string, string> = {};
+    Object.entries(cfg).filter(([k]) => k !== 'api_keys').forEach(([k, v]) => {
+      fields[k] = typeof v === 'string' ? v : JSON.stringify(v);
+    });
+    setConfigFields(fields);
     setShowAddKey(false);
+    setShowAddConfig(false);
     setNewKeyName('');
     setNewKeyValue('');
+    setNewConfigKey('');
+    setNewConfigValue('');
     setVisibleKeys(new Set());
     setDetailOpen(true);
   };
