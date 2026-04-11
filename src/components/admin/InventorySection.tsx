@@ -100,7 +100,7 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
     }
     setSaving(true);
 
-    const payload: Record<string, any> = {
+    const payload = {
       name: form.name.trim(),
       description: form.description.trim() || null,
       sku: form.sku.trim() || null,
@@ -111,7 +111,7 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
     };
 
     if (editingId) {
-      const { error } = await supabase.from('products').update(payload).eq('id', editingId);
+      const { error } = await supabase.from('products').update(payload as any).eq('id', editingId);
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       } else {
@@ -121,7 +121,7 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
         setOpen(false);
       }
     } else {
-      const { data, error } = await supabase.from('products').insert(payload).select().single();
+      const { data, error } = await supabase.from('products').insert(payload as any).select().single();
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       } else {
