@@ -346,7 +346,7 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
                     <SelectValue placeholder="Sin asignar" />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
-                    <SelectItem value="">Sin asignar</SelectItem>
+                    <SelectItem value="none">Sin asignar</SelectItem>
                     {warehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
