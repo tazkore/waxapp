@@ -486,6 +486,29 @@ const SeoSection = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Create Page Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="bg-card border-border sm:max-w-md">
+          <DialogHeader><DialogTitle className="text-foreground">Crear Página SEO</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-foreground">Ruta *</Label>
+              <Input className="bg-muted border-border" value={newPage.page_path} onChange={e => setNewPage({ ...newPage, page_path: e.target.value })} placeholder="/mi-nueva-pagina" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Título *</Label>
+              <Input className="bg-muted border-border" value={newPage.page_title} onChange={e => setNewPage({ ...newPage, page_title: e.target.value })} placeholder="Mi Nueva Página" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="border-border" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleCreatePage} disabled={creating}>
+              {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Crear
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
