@@ -116,6 +116,27 @@ const SeoSection = () => {
     setSaving(false);
   };
 
+  const handleCreatePage = async () => {
+    if (!newPage.page_path.trim() || !newPage.page_title.trim()) {
+      toast({ title: 'Error', description: 'Ruta y título son obligatorios.', variant: 'destructive' });
+      return;
+    }
+    setCreating(true);
+    const { error } = await supabase.from('seo_pages').insert({
+      page_path: newPage.page_path.trim(),
+      page_title: newPage.page_title.trim(),
+    });
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Página creada', description: `"${newPage.page_title}" agregada.` });
+      setCreateOpen(false);
+      setNewPage({ page_path: '', page_title: '' });
+      fetchPages();
+    }
+    setCreating(false);
+  };
+
   const addKeyword = () => {
     const kw = keywordInput.trim();
     if (kw && !editData.keywords.includes(kw)) {
