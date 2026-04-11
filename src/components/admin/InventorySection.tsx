@@ -107,7 +107,7 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
       category: form.category || null,
       price: parseFloat(form.price) || 0,
       stock: parseInt(form.stock) || 0,
-      warehouse_id: form.warehouse_id || null,
+      warehouse_id: form.warehouse_id && form.warehouse_id !== 'none' ? form.warehouse_id : null,
     };
 
     if (editingId) {
@@ -346,7 +346,7 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
                     <SelectValue placeholder="Sin asignar" />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
-                    <SelectItem value="">Sin asignar</SelectItem>
+                    <SelectItem value="none">Sin asignar</SelectItem>
                     {warehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
