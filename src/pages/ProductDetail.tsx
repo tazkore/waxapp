@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Minus, Plus, ArrowLeft, ChevronDown } from 'lucide-react';
+import { ShoppingCart, Minus, Plus, ArrowLeft, ChevronDown, Loader2 } from 'lucide-react';
 import { products } from '@/data/products';
-import { useCartStore } from '@/store/cartStore';
+import { useCartStore, ProductVariant } from '@/store/cartStore';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import Navbar from '@/components/Navbar';
 import CartDrawer from '@/components/CartDrawer';
 import Footer from '@/components/Footer';
 import ProductJsonLd from '@/components/ProductJsonLd';
+import { supabase } from '@/integrations/supabase/client';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -17,9 +18,48 @@ const ProductDetail = () => {
   const product = products.find((p) => p.id === id);
   const addItem = useCartStore((s) => s.addItem);
 
-  const [selectedVariant, setSelectedVariant] = useState(product?.variants?.[0]?.name ?? '');
+  const [dbVariants, setDbVariants] = useState<ProductVariant[] | null>(null);
+  const [loadingVariants, setLoadingVariants] = useState(true);
+  const [selectedVariant, setSelectedVariant] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [openAccordion, setOpenAccordion] = useState<string | null>('benefits');
+
+  // Fetch DB variants by matching product name
+  useEffect(() => {
+    if (!product) return;
+    const fetch = async () => {
+      const { data: dbProduct } = await supabase
+        .from('products')
+        .select('id')
+        .eq('name', product.title)
+        .maybeSingle();
+
+      if (dbProduct) {
+        const { data: variants } = await supabase
+          .from('product_variants')
+          .select('name, price, stock')
+          .eq('product_id', dbProduct.id)
+          .eq('is_active', true)
+          .order('price');
+
+        if (variants && variants.length > 0) {
+          setDbVariants(variants.map(v => ({ name: v.name, price: v.price })));
+        }
+      }
+      setLoadingVariants(false);
+    };
+    fetch();
+  }, [product]);
+
+  // Resolve which variants to use: DB first, then static
+  const activeVariants = dbVariants ?? product?.variants ?? [];
+
+  // Set default selected variant once variants are resolved
+  useEffect(() => {
+    if (activeVariants.length > 0 && !selectedVariant) {
+      setSelectedVariant(activeVariants[0].name);
+    }
+  }, [activeVariants, selectedVariant]);
 
   if (!product) {
     return (
@@ -32,10 +72,12 @@ const ProductDetail = () => {
     );
   }
 
-  const currentPrice = product.variants?.find((v) => v.name === selectedVariant)?.price ?? product.price;
+  const currentPrice = activeVariants.find((v) => v.name === selectedVariant)?.price ?? product.price;
 
   const handleAddToCart = () => {
-    addItem(product, quantity, selectedVariant || undefined);
+    // Build product with resolved variants for cart
+    const productWithVariants = { ...product, variants: activeVariants };
+    addItem(productWithVariants, quantity, selectedVariant || undefined);
     toast.success(`${product.title} agregado al carrito`);
   };
 
@@ -107,11 +149,15 @@ const ProductDetail = () => {
             </div>
 
             {/* Variants */}
-            {product.variants && product.variants.length > 0 && (
+            {loadingVariants ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Cargando variantes...
+              </div>
+            ) : activeVariants.length > 0 && (
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground">Variante</label>
                 <div className="flex flex-wrap gap-2">
-                  {product.variants.map((v) => (
+                  {activeVariants.map((v) => (
                     <button
                       key={v.name}
                       onClick={() => setSelectedVariant(v.name)}
@@ -122,6 +168,9 @@ const ProductDetail = () => {
                       }`}
                     >
                       {v.name}
+                      {v.price !== product.price && (
+                        <span className="ml-1 text-xs opacity-70">${v.price.toLocaleString()}</span>
+                      )}
                     </button>
                   ))}
                 </div>
