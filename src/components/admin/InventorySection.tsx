@@ -294,7 +294,7 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-card border-border sm:max-w-lg">
+        <DialogContent className="bg-card border-border sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">
               {editingId ? 'Editar Producto' : 'Nuevo Producto'}
@@ -335,6 +335,52 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
                 <Label className="text-foreground">Stock</Label>
                 <Input className="bg-muted border-border" type="number" min="0" value={form.stock} onChange={e => updateField('stock', e.target.value)} placeholder="0" />
               </div>
+            </div>
+
+            {/* Warehouse selector */}
+            {warehouses.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-foreground">Almacén</Label>
+                <Select value={form.warehouse_id} onValueChange={v => updateField('warehouse_id', v)}>
+                  <SelectTrigger className="bg-muted border-border">
+                    <SelectValue placeholder="Sin asignar" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="">Sin asignar</SelectItem>
+                    {warehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Variants */}
+            <div className="space-y-3 border-t border-border pt-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-foreground flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Variantes</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addVariant}><Plus className="h-3 w-3 mr-1" /> Agregar</Button>
+              </div>
+              {variants.length === 0 && <p className="text-xs text-muted-foreground">Sin variantes. El producto se vende como unidad única.</p>}
+              {variants.map((v, idx) => (
+                <div key={idx} className="grid grid-cols-[1fr_80px_80px_100px_32px] gap-2 items-end">
+                  <div>
+                    {idx === 0 && <Label className="text-[10px] text-muted-foreground">Nombre</Label>}
+                    <Input className="bg-muted border-border h-8 text-sm" value={v.name} onChange={e => updateVariant(idx, 'name', e.target.value)} placeholder="30mg" />
+                  </div>
+                  <div>
+                    {idx === 0 && <Label className="text-[10px] text-muted-foreground">Precio</Label>}
+                    <Input className="bg-muted border-border h-8 text-sm" type="number" value={v.price} onChange={e => updateVariant(idx, 'price', e.target.value)} />
+                  </div>
+                  <div>
+                    {idx === 0 && <Label className="text-[10px] text-muted-foreground">Stock</Label>}
+                    <Input className="bg-muted border-border h-8 text-sm" type="number" value={v.stock} onChange={e => updateVariant(idx, 'stock', e.target.value)} />
+                  </div>
+                  <div>
+                    {idx === 0 && <Label className="text-[10px] text-muted-foreground">SKU</Label>}
+                    <Input className="bg-muted border-border h-8 text-sm" value={v.sku} onChange={e => updateVariant(idx, 'sku', e.target.value)} />
+                  </div>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeVariant(idx)}><Trash2 className="h-3 w-3" /></Button>
+                </div>
+              ))}
             </div>
           </div>
           <DialogFooter>
