@@ -36,6 +36,7 @@ interface SeoPage {
   og_image_url: string | null;
   is_indexed: boolean;
   auto_sitemap: boolean;
+  canonical_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -51,11 +52,15 @@ const SeoSection = () => {
     og_image_url: '',
     is_indexed: true,
     auto_sitemap: true,
+    canonical_url: '',
   });
   const [keywordInput, setKeywordInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [globalSitemap, setGlobalSitemap] = useState(true);
   const [globalRobots, setGlobalRobots] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newPage, setNewPage] = useState({ page_path: '', page_title: '' });
+  const [creating, setCreating] = useState(false);
   const { toast } = useToast();
 
   const fetchPages = async () => {
@@ -83,6 +88,7 @@ const SeoSection = () => {
       og_image_url: page.og_image_url || '',
       is_indexed: page.is_indexed,
       auto_sitemap: page.auto_sitemap,
+      canonical_url: page.canonical_url || '',
     });
   };
 
@@ -98,7 +104,8 @@ const SeoSection = () => {
         og_image_url: editData.og_image_url || null,
         is_indexed: editData.is_indexed,
         auto_sitemap: editData.auto_sitemap,
-      })
+        canonical_url: editData.canonical_url || null,
+      } as any)
       .eq('id', selectedPage.id);
     if (error) {
       toast({ title: 'Error', description: 'No se pudo guardar.', variant: 'destructive' });
