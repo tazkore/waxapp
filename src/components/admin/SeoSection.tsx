@@ -183,11 +183,16 @@ const SeoSection = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Rocket className="h-6 w-6 text-primary" /> SEO & Indexación
-        </h1>
-        <p className="text-muted-foreground text-sm">Control total sobre cómo los motores de búsqueda ven tu tienda.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Rocket className="h-6 w-6 text-primary" /> SEO & Indexación
+          </h1>
+          <p className="text-muted-foreground text-sm">Control total sobre cómo los motores de búsqueda ven tu tienda.</p>
+        </div>
+        <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => setCreateOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" /> Crear Página
+        </Button>
       </div>
 
       {/* Health Score */}
@@ -429,6 +434,16 @@ const SeoSection = () => {
                           checked={editData.auto_sitemap}
                           onCheckedChange={(v) => setEditData({ ...editData, auto_sitemap: v })}
                         />
+                      </div>
+                      <div className="space-y-2 p-3 rounded-lg bg-muted/50">
+                        <Label className="text-xs">URL Canónica (opcional)</Label>
+                        <Input
+                          value={editData.canonical_url}
+                          onChange={(e) => setEditData({ ...editData, canonical_url: e.target.value })}
+                          placeholder="https://waxapp.lovable.app/..."
+                          className="bg-background"
+                        />
+                        <p className="text-[10px] text-muted-foreground">Dejar vacío para usar la URL actual de la página.</p>
                       </div>
                     </TabsContent>
                   </Tabs>
