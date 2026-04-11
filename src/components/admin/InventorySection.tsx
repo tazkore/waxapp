@@ -107,7 +107,7 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
       category: form.category || null,
       price: parseFloat(form.price) || 0,
       stock: parseInt(form.stock) || 0,
-      warehouse_id: form.warehouse_id || null,
+      warehouse_id: form.warehouse_id && form.warehouse_id !== 'none' ? form.warehouse_id : null,
     };
 
     if (editingId) {
