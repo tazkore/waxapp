@@ -1,4 +1,4 @@
-import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart } from 'lucide-react';
+import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -13,6 +13,8 @@ const allNavItems = [
   { title: 'Vista General', icon: BarChart3, key: 'overview' },
   { title: 'Inventario', icon: Package, key: 'inventory' },
   { title: 'Pedidos y Envíos', icon: Truck, key: 'orders' },
+  { title: 'Almacenes', icon: Warehouse, key: 'warehouses' },
+  { title: 'Guías de Envío', icon: PackageCheck, key: 'shipping' },
   { title: 'Clientes y CRM', icon: Users, key: 'clients' },
   { title: 'Marketing', icon: Tag, key: 'marketing' },
   { title: 'Centro de Operaciones', icon: ClipboardList, key: 'operations' },

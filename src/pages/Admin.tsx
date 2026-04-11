@@ -17,6 +17,8 @@ import IntegrationsSection from '@/components/admin/IntegrationsSection';
 import OperationsSection from '@/components/admin/OperationsSection';
 import SeoSection from '@/components/admin/SeoSection';
 import PurchasingSection from '@/components/admin/PurchasingSection';
+import WarehousesSection from '@/components/admin/WarehousesSection';
+import ShippingSection from '@/components/admin/ShippingSection';
 
 const Admin = () => {
   const [active, setActive] = useState('overview');
@@ -39,8 +41,10 @@ const Admin = () => {
   const renderSection = () => {
     switch (active) {
       case 'overview': return <OverviewSection onNavigate={setActive} />;
-      case 'inventory': return <InventorySection />;
+      case 'inventory': return <InventorySection isAdmin={isAdmin} />;
       case 'orders': return <OrdersSection />;
+      case 'warehouses': return <WarehousesSection />;
+      case 'shipping': return <ShippingSection />;
       case 'clients': return <ClientsSection />;
       case 'marketing': return <MarketingSection />;
       case 'operations': return <OperationsSection />;
