@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import Navbar from '@/components/Navbar';
 import CartDrawer from '@/components/CartDrawer';
 import Footer from '@/components/Footer';
+import ProductJsonLd from '@/components/ProductJsonLd';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +49,13 @@ const ProductDetail = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <CartDrawer />
+      <ProductJsonLd
+        name={product.title}
+        description={product.description}
+        price={currentPrice}
+        sku={product.id}
+        availability="InStock"
+      />
 
       <div className="container mx-auto px-4 pt-24 pb-16">
         <Link to="/#tienda" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-8 transition-colors">

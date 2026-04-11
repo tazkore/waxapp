@@ -10,8 +10,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   Rocket,
+  Plus,
   Globe,
   Search,
   ExternalLink,
@@ -36,6 +38,7 @@ interface SeoPage {
   og_image_url: string | null;
   is_indexed: boolean;
   auto_sitemap: boolean;
+  canonical_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -51,11 +54,15 @@ const SeoSection = () => {
     og_image_url: '',
     is_indexed: true,
     auto_sitemap: true,
+    canonical_url: '',
   });
   const [keywordInput, setKeywordInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [globalSitemap, setGlobalSitemap] = useState(true);
   const [globalRobots, setGlobalRobots] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newPage, setNewPage] = useState({ page_path: '', page_title: '' });
+  const [creating, setCreating] = useState(false);
   const { toast } = useToast();
 
   const fetchPages = async () => {
@@ -83,6 +90,7 @@ const SeoSection = () => {
       og_image_url: page.og_image_url || '',
       is_indexed: page.is_indexed,
       auto_sitemap: page.auto_sitemap,
+      canonical_url: page.canonical_url || '',
     });
   };
 
@@ -98,7 +106,8 @@ const SeoSection = () => {
         og_image_url: editData.og_image_url || null,
         is_indexed: editData.is_indexed,
         auto_sitemap: editData.auto_sitemap,
-      })
+        canonical_url: editData.canonical_url || null,
+      } as any)
       .eq('id', selectedPage.id);
     if (error) {
       toast({ title: 'Error', description: 'No se pudo guardar.', variant: 'destructive' });
@@ -107,6 +116,27 @@ const SeoSection = () => {
       fetchPages();
     }
     setSaving(false);
+  };
+
+  const handleCreatePage = async () => {
+    if (!newPage.page_path.trim() || !newPage.page_title.trim()) {
+      toast({ title: 'Error', description: 'Ruta y título son obligatorios.', variant: 'destructive' });
+      return;
+    }
+    setCreating(true);
+    const { error } = await supabase.from('seo_pages').insert({
+      page_path: newPage.page_path.trim(),
+      page_title: newPage.page_title.trim(),
+    });
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Página creada', description: `"${newPage.page_title}" agregada.` });
+      setCreateOpen(false);
+      setNewPage({ page_path: '', page_title: '' });
+      fetchPages();
+    }
+    setCreating(false);
   };
 
   const addKeyword = () => {
@@ -155,11 +185,16 @@ const SeoSection = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Rocket className="h-6 w-6 text-primary" /> SEO & Indexación
-        </h1>
-        <p className="text-muted-foreground text-sm">Control total sobre cómo los motores de búsqueda ven tu tienda.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Rocket className="h-6 w-6 text-primary" /> SEO & Indexación
+          </h1>
+          <p className="text-muted-foreground text-sm">Control total sobre cómo los motores de búsqueda ven tu tienda.</p>
+        </div>
+        <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => setCreateOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" /> Crear Página
+        </Button>
       </div>
 
       {/* Health Score */}
@@ -402,6 +437,16 @@ const SeoSection = () => {
                           onCheckedChange={(v) => setEditData({ ...editData, auto_sitemap: v })}
                         />
                       </div>
+                      <div className="space-y-2 p-3 rounded-lg bg-muted/50">
+                        <Label className="text-xs">URL Canónica (opcional)</Label>
+                        <Input
+                          value={editData.canonical_url}
+                          onChange={(e) => setEditData({ ...editData, canonical_url: e.target.value })}
+                          placeholder="https://waxapp.lovable.app/..."
+                          className="bg-background"
+                        />
+                        <p className="text-[10px] text-muted-foreground">Dejar vacío para usar la URL actual de la página.</p>
+                      </div>
                     </TabsContent>
                   </Tabs>
                 </CardContent>
@@ -442,6 +487,29 @@ const SeoSection = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Create Page Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="bg-card border-border sm:max-w-md">
+          <DialogHeader><DialogTitle className="text-foreground">Crear Página SEO</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-foreground">Ruta *</Label>
+              <Input className="bg-muted border-border" value={newPage.page_path} onChange={e => setNewPage({ ...newPage, page_path: e.target.value })} placeholder="/mi-nueva-pagina" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Título *</Label>
+              <Input className="bg-muted border-border" value={newPage.page_title} onChange={e => setNewPage({ ...newPage, page_title: e.target.value })} placeholder="Mi Nueva Página" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="border-border" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleCreatePage} disabled={creating}>
+              {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Crear
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

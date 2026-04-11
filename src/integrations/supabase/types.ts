@@ -322,6 +322,50 @@ export type Database = {
         }
         Relationships: []
       }
+      product_variants: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          price: number
+          product_id: string
+          sku: string | null
+          stock: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          price?: number
+          product_id: string
+          sku?: string | null
+          stock?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          price?: number
+          product_id?: string
+          sku?: string | null
+          stock?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: string | null
@@ -335,6 +379,7 @@ export type Database = {
           sku: string | null
           stock: number
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
           category?: string | null
@@ -348,6 +393,7 @@ export type Database = {
           sku?: string | null
           stock?: number
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
           category?: string | null
@@ -361,8 +407,17 @@ export type Database = {
           sku?: string | null
           stock?: number
           updated_at?: string
+          warehouse_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       purchase_orders: {
         Row: {
@@ -414,6 +469,7 @@ export type Database = {
       seo_pages: {
         Row: {
           auto_sitemap: boolean
+          canonical_url: string | null
           created_at: string
           id: string
           is_indexed: boolean
@@ -427,6 +483,7 @@ export type Database = {
         }
         Insert: {
           auto_sitemap?: boolean
+          canonical_url?: string | null
           created_at?: string
           id?: string
           is_indexed?: boolean
@@ -440,6 +497,7 @@ export type Database = {
         }
         Update: {
           auto_sitemap?: boolean
+          canonical_url?: string | null
           created_at?: string
           id?: string
           is_indexed?: boolean
@@ -449,6 +507,39 @@ export type Database = {
           og_image_url?: string | null
           page_path?: string
           page_title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      shipping_providers: {
+        Row: {
+          api_key_ref: string | null
+          config: Json
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          api_key_ref?: string | null
+          config?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          api_key_ref?: string | null
+          config?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
           updated_at?: string
         }
         Relationships: []
@@ -555,6 +646,39 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      warehouses: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          state: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          state?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          state?: string | null
+          updated_at?: string
         }
         Relationships: []
       }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Loader2, Search, Filter } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Search, Filter, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
@@ -14,6 +14,8 @@ import type { Tables } from '@/integrations/supabase/types';
 
 type Product = Tables<'products'>;
 
+interface VariantRow { id?: string; name: string; price: string; stock: string; sku: string; }
+
 interface ProductForm {
   name: string;
   description: string;
@@ -21,9 +23,12 @@ interface ProductForm {
   category: string;
   price: string;
   stock: string;
+  warehouse_id: string;
 }
 
-const emptyForm: ProductForm = { name: '', description: '', sku: '', category: '', price: '', stock: '' };
+interface WarehouseOption { id: string; name: string; }
+
+const emptyForm: ProductForm = { name: '', description: '', sku: '', category: '', price: '', stock: '', warehouse_id: '' };
 const categories = ['Nano-Tech', 'Comestibles', 'Hardware', 'Accesorios'];
 
 const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
@@ -35,6 +40,8 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [variants, setVariants] = useState<VariantRow[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
 
   const filteredProducts = products.filter((p) => {
     const matchesSearch = search === '' || 
@@ -52,11 +59,22 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
     setLoading(false);
   };
 
-  useEffect(() => { fetchProducts(); }, []);
+  const fetchWarehouses = async () => {
+    const { data } = await supabase.from('warehouses').select('id, name').eq('is_active', true);
+    setWarehouses((data as unknown as WarehouseOption[]) ?? []);
+  };
+
+  const fetchVariants = async (productId: string) => {
+    const { data } = await supabase.from('product_variants').select('*').eq('product_id', productId).order('created_at');
+    setVariants((data ?? []).map((v: any) => ({ id: v.id, name: v.name, price: String(v.price), stock: String(v.stock), sku: v.sku ?? '' })));
+  };
+
+  useEffect(() => { fetchProducts(); fetchWarehouses(); }, []);
 
   const openCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setVariants([]);
     setOpen(true);
   };
 
@@ -69,7 +87,9 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
       category: p.category ?? '',
       price: String(p.price),
       stock: String(p.stock),
+      warehouse_id: (p as any).warehouse_id ?? '',
     });
+    fetchVariants(p.id);
     setOpen(true);
   };
 
@@ -87,22 +107,25 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
       category: form.category || null,
       price: parseFloat(form.price) || 0,
       stock: parseInt(form.stock) || 0,
+      warehouse_id: form.warehouse_id || null,
     };
 
     if (editingId) {
-      const { error } = await supabase.from('products').update(payload).eq('id', editingId);
+      const { error } = await supabase.from('products').update(payload as any).eq('id', editingId);
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       } else {
+        await saveVariants(editingId);
         setProducts(prev => prev.map(p => p.id === editingId ? { ...p, ...payload } : p));
         toast({ title: 'Producto actualizado', description: `${payload.name} guardado correctamente.` });
         setOpen(false);
       }
     } else {
-      const { data, error } = await supabase.from('products').insert(payload).select().single();
+      const { data, error } = await supabase.from('products').insert(payload as any).select().single();
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       } else {
+        await saveVariants(data.id);
         setProducts(prev => [data, ...prev]);
         toast({ title: 'Producto creado', description: `${payload.name} agregado al inventario.` });
         setOpen(false);
@@ -110,6 +133,25 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
     }
     setSaving(false);
   };
+
+  const saveVariants = async (productId: string) => {
+    // Delete existing then re-insert
+    await supabase.from('product_variants').delete().eq('product_id', productId);
+    const toInsert = variants.filter(v => v.name.trim()).map(v => ({
+      product_id: productId,
+      name: v.name.trim(),
+      price: parseFloat(v.price) || 0,
+      stock: parseInt(v.stock) || 0,
+      sku: v.sku.trim() || null,
+    }));
+    if (toInsert.length > 0) {
+      await supabase.from('product_variants').insert(toInsert);
+    }
+  };
+
+  const addVariant = () => setVariants(prev => [...prev, { name: '', price: '', stock: '', sku: '' }]);
+  const removeVariant = (idx: number) => setVariants(prev => prev.filter((_, i) => i !== idx));
+  const updateVariant = (idx: number, field: keyof VariantRow, value: string) => setVariants(prev => prev.map((v, i) => i === idx ? { ...v, [field]: value } : v));
 
   const handleDelete = async (id: string, sku: string | null) => {
     const { error } = await supabase.from('products').delete().eq('id', id);
@@ -252,7 +294,7 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-card border-border sm:max-w-lg">
+        <DialogContent className="bg-card border-border sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">
               {editingId ? 'Editar Producto' : 'Nuevo Producto'}
@@ -293,6 +335,52 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
                 <Label className="text-foreground">Stock</Label>
                 <Input className="bg-muted border-border" type="number" min="0" value={form.stock} onChange={e => updateField('stock', e.target.value)} placeholder="0" />
               </div>
+            </div>
+
+            {/* Warehouse selector */}
+            {warehouses.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-foreground">Almacén</Label>
+                <Select value={form.warehouse_id} onValueChange={v => updateField('warehouse_id', v)}>
+                  <SelectTrigger className="bg-muted border-border">
+                    <SelectValue placeholder="Sin asignar" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="">Sin asignar</SelectItem>
+                    {warehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Variants */}
+            <div className="space-y-3 border-t border-border pt-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-foreground flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Variantes</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addVariant}><Plus className="h-3 w-3 mr-1" /> Agregar</Button>
+              </div>
+              {variants.length === 0 && <p className="text-xs text-muted-foreground">Sin variantes. El producto se vende como unidad única.</p>}
+              {variants.map((v, idx) => (
+                <div key={idx} className="grid grid-cols-[1fr_80px_80px_100px_32px] gap-2 items-end">
+                  <div>
+                    {idx === 0 && <Label className="text-[10px] text-muted-foreground">Nombre</Label>}
+                    <Input className="bg-muted border-border h-8 text-sm" value={v.name} onChange={e => updateVariant(idx, 'name', e.target.value)} placeholder="30mg" />
+                  </div>
+                  <div>
+                    {idx === 0 && <Label className="text-[10px] text-muted-foreground">Precio</Label>}
+                    <Input className="bg-muted border-border h-8 text-sm" type="number" value={v.price} onChange={e => updateVariant(idx, 'price', e.target.value)} />
+                  </div>
+                  <div>
+                    {idx === 0 && <Label className="text-[10px] text-muted-foreground">Stock</Label>}
+                    <Input className="bg-muted border-border h-8 text-sm" type="number" value={v.stock} onChange={e => updateVariant(idx, 'stock', e.target.value)} />
+                  </div>
+                  <div>
+                    {idx === 0 && <Label className="text-[10px] text-muted-foreground">SKU</Label>}
+                    <Input className="bg-muted border-border h-8 text-sm" value={v.sku} onChange={e => updateVariant(idx, 'sku', e.target.value)} />
+                  </div>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeVariant(idx)}><Trash2 className="h-3 w-3" /></Button>
+                </div>
+              ))}
             </div>
           </div>
           <DialogFooter>
