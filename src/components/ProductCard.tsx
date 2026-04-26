@@ -36,6 +36,7 @@ const ProductCard = ({ product, outOfStock = false }: ProductCardProps) => {
   };
 
   const img = product.image_url;
+  const hasOffer = product.compare_at_price != null && product.compare_at_price > product.price;
 
   return (
     <>
@@ -58,9 +59,28 @@ const ProductCard = ({ product, outOfStock = false }: ProductCardProps) => {
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
               />
             ) : (
-              <span className="font-display text-lg text-muted-foreground/40">WAXAPP</span>
+              <div
+                className="flex h-full w-full flex-col items-center justify-center gap-2"
+                style={{
+                  backgroundColor: '#1A1A1A',
+                  boxShadow: 'inset 0 0 0 1px rgba(0,230,118,0.35), inset 0 0 24px rgba(0,230,118,0.18)',
+                }}
+              >
+                <ImageOff className="h-10 w-10" style={{ color: '#00E676' }} aria-hidden />
+                <span className="text-[10px] uppercase tracking-widest" style={{ color: '#00E676' }}>
+                  Sin imagen
+                </span>
+              </div>
             )}
-            {product.badge && !outOfStock && (
+            {hasOffer && !outOfStock && (
+              <span
+                className="absolute left-3 top-3 rounded-md px-2 py-0.5 text-xs font-bold text-black shadow-md"
+                style={{ backgroundColor: '#FFB300', boxShadow: '0 0 12px rgba(255,179,0,0.5)' }}
+              >
+                Oferta
+              </span>
+            )}
+            {product.badge && !hasOffer && !outOfStock && (
               <span className="absolute right-3 top-3 rounded-md bg-secondary px-2 py-0.5 text-xs font-bold text-secondary-foreground amber-glow">
                 {product.badge}
               </span>
@@ -89,9 +109,20 @@ const ProductCard = ({ product, outOfStock = false }: ProductCardProps) => {
             {product.description && (
               <p className="text-xs text-muted-foreground line-clamp-2">{product.description}</p>
             )}
-            <span className="mt-auto text-xl font-bold text-foreground">
-              ${product.price.toLocaleString()} <span className="text-sm text-muted-foreground">MXN</span>
-            </span>
+            <div className="mt-auto flex items-baseline gap-2">
+              <span
+                className="text-xl font-bold"
+                style={hasOffer ? { color: '#FFB300' } : undefined}
+              >
+                ${product.price.toLocaleString()}
+              </span>
+              {hasOffer && (
+                <span className="text-sm text-muted-foreground line-through">
+                  ${product.compare_at_price!.toLocaleString()}
+                </span>
+              )}
+              <span className="text-sm text-muted-foreground">MXN</span>
+            </div>
           </div>
         </Link>
         <div className="px-4 pb-4">
