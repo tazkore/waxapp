@@ -8,13 +8,14 @@ import ProductGrid from '@/components/ProductGrid';
 import CartDrawer from '@/components/CartDrawer';
 import Footer from '@/components/Footer';
 import NanoTechSection from '@/components/NanoTechSection';
-import LegalSection from '@/components/LegalSection';
 import FAQSection from '@/components/FAQSection';
 import WelcomeBanner from '@/components/WelcomeBanner';
 import ChatbotWidget from '@/components/ChatbotWidget';
 import BrandShowcase from '@/components/BrandShowcase';
 import PromoBanners from '@/components/PromoBanners';
 import BrandsStrip from '@/components/BrandsStrip';
+import LaboratoriosSection from '@/components/LaboratoriosSection';
+import NeshikaFeatured from '@/components/NeshikaFeatured';
 
 const Index = () => {
   const [verified, setVerified] = useState(false);
@@ -32,16 +33,17 @@ const Index = () => {
       <TrustSignals />
       <PromoBanners />
       <BrandsStrip />
-      <FeaturedCarousel />
-      <BrandShowcase />
-      <ProductGrid />
-      <NanoTechSection />
-      <LegalSection />
-      <FAQSection />
-      <Footer />
-      <ChatbotWidget />
-    </div>
-  );
-};
+        <FeaturedCarousel />
+        <BrandShowcase />
+        <ProductGrid />
+        <LaboratoriosSection />
+        <NeshikaFeatured />
+        <NanoTechSection />
+        <FAQSection />
+        <Footer />
+        <ChatbotWidget />
+      </div>
+    );
+  };
 
 export default Index;

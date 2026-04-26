@@ -6,10 +6,12 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 
 const navLinks = [
-  { label: 'Tienda', href: '#tienda' },
-  { label: 'Tecnología Nano', href: '#tech' },
-  { label: 'Legalidad', href: '#legal' },
-  { label: 'FAQ', href: '#faq' },
+  { label: 'Tienda', href: '/#tienda' },
+  { label: 'CBD', href: '/cbd' },
+  { label: 'Edibles', href: '/edibles' },
+  { label: 'Marcas', href: '/marcas' },
+  { label: 'Blog', href: '/blog' },
+  { label: 'FAQ', href: '/#faq' },
 ];
 
 const Navbar = () => {

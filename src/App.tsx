@@ -13,6 +13,13 @@ import ClientDashboard from "./pages/ClientDashboard.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
+import Blog from "./pages/Blog.tsx";
+import BlogPost from "./pages/BlogPost.tsx";
+import CbdPage from "./pages/CbdPage.tsx";
+import EdiblesPage from "./pages/EdiblesPage.tsx";
+import LaboratoriosPage from "./pages/LaboratoriosPage.tsx";
+import MarcasPage from "./pages/MarcasPage.tsx";
+import NeshikaPage from "./pages/NeshikaPage.tsx";
 import SeoHead from "./components/SeoHead.tsx";
 
 const queryClient = new QueryClient();
@@ -33,6 +40,13 @@ const App = () => (
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
+          <Route path="/cbd" element={<CbdPage />} />
+          <Route path="/edibles" element={<EdiblesPage />} />
+          <Route path="/laboratorios" element={<LaboratoriosPage />} />
+          <Route path="/marcas" element={<MarcasPage />} />
+          <Route path="/neshika" element={<NeshikaPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
