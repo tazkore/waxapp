@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Loader2, Sparkles } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Msg { role: 'user' | 'assistant'; content: string }
@@ -117,12 +119,27 @@ const ChatbotWidget = () => {
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
               {display.map((m, i) => (
                 <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
+                  <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
                     m.role === 'user'
                       ? 'bg-primary text-primary-foreground rounded-br-sm'
                       : 'bg-muted text-foreground rounded-bl-sm'
                   }`}>
-                    {m.content}
+                    {m.role === 'assistant' ? (
+                      <ReactMarkdown
+                        components={{
+                          a: ({ href, children }) => (
+                            href?.startsWith('/') ? (
+                              <Link to={href} onClick={() => setOpen(false)} className="text-primary underline font-medium">{children}</Link>
+                            ) : (
+                              <a href={href} target="_blank" rel="noreferrer" className="text-primary underline">{children}</a>
+                            )
+                          ),
+                          p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                          ul: ({ children }) => <ul className="list-disc ml-4 space-y-0.5">{children}</ul>,
+                          strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                        }}
+                      >{m.content}</ReactMarkdown>
+                    ) : m.content}
                   </div>
                 </div>
               ))}

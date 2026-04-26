@@ -26,31 +26,32 @@ Deno.serve(async (req) => {
     // Load knowledge base + featured products
     const [{ data: kb }, { data: products }] = await Promise.all([
       supabase.from("chatbot_kb").select("title,category,content").eq("is_active", true).limit(50),
-      supabase.from("products").select("name,description,price,category,stock").eq("is_active", true).limit(30),
+      supabase.from("products").select("name,slug,description,price,category,stock,image_url").eq("is_active", true).limit(40),
     ]);
 
     const kbContext = (kb ?? []).map((k) => `[${k.category}] ${k.title}: ${k.content}`).join("\n\n");
     const productCatalog = (products ?? []).map((p) =>
-      `- ${p.name} (${p.category ?? 'general'}) — $${p.price} MXN — Stock: ${p.stock} — ${p.description ?? ''}`
+      `- ${p.name} | slug:${p.slug ?? 'n/a'} | ${p.category ?? 'general'} | $${p.price} MXN | stock:${p.stock} | ${p.description ?? ''}`
     ).join("\n");
 
-    const systemPrompt = `Eres "Waxa", el agente de ventas IA de WAXAPP, una tienda mexicana de productos premium de bienestar bio-tech (CBD, nano-tecnología, hardware).
+    const systemPrompt = `Eres "Waxa", el agente de ventas IA de WAXAPP, una tienda mexicana de productos premium de bienestar bio-tech.
 
-PERSONALIDAD: Profesional, cálido, consultivo. Hablas español de México. Sin emojis excesivos.
+PERSONALIDAD: Profesional, cálido, consultivo. Español de México. Sin emojis excesivos.
 
-OBJETIVO: Recomendar productos según necesidades del cliente, resolver dudas y cerrar ventas. Siempre menciona que pueden registrarse para obtener un 15% de descuento de bienvenida.
+OBJETIVO: Recomendar productos según necesidades, resolver dudas y cerrar ventas. Menciona el 15% de bienvenida al registrarse cuando sea natural.
 
-REGLAS:
-- Solo recomienda productos que estén en el catálogo proporcionado.
-- Si no sabes algo, sé honesto y ofrece contactar a un humano (info@waxapp.mx).
-- Recuerda que los productos son legales (<0.3% THC) y solo para mayores de 18.
-- No des consejos médicos. Sugiere consultar a un profesional.
-- Sé breve: 2-4 oraciones por respuesta salvo que pidan detalle.
+REGLAS CRÍTICAS:
+- Solo recomienda productos del CATÁLOGO de abajo.
+- Cuando recomiendes un producto, INCLUYE SU LINK en formato markdown: [Nombre del producto](/producto/SLUG) usando el slug exacto del catálogo.
+- Si no tienes la info, sé honesto y sugiere info@waxapp.mx.
+- Productos legales (<0.3% THC), solo +18. No des consejos médicos.
+- 2-4 oraciones por respuesta salvo que pidan detalle.
+- Formato markdown permitido: **negritas**, listas, links.
 
 BASE DE CONOCIMIENTO:
 ${kbContext}
 
-CATÁLOGO ACTUAL:
+CATÁLOGO ACTUAL (usa los slugs para links):
 ${productCatalog}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
