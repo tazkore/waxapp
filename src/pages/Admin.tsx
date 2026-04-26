@@ -25,6 +25,7 @@ import MediaSection from '@/components/admin/MediaSection';
 import BrandsSection from '@/components/admin/BrandsSection';
 import BannersSection from '@/components/admin/BannersSection';
 import BlogSection from '@/components/admin/BlogSection';
+import ThemeSection from '@/components/admin/ThemeSection';
 
 const Admin = () => {
   const [active, setActive] = useState('overview');
@@ -60,6 +61,7 @@ const Admin = () => {
       case 'operations': return <OperationsSection />;
       case 'purchasing': return <PurchasingSection />;
       case 'seo': return <SeoSection />;
+      case 'theme': return <ThemeSection />;
       case 'amazon': return isAdmin ? <AmazonSection /> : <OverviewSection onNavigate={setActive} />;
       case 'chatbot': return isAdmin ? <KnowledgeBaseSection /> : <OverviewSection onNavigate={setActive} />;
       case 'integrations': return isAdmin ? <IntegrationsSection /> : <OverviewSection onNavigate={setActive} />;

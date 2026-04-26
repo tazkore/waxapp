@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 import GlobalSearch from './GlobalSearch';
 
-const navLinks = [
+const FALLBACK_LINKS = [
   { label: 'Tienda', href: '/#tienda' },
   { label: 'CBD', href: '/cbd' },
   { label: 'Edibles', href: '/edibles' },
@@ -22,6 +22,37 @@ const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [navLinks, setNavLinks] = useState<{ label: string; href: string; openInNewTab?: boolean }[]>(FALLBACK_LINKS);
+
+  // Load editable navbar from DB (Tema > Menús), fallback to hardcoded
+  useEffect(() => {
+    const loadMenu = async () => {
+      const { data: menu } = await supabase
+        .from('nav_menus')
+        .select('id')
+        .eq('slug', 'main-navbar')
+        .eq('is_active', true)
+        .maybeSingle();
+      if (!menu) return;
+      const { data: items } = await supabase
+        .from('nav_menu_items')
+        .select('label, url, open_in_new_tab, display_order')
+        .eq('menu_id', menu.id)
+        .eq('is_active', true)
+        .is('parent_id', null)
+        .order('display_order');
+      if (items && items.length > 0) {
+        setNavLinks(items.map((i: any) => ({ label: i.label, href: i.url, openInNewTab: i.open_in_new_tab })));
+      }
+    };
+    loadMenu();
+
+    const channel = supabase
+      .channel('nav-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'nav_menu_items' }, loadMenu)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
@@ -49,8 +80,14 @@ const Navbar = () => {
         </a>
 
         <div className="hidden gap-8 md:flex">
-          {navLinks.map((l) => (
-            <a key={l.href} href={l.href} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+          {navLinks.map((l, idx) => (
+            <a
+              key={`${l.href}-${idx}`}
+              href={l.href}
+              target={l.openInNewTab ? '_blank' : undefined}
+              rel={l.openInNewTab ? 'noreferrer' : undefined}
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
               {l.label}
             </a>
           ))}
