@@ -24,6 +24,7 @@ import KnowledgeBaseSection from '@/components/admin/KnowledgeBaseSection';
 import MediaSection from '@/components/admin/MediaSection';
 import BrandsSection from '@/components/admin/BrandsSection';
 import BannersSection from '@/components/admin/BannersSection';
+import BlogSection from '@/components/admin/BlogSection';
 
 const Admin = () => {
   const [active, setActive] = useState('overview');
@@ -55,6 +56,7 @@ const Admin = () => {
       case 'media': return <MediaSection />;
       case 'brands': return <BrandsSection />;
       case 'banners': return <BannersSection />;
+      case 'blog': return <BlogSection />;
       case 'operations': return <OperationsSection />;
       case 'purchasing': return <PurchasingSection />;
       case 'seo': return <SeoSection />;
