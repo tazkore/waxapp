@@ -23,19 +23,47 @@ const ImageUploadInput = ({ value, onChange, placeholder = 'https://... o sube u
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const { toast } = useToast();
 
-  const handleSelected = (file: File) => {
-    if (!file.type.startsWith('image/')) {
+  const isHeic = (f: File) => {
+    const n = f.name.toLowerCase();
+    return f.type === 'image/heic' || f.type === 'image/heif' || n.endsWith('.heic') || n.endsWith('.heif');
+  };
+
+  const convertHeic = async (f: File): Promise<File> => {
+    const { default: heic2any } = await import('heic2any');
+    const blob = (await heic2any({ blob: f, toType: 'image/jpeg', quality: 0.92 })) as Blob;
+    const newName = f.name.replace(/\.(heic|heif)$/i, '.jpg');
+    return new File([blob], newName, { type: 'image/jpeg' });
+  };
+
+  const handleSelected = async (file: File) => {
+    const heic = isHeic(file);
+    if (!heic && file.type && !file.type.startsWith('image/')) {
       return toast({ title: 'Archivo inválido', description: 'Selecciona una imagen.', variant: 'destructive' });
     }
     if (file.size > 25 * 1024 * 1024) {
       return toast({ title: 'Imagen muy grande', description: 'Máximo 25MB (se comprimirá automáticamente).', variant: 'destructive' });
     }
-    // SVG/GIF no se recortan
-    if (file.type === 'image/svg+xml' || file.type === 'image/gif') {
-      handleFile(file);
+
+    let working = file;
+    if (heic) {
+      try {
+        setUploading(true);
+        toast({ title: 'Convirtiendo HEIC…', description: 'Procesando imagen de iPhone a JPEG.' });
+        working = await convertHeic(file);
+      } catch (e: any) {
+        setUploading(false);
+        return toast({ title: 'No se pudo convertir HEIC', description: e?.message ?? 'Intenta exportar como JPG/PNG.', variant: 'destructive' });
+      } finally {
+        setUploading(false);
+      }
+    }
+
+    // SVG/GIF no se recortan, suben directo
+    if (working.type === 'image/svg+xml' || working.type === 'image/gif') {
+      handleFile(working);
       return;
     }
-    setPendingFile(file);
+    setPendingFile(working);
   };
 
   const handleFile = async (file: File) => {
