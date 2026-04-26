@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/integrations/supabase/client';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -40,14 +39,24 @@ const CustomPage = () => {
 
   const blocks = Array.isArray(page.blocks) ? page.blocks : [];
 
+  // SEO meta via DOM (sin helmet)
+  useEffect(() => {
+    if (!page) return;
+    const prevTitle = document.title;
+    document.title = page.meta_title || page.title;
+    const setMeta = (name: string, content: string, attr: 'name' | 'property' = 'name') => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[${attr}="${name}"]`);
+      if (!tag) { tag = document.createElement('meta'); tag.setAttribute(attr, name); document.head.appendChild(tag); }
+      tag.setAttribute('content', content);
+    };
+    if (page.meta_description) setMeta('description', page.meta_description);
+    if (page.og_image_url) setMeta('og:image', page.og_image_url, 'property');
+    return () => { document.title = prevTitle; };
+  }, [page]);
+
   return (
     <>
-      <Helmet>
-        <title>{page.meta_title || page.title}</title>
-        {page.meta_description && <meta name="description" content={page.meta_description} />}
-        {page.og_image_url && <meta property="og:image" content={page.og_image_url} />}
-        <link rel="canonical" href={`${window.location.origin}/${page.slug}`} />
-      </Helmet>
       <Navbar />
       <main className="min-h-screen">
         {blocks.length === 0 ? (
