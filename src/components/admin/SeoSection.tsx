@@ -149,10 +149,52 @@ const SeoSection = () => {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Guardado', description: `SEO de "${editData.page_title}" actualizado.` });
+      const slugChanged = selectedPage.page_path !== editData.page_path.trim();
+      toast({
+        title: 'Guardado',
+        description: slugChanged
+          ? `Slug actualizado. Se creó un redirect 301 de ${selectedPage.page_path} → ${editData.page_path.trim()} automáticamente.`
+          : `SEO de "${editData.page_title}" actualizado.`,
+      });
       fetchPages();
+      if (slugChanged) fetchRedirects();
     }
     setSaving(false);
+  };
+
+  const handleAddRedirect = async () => {
+    const from = newRedirect.from_path.trim();
+    const to = newRedirect.to_path.trim();
+    if (!from || !to || !from.startsWith('/') || !to.startsWith('/')) {
+      toast({ title: 'Error', description: 'Las rutas deben iniciar con "/".', variant: 'destructive' });
+      return;
+    }
+    if (from === to) {
+      toast({ title: 'Error', description: 'Las rutas origen y destino no pueden ser iguales.', variant: 'destructive' });
+      return;
+    }
+    setAddingRedirect(true);
+    const { error } = await supabase.from('seo_redirects' as any).insert({
+      from_path: from, to_path: to, status_code: 301, is_active: true, reason: 'Manual',
+    } as any);
+    if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    else {
+      toast({ title: 'Redirect creado', description: `${from} → ${to}` });
+      setNewRedirect({ from_path: '', to_path: '' });
+      fetchRedirects();
+    }
+    setAddingRedirect(false);
+  };
+
+  const toggleRedirect = async (r: SeoRedirect) => {
+    await supabase.from('seo_redirects' as any).update({ is_active: !r.is_active } as any).eq('id', r.id);
+    fetchRedirects();
+  };
+
+  const deleteRedirect = async (r: SeoRedirect) => {
+    if (!confirm(`¿Eliminar el redirect ${r.from_path} → ${r.to_path}?`)) return;
+    await supabase.from('seo_redirects' as any).delete().eq('id', r.id);
+    fetchRedirects();
   };
 
   const handleDelete = async () => {
