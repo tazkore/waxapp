@@ -56,6 +56,8 @@ interface SeoRedirect {
   hit_count: number;
   last_hit_at: string | null;
   created_at: string;
+  is_wildcard: boolean;
+  priority: number;
 }
 
 const SeoSection = () => {
