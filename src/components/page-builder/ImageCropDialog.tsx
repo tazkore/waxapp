@@ -246,12 +246,22 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
                 )}
               </div>
               {previewSize && (
-                <span className="text-[11px] text-muted-foreground">
+                <span className={`text-[11px] ${tooSmall ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
                   {previewSize.w} × {previewSize.h} px
                 </span>
               )}
             </div>
           </div>
+
+          {tooSmall && (
+            <div className="flex items-start gap-2 rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span>
+                El área seleccionada es muy pequeña. Selecciona al menos {MIN_REAL_PX}×{MIN_REAL_PX} px de la imagen original
+                para conservar la calidad.
+              </span>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2">
@@ -261,7 +271,7 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
           <Button type="button" variant="outline" onClick={handleCancel}>
             Cancelar
           </Button>
-          <Button type="button" onClick={handleConfirm}>
+          <Button type="button" onClick={handleConfirm} disabled={tooSmall}>
             <CropIcon className="h-4 w-4 mr-2" /> Aplicar y subir
           </Button>
         </DialogFooter>
