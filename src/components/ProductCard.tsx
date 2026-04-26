@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Eye } from 'lucide-react';
+import { ShoppingCart, Eye, ImageOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Product, useCartStore } from '@/store/cartStore';
 import { toast } from 'sonner';
@@ -13,7 +13,7 @@ const categoryColors: Record<string, string> = {
 };
 
 interface ProductCardProps {
-  product: Product & { image_url?: string | null };
+  product: Product & { image_url?: string | null; compare_at_price?: number | null };
   outOfStock?: boolean;
 }
 
