@@ -94,7 +94,7 @@ const ImageUploadInput = ({ value, onChange, placeholder = 'https://... o sube u
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) handleFile(f);
+            if (f) handleSelected(f);
             e.target.value = '';
           }}
         />
@@ -116,6 +116,16 @@ const ImageUploadInput = ({ value, onChange, placeholder = 'https://... o sube u
           )}
         </div>
       )}
+
+      <ImageCropDialog
+        open={!!pendingFile}
+        file={pendingFile}
+        onCancel={() => setPendingFile(null)}
+        onConfirm={(cropped) => {
+          setPendingFile(null);
+          handleFile(cropped);
+        }}
+      />
     </div>
   );
 };
