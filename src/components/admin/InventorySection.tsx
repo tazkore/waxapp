@@ -223,6 +223,7 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50">
+              <TableHead className="text-muted-foreground w-[60px]"></TableHead>
               <TableHead className="text-muted-foreground">SKU</TableHead>
               <TableHead className="text-muted-foreground">Producto</TableHead>
               <TableHead className="text-muted-foreground">Categoría</TableHead>
@@ -237,6 +238,15 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
               const status = getStatus(p.stock);
               return (
                 <TableRow key={p.id} className="border-border">
+                  <TableCell>
+                    <div className="h-10 w-10 rounded bg-muted overflow-hidden flex items-center justify-center">
+                      {(p as any).image_url ? (
+                        <img src={(p as any).image_url} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground/40">—</span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="font-mono text-muted-foreground text-sm">{p.sku ?? '—'}</TableCell>
                   <TableCell className="text-foreground font-medium">{p.name}</TableCell>
                   <TableCell className="text-muted-foreground">{p.category ?? '—'}</TableCell>
