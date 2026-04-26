@@ -11,10 +11,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import type { Tables } from '@/integrations/supabase/types';
+import ImageField from './ImageField';
 
-type Product = Tables<'products'>;
+type Product = Tables<'products'> & { brand_id?: string | null; image_url?: string | null };
 
-interface VariantRow { id?: string; name: string; price: string; stock: string; sku: string; }
+interface VariantRow { id?: string; name: string; price: string; stock: string; sku: string; image_url: string | null; }
 
 interface ProductForm {
   name: string;
@@ -24,11 +25,14 @@ interface ProductForm {
   price: string;
   stock: string;
   warehouse_id: string;
+  brand_id: string;
+  image_url: string | null;
 }
 
 interface WarehouseOption { id: string; name: string; }
+interface BrandOption { id: string; name: string; }
 
-const emptyForm: ProductForm = { name: '', description: '', sku: '', category: '', price: '', stock: '', warehouse_id: '' };
+const emptyForm: ProductForm = { name: '', description: '', sku: '', category: '', price: '', stock: '', warehouse_id: '', brand_id: '', image_url: null };
 const categories = ['Nano-Tech', 'Comestibles', 'Hardware', 'Accesorios'];
 
 const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
@@ -42,6 +46,7 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
+  const [brandList, setBrandList] = useState<BrandOption[]>([]);
 
   const filteredProducts = products.filter((p) => {
     const matchesSearch = search === '' || 
@@ -64,12 +69,17 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
     setWarehouses((data as unknown as WarehouseOption[]) ?? []);
   };
 
-  const fetchVariants = async (productId: string) => {
-    const { data } = await supabase.from('product_variants').select('*').eq('product_id', productId).order('created_at');
-    setVariants((data ?? []).map((v: any) => ({ id: v.id, name: v.name, price: String(v.price), stock: String(v.stock), sku: v.sku ?? '' })));
+  const fetchBrands = async () => {
+    const { data } = await (supabase as any).from('brands').select('id, name').eq('is_active', true).order('name');
+    setBrandList(data ?? []);
   };
 
-  useEffect(() => { fetchProducts(); fetchWarehouses(); }, []);
+  const fetchVariants = async (productId: string) => {
+    const { data } = await supabase.from('product_variants').select('*').eq('product_id', productId).order('created_at');
+    setVariants((data ?? []).map((v: any) => ({ id: v.id, name: v.name, price: String(v.price), stock: String(v.stock), sku: v.sku ?? '', image_url: v.image_url ?? null })));
+  };
+
+  useEffect(() => { fetchProducts(); fetchWarehouses(); fetchBrands(); }, []);
 
   const openCreate = () => {
     setEditingId(null);
@@ -88,6 +98,8 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
       price: String(p.price),
       stock: String(p.stock),
       warehouse_id: (p as any).warehouse_id ?? '',
+      brand_id: (p as any).brand_id ?? '',
+      image_url: (p as any).image_url ?? null,
     });
     fetchVariants(p.id);
     setOpen(true);
@@ -108,6 +120,8 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
       price: parseFloat(form.price) || 0,
       stock: parseInt(form.stock) || 0,
       warehouse_id: form.warehouse_id && form.warehouse_id !== 'none' ? form.warehouse_id : null,
+      brand_id: form.brand_id && form.brand_id !== 'none' ? form.brand_id : null,
+      image_url: form.image_url,
     };
 
     if (editingId) {
@@ -135,7 +149,6 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
   };
 
   const saveVariants = async (productId: string) => {
-    // Delete existing then re-insert
     await supabase.from('product_variants').delete().eq('product_id', productId);
     const toInsert = variants.filter(v => v.name.trim()).map(v => ({
       product_id: productId,
@@ -143,15 +156,16 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
       price: parseFloat(v.price) || 0,
       stock: parseInt(v.stock) || 0,
       sku: v.sku.trim() || null,
+      image_url: v.image_url,
     }));
     if (toInsert.length > 0) {
-      await supabase.from('product_variants').insert(toInsert);
+      await supabase.from('product_variants').insert(toInsert as any);
     }
   };
 
-  const addVariant = () => setVariants(prev => [...prev, { name: '', price: '', stock: '', sku: '' }]);
+  const addVariant = () => setVariants(prev => [...prev, { name: '', price: '', stock: '', sku: '', image_url: null }]);
   const removeVariant = (idx: number) => setVariants(prev => prev.filter((_, i) => i !== idx));
-  const updateVariant = (idx: number, field: keyof VariantRow, value: string) => setVariants(prev => prev.map((v, i) => i === idx ? { ...v, [field]: value } : v));
+  const updateVariant = (idx: number, field: keyof VariantRow, value: string | null) => setVariants(prev => prev.map((v, i) => i === idx ? { ...v, [field]: value as any } : v));
 
   const handleDelete = async (id: string, sku: string | null) => {
     const { error } = await supabase.from('products').delete().eq('id', id);
