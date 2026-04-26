@@ -106,7 +106,7 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
     setPreviewSize({ w: realW, h: realH });
   }, [completed, src]);
 
-
+  const handleConfirm = async () => {
     if (!file) return;
     if (!completed || !imgRef.current) {
       // Sin recorte → devolver original
