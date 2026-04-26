@@ -191,6 +191,48 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_accounts: {
+        Row: {
+          account_holder: string
+          account_number: string | null
+          bank_name: string
+          clabe: string | null
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          notes: string | null
+          swift: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_holder: string
+          account_number?: string | null
+          bank_name: string
+          clabe?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          swift?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_holder?: string
+          account_number?: string | null
+          bank_name?: string
+          clabe?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          swift?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       banners: {
         Row: {
           created_at: string
@@ -771,6 +813,200 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      payment_gateways: {
+        Row: {
+          config: Json
+          created_at: string
+          description: string | null
+          display_order: number
+          fees: Json
+          icon_url: string | null
+          id: string
+          instructions: string | null
+          is_active: boolean
+          name: string
+          requires_verification: boolean
+          slug: string
+          supports_refunds: boolean
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          fees?: Json
+          icon_url?: string | null
+          id?: string
+          instructions?: string | null
+          is_active?: boolean
+          name: string
+          requires_verification?: boolean
+          slug: string
+          supports_refunds?: boolean
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          fees?: Json
+          icon_url?: string | null
+          id?: string
+          instructions?: string | null
+          is_active?: boolean
+          name?: string
+          requires_verification?: boolean
+          slug?: string
+          supports_refunds?: boolean
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payment_proofs: {
+        Row: {
+          created_at: string
+          file_name: string | null
+          file_size: number | null
+          file_url: string
+          id: string
+          notes: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          transaction_id: string
+          uploaded_by_email: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string | null
+          file_size?: number | null
+          file_url: string
+          id?: string
+          notes?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          transaction_id: string
+          uploaded_by_email?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          notes?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          transaction_id?: string
+          uploaded_by_email?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_proofs_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          customer_email: string | null
+          customer_name: string | null
+          external_id: string | null
+          fee_amount: number
+          gateway_id: string | null
+          gateway_slug: string
+          id: string
+          method: string | null
+          net_amount: number
+          notes: string | null
+          order_id: string | null
+          paid_at: string | null
+          raw: Json
+          reference: string | null
+          status: string
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          external_id?: string | null
+          fee_amount?: number
+          gateway_id?: string | null
+          gateway_slug: string
+          id?: string
+          method?: string | null
+          net_amount?: number
+          notes?: string | null
+          order_id?: string | null
+          paid_at?: string | null
+          raw?: Json
+          reference?: string | null
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          external_id?: string | null
+          fee_amount?: number
+          gateway_id?: string | null
+          gateway_slug?: string
+          id?: string
+          method?: string | null
+          net_amount?: number
+          notes?: string | null
+          order_id?: string | null
+          paid_at?: string | null
+          raw?: Json
+          reference?: string | null
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_gateway_id_fkey"
+            columns: ["gateway_id"]
+            isOneToOne: false
+            referencedRelation: "payment_gateways"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_variants: {
         Row: {
