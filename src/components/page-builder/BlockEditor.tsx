@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { GripVertical, Trash2, Plus, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
 import { type PageBlock, type BlockType, BLOCK_LABELS, newBlock } from './blockTypes';
 import BlockRenderer from './BlockRenderer';
+import ImageUploadInput from './ImageUploadInput';
 
 interface Props {
   blocks: PageBlock[];
@@ -169,7 +170,9 @@ const BlockFields = ({ block, onUpdate }: { block: PageBlock; onUpdate: (d: Reco
             <Field label="Texto del botón"><Input value={d.ctaText ?? ''} onChange={(e) => onUpdate({ ctaText: e.target.value })} /></Field>
             <Field label="URL del botón"><Input value={d.ctaUrl ?? ''} onChange={(e) => onUpdate({ ctaUrl: e.target.value })} /></Field>
           </div>
-          <Field label="Imagen de fondo (URL)"><Input value={d.imageUrl ?? ''} onChange={(e) => onUpdate({ imageUrl: e.target.value })} placeholder="https://..." /></Field>
+          <Field label="Imagen de fondo">
+            <ImageUploadInput value={d.imageUrl ?? ''} onChange={(v) => onUpdate({ imageUrl: v })} folder="pages/hero" />
+          </Field>
           <Field label="Alineación">
             <Select value={d.align ?? 'center'} onValueChange={(v) => onUpdate({ align: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -202,7 +205,9 @@ const BlockFields = ({ block, onUpdate }: { block: PageBlock; onUpdate: (d: Reco
     case 'image':
       return (
         <>
-          <Field label="URL de la imagen"><Input value={d.url ?? ''} onChange={(e) => onUpdate({ url: e.target.value })} /></Field>
+          <Field label="Imagen">
+            <ImageUploadInput value={d.url ?? ''} onChange={(v) => onUpdate({ url: v })} folder="pages/image" />
+          </Field>
           <Field label="Texto alternativo (alt)"><Input value={d.alt ?? ''} onChange={(e) => onUpdate({ alt: e.target.value })} /></Field>
           <Field label="Caption"><Input value={d.caption ?? ''} onChange={(e) => onUpdate({ caption: e.target.value })} /></Field>
           <Field label="Ancho">
