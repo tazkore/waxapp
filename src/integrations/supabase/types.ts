@@ -191,6 +191,87 @@ export type Database = {
         }
         Relationships: []
       }
+      banners: {
+        Row: {
+          created_at: string
+          cta_text: string | null
+          cta_url: string | null
+          display_order: number
+          id: string
+          image_path: string
+          is_active: boolean
+          subtitle: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cta_text?: string | null
+          cta_url?: string | null
+          display_order?: number
+          id?: string
+          image_path: string
+          is_active?: boolean
+          subtitle?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cta_text?: string | null
+          cta_url?: string | null
+          display_order?: number
+          id?: string
+          image_path?: string
+          is_active?: boolean
+          subtitle?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      brands: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          is_featured: boolean
+          logo_url: string | null
+          name: string
+          slug: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_featured?: boolean
+          logo_url?: string | null
+          name: string
+          slug: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_featured?: boolean
+          logo_url?: string | null
+          name?: string
+          slug?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       chatbot_kb: {
         Row: {
           category: string
@@ -479,6 +560,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          image_url: string | null
           is_active: boolean
           name: string
           price: number
@@ -490,6 +572,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          image_url?: string | null
           is_active?: boolean
           name: string
           price?: number
@@ -501,6 +584,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          image_url?: string | null
           is_active?: boolean
           name?: string
           price?: number
@@ -521,6 +605,7 @@ export type Database = {
       }
       products: {
         Row: {
+          brand_id: string | null
           category: string | null
           created_at: string
           description: string | null
@@ -538,6 +623,7 @@ export type Database = {
           warehouse_id: string | null
         }
         Insert: {
+          brand_id?: string | null
           category?: string | null
           created_at?: string
           description?: string | null
@@ -555,6 +641,7 @@ export type Database = {
           warehouse_id?: string | null
         }
         Update: {
+          brand_id?: string | null
           category?: string | null
           created_at?: string
           description?: string | null
