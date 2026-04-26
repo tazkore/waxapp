@@ -25,6 +25,9 @@ import {
   Settings2,
   CheckCircle2,
   AlertCircle,
+  ArrowRight,
+  Trash2,
+  Power,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -41,6 +44,18 @@ interface SeoPage {
   canonical_url: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface SeoRedirect {
+  id: string;
+  from_path: string;
+  to_path: string;
+  status_code: number;
+  is_active: boolean;
+  reason: string | null;
+  hit_count: number;
+  last_hit_at: string | null;
+  created_at: string;
 }
 
 const SeoSection = () => {
@@ -66,6 +81,9 @@ const SeoSection = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [newPage, setNewPage] = useState({ page_path: '', page_title: '' });
   const [creating, setCreating] = useState(false);
+  const [redirects, setRedirects] = useState<SeoRedirect[]>([]);
+  const [newRedirect, setNewRedirect] = useState({ from_path: '', to_path: '' });
+  const [addingRedirect, setAddingRedirect] = useState(false);
   const { toast } = useToast();
 
   const fetchPages = async () => {
@@ -82,7 +100,15 @@ const SeoSection = () => {
     setLoading(false);
   };
 
-  useEffect(() => { fetchPages(); }, []);
+  const fetchRedirects = async () => {
+    const { data } = await supabase
+      .from('seo_redirects' as any)
+      .select('*')
+      .order('created_at', { ascending: false });
+    setRedirects(((data as unknown) as SeoRedirect[]) || []);
+  };
+
+  useEffect(() => { fetchPages(); fetchRedirects(); }, []);
 
   const selectPage = (page: SeoPage) => {
     setSelectedPage(page);
@@ -123,10 +149,52 @@ const SeoSection = () => {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Guardado', description: `SEO de "${editData.page_title}" actualizado.` });
+      const slugChanged = selectedPage.page_path !== editData.page_path.trim();
+      toast({
+        title: 'Guardado',
+        description: slugChanged
+          ? `Slug actualizado. Se creó un redirect 301 de ${selectedPage.page_path} → ${editData.page_path.trim()} automáticamente.`
+          : `SEO de "${editData.page_title}" actualizado.`,
+      });
       fetchPages();
+      if (slugChanged) fetchRedirects();
     }
     setSaving(false);
+  };
+
+  const handleAddRedirect = async () => {
+    const from = newRedirect.from_path.trim();
+    const to = newRedirect.to_path.trim();
+    if (!from || !to || !from.startsWith('/') || !to.startsWith('/')) {
+      toast({ title: 'Error', description: 'Las rutas deben iniciar con "/".', variant: 'destructive' });
+      return;
+    }
+    if (from === to) {
+      toast({ title: 'Error', description: 'Las rutas origen y destino no pueden ser iguales.', variant: 'destructive' });
+      return;
+    }
+    setAddingRedirect(true);
+    const { error } = await supabase.from('seo_redirects' as any).insert({
+      from_path: from, to_path: to, status_code: 301, is_active: true, reason: 'Manual',
+    } as any);
+    if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    else {
+      toast({ title: 'Redirect creado', description: `${from} → ${to}` });
+      setNewRedirect({ from_path: '', to_path: '' });
+      fetchRedirects();
+    }
+    setAddingRedirect(false);
+  };
+
+  const toggleRedirect = async (r: SeoRedirect) => {
+    await supabase.from('seo_redirects' as any).update({ is_active: !r.is_active } as any).eq('id', r.id);
+    fetchRedirects();
+  };
+
+  const deleteRedirect = async (r: SeoRedirect) => {
+    if (!confirm(`¿Eliminar el redirect ${r.from_path} → ${r.to_path}?`)) return;
+    await supabase.from('seo_redirects' as any).delete().eq('id', r.id);
+    fetchRedirects();
   };
 
   const handleDelete = async () => {
@@ -330,6 +398,16 @@ const SeoSection = () => {
                         className="font-mono"
                       />
                       <p className="text-[10px] text-muted-foreground mt-1">Debe iniciar con "/". Coincide con la ruta del frontend.</p>
+                      {selectedPage.page_path !== editData.page_path && editData.page_path.trim() && (
+                        <div className="mt-2 flex items-start gap-2 p-2 rounded-md bg-primary/10 border border-primary/30">
+                          <ArrowRight className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                          <p className="text-[11px] text-foreground">
+                            Al guardar se creará un <strong>redirect 301</strong> automático:{' '}
+                            <span className="font-mono text-primary">{selectedPage.page_path}</span> →{' '}
+                            <span className="font-mono text-primary">{editData.page_path}</span> para preservar el SEO.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -540,6 +618,78 @@ const SeoSection = () => {
               <Switch checked={globalRobots} onCheckedChange={setGlobalRobots} />
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Redirects 301 Manager */}
+      <Card className="border-border bg-card">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <ArrowRight className="h-4 w-4 text-primary" /> Redirects 301
+              </h3>
+              <p className="text-[11px] text-muted-foreground">
+                Se crean automáticamente al renombrar el slug de una página. También puedes añadirlos manualmente.
+              </p>
+            </div>
+            <Badge variant="outline" className="text-[10px]">{redirects.length} configurados</Badge>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto] gap-2 items-end mb-4 p-3 rounded-lg bg-muted/40 border border-border">
+            <div>
+              <Label className="text-[10px] mb-1 block">Desde (ruta antigua)</Label>
+              <Input
+                value={newRedirect.from_path}
+                onChange={(e) => setNewRedirect({ ...newRedirect, from_path: e.target.value })}
+                placeholder="/ruta-vieja"
+                className="font-mono text-xs"
+              />
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground self-center mb-2 hidden md:block" />
+            <div>
+              <Label className="text-[10px] mb-1 block">Hacia (ruta nueva)</Label>
+              <Input
+                value={newRedirect.to_path}
+                onChange={(e) => setNewRedirect({ ...newRedirect, to_path: e.target.value })}
+                placeholder="/ruta-nueva"
+                className="font-mono text-xs"
+              />
+            </div>
+            <Button size="sm" onClick={handleAddRedirect} disabled={addingRedirect}>
+              {addingRedirect ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+              Añadir
+            </Button>
+          </div>
+
+          {redirects.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-6">No hay redirects configurados.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {redirects.map((r) => (
+                <div
+                  key={r.id}
+                  className={`flex items-center gap-3 p-2.5 rounded-md border ${
+                    r.is_active ? 'border-border bg-background' : 'border-border bg-muted/20 opacity-60'
+                  }`}
+                >
+                  <Badge variant="outline" className="text-[9px] shrink-0">{r.status_code}</Badge>
+                  <div className="flex-1 min-w-0 flex items-center gap-2 text-xs font-mono">
+                    <span className="text-muted-foreground truncate">{r.from_path}</span>
+                    <ArrowRight className="h-3 w-3 text-primary shrink-0" />
+                    <span className="text-foreground truncate">{r.to_path}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground shrink-0 hidden sm:inline">{r.hit_count} hits</span>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => toggleRedirect(r)} title={r.is_active ? 'Desactivar' : 'Activar'}>
+                    <Power className={`h-3.5 w-3.5 ${r.is_active ? 'text-primary' : 'text-muted-foreground'}`} />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteRedirect(r)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

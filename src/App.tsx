@@ -21,6 +21,7 @@ import LaboratoriosPage from "./pages/LaboratoriosPage.tsx";
 import MarcasPage from "./pages/MarcasPage.tsx";
 import NeshikaPage from "./pages/NeshikaPage.tsx";
 import SeoHead from "./components/SeoHead.tsx";
+import RedirectHandler from "./components/RedirectHandler.tsx";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <SeoHead />
+        <RedirectHandler />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/producto/:id" element={<ProductDetail />} />
