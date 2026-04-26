@@ -81,6 +81,9 @@ const SeoSection = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [newPage, setNewPage] = useState({ page_path: '', page_title: '' });
   const [creating, setCreating] = useState(false);
+  const [redirects, setRedirects] = useState<SeoRedirect[]>([]);
+  const [newRedirect, setNewRedirect] = useState({ from_path: '', to_path: '' });
+  const [addingRedirect, setAddingRedirect] = useState(false);
   const { toast } = useToast();
 
   const fetchPages = async () => {
