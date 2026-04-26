@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -35,21 +35,16 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
   const [aspect, setAspect] = useState<number | undefined>(undefined);
   const imgRef = useRef<HTMLImageElement>(null);
 
-  // Cargar src cuando llega el file
-  useState(() => {
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => setSrc(reader.result as string);
-      reader.readAsDataURL(file);
+  // Cargar src cuando llega/cambia el file
+  useEffect(() => {
+    if (!file) {
+      setSrc('');
+      return;
     }
-  });
-
-  // Re-cargar si cambia el file (efecto manual con key)
-  if (file && !src) {
     const reader = new FileReader();
     reader.onload = () => setSrc(reader.result as string);
     reader.readAsDataURL(file);
-  }
+  }, [file]);
 
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
