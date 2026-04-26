@@ -398,6 +398,16 @@ const SeoSection = () => {
                         className="font-mono"
                       />
                       <p className="text-[10px] text-muted-foreground mt-1">Debe iniciar con "/". Coincide con la ruta del frontend.</p>
+                      {selectedPage.page_path !== editData.page_path && editData.page_path.trim() && (
+                        <div className="mt-2 flex items-start gap-2 p-2 rounded-md bg-primary/10 border border-primary/30">
+                          <ArrowRight className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                          <p className="text-[11px] text-foreground">
+                            Al guardar se creará un <strong>redirect 301</strong> automático:{' '}
+                            <span className="font-mono text-primary">{selectedPage.page_path}</span> →{' '}
+                            <span className="font-mono text-primary">{editData.page_path}</span> para preservar el SEO.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
