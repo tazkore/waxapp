@@ -33,7 +33,9 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
   const [crop, setCrop] = useState<Crop>();
   const [completed, setCompleted] = useState<PixelCrop | null>(null);
   const [aspect, setAspect] = useState<number | undefined>(undefined);
+  const [previewSize, setPreviewSize] = useState<{ w: number; h: number } | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
+  const previewRef = useRef<HTMLCanvasElement>(null);
 
   // Cargar src cuando llega/cambia el file (limpiando estado previo)
   useEffect(() => {
@@ -67,6 +69,43 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
     }
   };
 
+  // Dibuja vista previa del recorte en el canvas
+  useEffect(() => {
+    const canvas = previewRef.current;
+    const image = imgRef.current;
+    if (!canvas || !image || !completed || completed.width < 2 || completed.height < 2) {
+      setPreviewSize(null);
+      return;
+    }
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    const realW = Math.round(completed.width * scaleX);
+    const realH = Math.round(completed.height * scaleY);
+
+    // Limitamos el canvas mostrado a 240px de ancho/alto manteniendo proporción
+    const max = 240;
+    const ratio = Math.min(max / realW, max / realH, 1);
+    canvas.width = Math.max(1, Math.round(realW * ratio));
+    canvas.height = Math.max(1, Math.round(realH * ratio));
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(
+      image,
+      completed.x * scaleX,
+      completed.y * scaleY,
+      completed.width * scaleX,
+      completed.height * scaleY,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+    setPreviewSize({ w: realW, h: realH });
+  }, [completed, src]);
+
   const handleConfirm = async () => {
     if (!file) return;
     if (!completed || !imgRef.current) {
@@ -85,6 +124,7 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
     setCrop(undefined);
     setCompleted(null);
     setAspect(undefined);
+    setPreviewSize(null);
   };
 
   const handleCancel = () => {
@@ -139,9 +179,34 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
             )}
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Arrastra los bordes para definir el área. Después se optimizará a WebP automáticamente.
-          </p>
+          <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
+            <p className="text-xs text-muted-foreground">
+              Arrastra los bordes para definir el área. Después se optimizará a WebP automáticamente.
+            </p>
+            <div className="flex flex-col items-center gap-1">
+              <Label className="text-xs text-muted-foreground">Vista previa</Label>
+              <div
+                className="bg-muted/30 border border-border rounded p-2 flex items-center justify-center"
+                style={{ width: 256, height: 256 }}
+              >
+                <canvas
+                  ref={previewRef}
+                  className="max-w-full max-h-full rounded shadow-sm"
+                  style={{ imageRendering: 'auto', display: previewSize ? 'block' : 'none' }}
+                />
+                {!previewSize && (
+                  <span className="text-[11px] text-muted-foreground text-center px-2">
+                    Define un área de recorte para ver la vista previa
+                  </span>
+                )}
+              </div>
+              {previewSize && (
+                <span className="text-[11px] text-muted-foreground">
+                  {previewSize.w} × {previewSize.h} px
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         <DialogFooter className="gap-2">
