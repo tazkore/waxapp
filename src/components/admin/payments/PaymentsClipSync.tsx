@@ -242,10 +242,32 @@ const PaymentsClipSync = () => {
 
       {result && result.discrepancies.length > 0 && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
             <CardTitle className="flex items-center gap-2 text-yellow-500">
               <AlertTriangle className="h-5 w-5" /> Reconciliación de discrepancias
             </CardTitle>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" disabled={bulkReconciling}>
+                  <CheckCheck className={`h-4 w-4 mr-2 ${bulkReconciling ? 'animate-pulse' : ''}`} />
+                  {bulkReconciling ? 'Aplicando…' : `Aplicar todo (${result.discrepancies.length})`}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Aplicar Clip a todas las discrepancias?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Se actualizarán <strong>{result.discrepancies.length}</strong> transacciones locales con
+                    el estado y monto reportados por Clip. Esta acción quedará registrada en la auditoría
+                    de cada transacción y no se puede deshacer en lote.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={reconcileAll}>Sí, aplicar todo</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardHeader>
           <CardContent>
             <Table>
