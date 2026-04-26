@@ -40,8 +40,26 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
   const [completed, setCompleted] = useState<PixelCrop | null>(null);
   const [aspect, setAspect] = useState<number | undefined>(undefined);
   const [previewSize, setPreviewSize] = useState<{ w: number; h: number } | null>(null);
+  const [tooSmall, setTooSmall] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const previewRef = useRef<HTMLCanvasElement>(null);
+  const { toast } = useToast();
+
+  // Limita el área de recorte a los bordes de la imagen mostrada
+  const clampCrop = useCallback((c: Crop): Crop => {
+    const img = imgRef.current;
+    if (!img || c.unit !== 'px') return c;
+    const W = img.width;
+    const H = img.height;
+    let x = Math.max(0, Math.min(c.x, W));
+    let y = Math.max(0, Math.min(c.y, H));
+    let w = Math.max(MIN_DISPLAY_PX, Math.min(c.width, W - x));
+    let h = Math.max(MIN_DISPLAY_PX, Math.min(c.height, H - y));
+    // Si tras el clamp se sale, reposicionamos
+    if (x + w > W) x = Math.max(0, W - w);
+    if (y + h > H) y = Math.max(0, H - h);
+    return { ...c, x, y, width: w, height: h };
+  }, []);
 
   // Cargar src cuando llega/cambia el file (limpiando estado previo)
   useEffect(() => {
