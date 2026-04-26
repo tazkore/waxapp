@@ -621,6 +621,78 @@ const SeoSection = () => {
         </CardContent>
       </Card>
 
+      {/* Redirects 301 Manager */}
+      <Card className="border-border bg-card">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <ArrowRight className="h-4 w-4 text-primary" /> Redirects 301
+              </h3>
+              <p className="text-[11px] text-muted-foreground">
+                Se crean automáticamente al renombrar el slug de una página. También puedes añadirlos manualmente.
+              </p>
+            </div>
+            <Badge variant="outline" className="text-[10px]">{redirects.length} configurados</Badge>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto] gap-2 items-end mb-4 p-3 rounded-lg bg-muted/40 border border-border">
+            <div>
+              <Label className="text-[10px] mb-1 block">Desde (ruta antigua)</Label>
+              <Input
+                value={newRedirect.from_path}
+                onChange={(e) => setNewRedirect({ ...newRedirect, from_path: e.target.value })}
+                placeholder="/ruta-vieja"
+                className="font-mono text-xs"
+              />
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground self-center mb-2 hidden md:block" />
+            <div>
+              <Label className="text-[10px] mb-1 block">Hacia (ruta nueva)</Label>
+              <Input
+                value={newRedirect.to_path}
+                onChange={(e) => setNewRedirect({ ...newRedirect, to_path: e.target.value })}
+                placeholder="/ruta-nueva"
+                className="font-mono text-xs"
+              />
+            </div>
+            <Button size="sm" onClick={handleAddRedirect} disabled={addingRedirect}>
+              {addingRedirect ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+              Añadir
+            </Button>
+          </div>
+
+          {redirects.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-6">No hay redirects configurados.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {redirects.map((r) => (
+                <div
+                  key={r.id}
+                  className={`flex items-center gap-3 p-2.5 rounded-md border ${
+                    r.is_active ? 'border-border bg-background' : 'border-border bg-muted/20 opacity-60'
+                  }`}
+                >
+                  <Badge variant="outline" className="text-[9px] shrink-0">{r.status_code}</Badge>
+                  <div className="flex-1 min-w-0 flex items-center gap-2 text-xs font-mono">
+                    <span className="text-muted-foreground truncate">{r.from_path}</span>
+                    <ArrowRight className="h-3 w-3 text-primary shrink-0" />
+                    <span className="text-foreground truncate">{r.to_path}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground shrink-0 hidden sm:inline">{r.hit_count} hits</span>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => toggleRedirect(r)} title={r.is_active ? 'Desactivar' : 'Activar'}>
+                    <Power className={`h-3.5 w-3.5 ${r.is_active ? 'text-primary' : 'text-muted-foreground'}`} />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteRedirect(r)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Create Page Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="bg-card border-border sm:max-w-md">
