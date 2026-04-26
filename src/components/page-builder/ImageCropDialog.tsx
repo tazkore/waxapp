@@ -111,6 +111,15 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
 
     setTooSmall(realW < MIN_REAL_PX || realH < MIN_REAL_PX);
 
+    // Cache: si el área dibujada es la misma que la última, no repintamos
+    const key = `${Math.round(completed.x)}|${Math.round(completed.y)}|${Math.round(completed.width)}|${Math.round(completed.height)}`;
+    const cached = lastDrawRef.current;
+    if (cached && cached.src === src && cached.key === key) {
+      // Ya está dibujado; solo aseguramos el state visible
+      setPreviewSize({ w: realW, h: realH });
+      return;
+    }
+
     // Limitamos el canvas mostrado a 240px de ancho/alto manteniendo proporción
     const max = 240;
     const ratio = Math.min(max / realW, max / realH, 1);
@@ -132,6 +141,7 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
       canvas.width,
       canvas.height,
     );
+    lastDrawRef.current = { src, key };
     setPreviewSize({ w: realW, h: realH });
   }, [completed, src]);
 
