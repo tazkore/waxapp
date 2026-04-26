@@ -761,6 +761,54 @@ export type Database = {
         }
         Relationships: []
       }
+      environment_connections: {
+        Row: {
+          anon_key_secret_name: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          environment_type: string
+          id: string
+          is_active: boolean
+          last_used_at: string | null
+          name: string
+          notes: string | null
+          project_url: string
+          service_key_secret_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          anon_key_secret_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          environment_type?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          name: string
+          notes?: string | null
+          project_url: string
+          service_key_secret_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          anon_key_secret_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          environment_type?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          name?: string
+          notes?: string | null
+          project_url?: string
+          service_key_secret_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       integrations: {
         Row: {
           api_docs_url: string | null
