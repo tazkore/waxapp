@@ -37,6 +37,26 @@ interface CartState {
   setCartOpen: (open: boolean) => void;
   totalItems: () => number;
   subtotal: () => number;
+  syncWithServer: (userId: string) => Promise<void>;
+  pushToServer: (userId: string) => Promise<void>;
+}
+
+let currentUserId: string | null = null;
+let syncTimer: ReturnType<typeof setTimeout> | null = null;
+
+const scheduleServerPush = (getItems: () => CartItem[]) => {
+  if (!currentUserId) return;
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(async () => {
+    if (!currentUserId) return;
+    try {
+      await supabase
+        .from('carts')
+        .upsert({ user_id: currentUserId, items: getItems() as any }, { onConflict: 'user_id' });
+    } catch (e) {
+      console.error('Cart sync failed:', e);
+    }
+  }, 600);
 }
 
 export const useCartStore = create<CartState>()(
