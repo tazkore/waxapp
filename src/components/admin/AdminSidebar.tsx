@@ -29,6 +29,7 @@ const allNavItems = [
   { title: 'Amazon Seller', icon: ShoppingBag, key: 'amazon', adminOnly: true },
   { title: 'Chatbot IA', icon: Brain, key: 'chatbot', adminOnly: true },
   { title: 'Integraciones', icon: Puzzle, key: 'integrations', adminOnly: true },
+  { title: 'API & Conexiones', icon: KeyRound, key: 'api-keys', adminOnly: true },
   { title: 'Configuración', icon: Settings, key: 'settings', adminOnly: true },
 ];
 
