@@ -1020,6 +1020,45 @@ export type Database = {
           },
         ]
       }
+      payment_transaction_audit: {
+        Row: {
+          change_type: string
+          changed_by: string | null
+          changed_by_email: string | null
+          created_at: string
+          field_name: string
+          id: string
+          new_value: string | null
+          notes: string | null
+          old_value: string | null
+          transaction_id: string
+        }
+        Insert: {
+          change_type?: string
+          changed_by?: string | null
+          changed_by_email?: string | null
+          created_at?: string
+          field_name: string
+          id?: string
+          new_value?: string | null
+          notes?: string | null
+          old_value?: string | null
+          transaction_id: string
+        }
+        Update: {
+          change_type?: string
+          changed_by?: string | null
+          changed_by_email?: string | null
+          created_at?: string
+          field_name?: string
+          id?: string
+          new_value?: string | null
+          notes?: string | null
+          old_value?: string | null
+          transaction_id?: string
+        }
+        Relationships: []
+      }
       payment_transactions: {
         Row: {
           amount: number
