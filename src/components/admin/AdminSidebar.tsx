@@ -1,4 +1,4 @@
-import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck } from 'lucide-react';
+import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -20,6 +20,8 @@ const allNavItems = [
   { title: 'Centro de Operaciones', icon: ClipboardList, key: 'operations' },
   { title: 'Compras & Corporativo', icon: ShoppingCart, key: 'purchasing' },
   { title: 'SEO & Indexación', icon: Rocket, key: 'seo' },
+  { title: 'Amazon Seller', icon: ShoppingBag, key: 'amazon', adminOnly: true },
+  { title: 'Chatbot IA', icon: Brain, key: 'chatbot', adminOnly: true },
   { title: 'Integraciones', icon: Puzzle, key: 'integrations', adminOnly: true },
   { title: 'Configuración', icon: Settings, key: 'settings', adminOnly: true },
 ];

@@ -19,6 +19,8 @@ import SeoSection from '@/components/admin/SeoSection';
 import PurchasingSection from '@/components/admin/PurchasingSection';
 import WarehousesSection from '@/components/admin/WarehousesSection';
 import ShippingSection from '@/components/admin/ShippingSection';
+import AmazonSection from '@/components/admin/AmazonSection';
+import KnowledgeBaseSection from '@/components/admin/KnowledgeBaseSection';
 
 const Admin = () => {
   const [active, setActive] = useState('overview');
@@ -50,6 +52,8 @@ const Admin = () => {
       case 'operations': return <OperationsSection />;
       case 'purchasing': return <PurchasingSection />;
       case 'seo': return <SeoSection />;
+      case 'amazon': return isAdmin ? <AmazonSection /> : <OverviewSection onNavigate={setActive} />;
+      case 'chatbot': return isAdmin ? <KnowledgeBaseSection /> : <OverviewSection onNavigate={setActive} />;
       case 'integrations': return isAdmin ? <IntegrationsSection /> : <OverviewSection onNavigate={setActive} />;
       case 'settings': return isAdmin ? <SettingsSection /> : <OverviewSection onNavigate={setActive} />;
       default: return <OverviewSection onNavigate={setActive} />;

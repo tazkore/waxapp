@@ -73,4 +73,9 @@
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(135deg, hsl(145 100% 45%), hsl(160 100% 50%));
   }
+  @keyframes pulse-strong {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 hsl(var(--primary) / 0.6); }
+    50% { transform: scale(1.08); box-shadow: 0 0 0 18px hsl(var(--primary) / 0); }
+  }
+  .animate-pulse-strong { animation: pulse-strong 1.4s ease-in-out infinite; }
 }
