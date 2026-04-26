@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
+import AdminNotifications from './AdminNotifications';
 
 interface Stats {
   todayTotal: number;
