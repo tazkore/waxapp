@@ -65,6 +65,7 @@ const PaymentsDashboard = () => {
 
   return (
     <div className="space-y-4">
+      <AdminNotifications />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Cobrado hoy</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{fmt(stats.todayTotal)}</p></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Últimos 7 días</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{fmt(stats.weekTotal)}</p></CardContent></Card>
