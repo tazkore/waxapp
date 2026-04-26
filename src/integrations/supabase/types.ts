@@ -854,7 +854,9 @@ export type Database = {
           hit_count: number
           id: string
           is_active: boolean
+          is_wildcard: boolean
           last_hit_at: string | null
+          priority: number
           reason: string | null
           status_code: number
           to_path: string
@@ -866,7 +868,9 @@ export type Database = {
           hit_count?: number
           id?: string
           is_active?: boolean
+          is_wildcard?: boolean
           last_hit_at?: string | null
+          priority?: number
           reason?: string | null
           status_code?: number
           to_path: string
@@ -878,7 +882,9 @@ export type Database = {
           hit_count?: number
           id?: string
           is_active?: boolean
+          is_wildcard?: boolean
           last_hit_at?: string | null
+          priority?: number
           reason?: string | null
           status_code?: number
           to_path?: string
