@@ -33,7 +33,9 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
   const [crop, setCrop] = useState<Crop>();
   const [completed, setCompleted] = useState<PixelCrop | null>(null);
   const [aspect, setAspect] = useState<number | undefined>(undefined);
+  const [previewSize, setPreviewSize] = useState<{ w: number; h: number } | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
+  const previewRef = useRef<HTMLCanvasElement>(null);
 
   // Cargar src cuando llega/cambia el file (limpiando estado previo)
   useEffect(() => {
