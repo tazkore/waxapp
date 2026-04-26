@@ -10,6 +10,8 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Edit, Trash2, Loader2, Save, ExternalLink, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import BlockEditor from '@/components/page-builder/BlockEditor';
+import type { PageBlock } from '@/components/page-builder/blockTypes';
 
 interface CustomPage {
   id: string;
@@ -134,26 +136,28 @@ const ThemePagesSection = () => {
       )}
 
       <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing?.id ? 'Editar página' : 'Nueva página'}</DialogTitle>
           </DialogHeader>
           {editing && (
-            <div className="space-y-4">
-              <div>
-                <Label>Título</Label>
-                <Input value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
-              </div>
-              <div>
-                <Label>Slug (URL)</Label>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">/</span>
-                  <Input
-                    value={editing.slug}
-                    onChange={(e) => setEditing({ ...editing, slug: slugify(e.target.value) })}
-                    placeholder="se-genera-del-titulo"
-                    className="font-mono text-xs"
-                  />
+            <div className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Título</Label>
+                  <Input value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Slug (URL)</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">/</span>
+                    <Input
+                      value={editing.slug}
+                      onChange={(e) => setEditing({ ...editing, slug: slugify(e.target.value) })}
+                      placeholder="se-genera-del-titulo"
+                      className="font-mono text-xs"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -178,22 +182,27 @@ const ThemePagesSection = () => {
                   />
                 </div>
               </div>
-              <div>
-                <Label>Meta título (SEO)</Label>
-                <Input value={editing.meta_title ?? ''} onChange={(e) => setEditing({ ...editing, meta_title: e.target.value })} />
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Meta título (SEO)</Label>
+                  <Input value={editing.meta_title ?? ''} onChange={(e) => setEditing({ ...editing, meta_title: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Meta descripción (SEO)</Label>
+                  <Textarea
+                    value={editing.meta_description ?? ''}
+                    onChange={(e) => setEditing({ ...editing, meta_description: e.target.value })}
+                    className="min-h-[80px]"
+                  />
+                </div>
               </div>
-              <div>
-                <Label>Meta descripción (SEO)</Label>
-                <Textarea
-                  value={editing.meta_description ?? ''}
-                  onChange={(e) => setEditing({ ...editing, meta_description: e.target.value })}
-                  className="min-h-[80px]"
+
+              <div className="border-t border-border pt-4">
+                <BlockEditor
+                  blocks={(editing.blocks ?? []) as PageBlock[]}
+                  onChange={(blocks) => setEditing({ ...editing, blocks })}
                 />
               </div>
-              <p className="text-xs text-muted-foreground bg-muted p-3 rounded-lg">
-                💡 El editor visual de bloques (drag &amp; drop) llegará en la <strong>Fase 3</strong>. Por ahora puedes crear la
-                página, definir su URL y SEO; el contenido se renderizará cuando habilitemos el page builder.
-              </p>
             </div>
           )}
           <DialogFooter>
