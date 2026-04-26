@@ -5,9 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RefreshCw, AlertTriangle, CheckCircle2, Clock, ArrowDownUp, RotateCw, XCircle } from 'lucide-react';
+import { RefreshCw, AlertTriangle, CheckCircle2, Clock, ArrowDownUp, RotateCw, XCircle, CheckCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface SyncResult {
   ok: boolean;
