@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Crop as CropIcon, RotateCcw, AlertTriangle } from 'lucide-react';
@@ -43,6 +43,7 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
   const [tooSmall, setTooSmall] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const previewRef = useRef<HTMLCanvasElement>(null);
+  const confirmBtnRef = useRef<HTMLButtonElement>(null);
   // Cache de la última previsualización dibujada (evita repintar si el área no cambió)
   const lastDrawRef = useRef<{ src: string; key: string } | null>(null);
   const { toast } = useToast();
@@ -214,13 +215,41 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
     onCancel();
   };
 
+  // Auto-focus cuando abre o cuando hay un recorte válido listo
+  useEffect(() => {
+    if (open && previewSize && !tooSmall) {
+      // Pequeño delay para esperar a que el dialog termine de animar
+      const t = setTimeout(() => confirmBtnRef.current?.focus(), 80);
+      return () => clearTimeout(t);
+    }
+  }, [open, previewSize, tooSmall]);
+
+  // Atajos de teclado: Ctrl/Cmd+Enter aplica, Esc lo gestiona el Dialog
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (!tooSmall) handleConfirm();
+    }
+  };
+
+  const previewAria = !previewSize
+    ? 'Sin área de recorte definida. Arrastra los bordes sobre la imagen para seleccionar.'
+    : tooSmall
+      ? `Área seleccionada de ${previewSize.w} por ${previewSize.h} píxeles. Demasiado pequeña, mínimo ${MIN_REAL_PX} por ${MIN_REAL_PX}.`
+      : `Vista previa lista: ${previewSize.w} por ${previewSize.h} píxeles. Pulsa Control Enter para aplicar.`;
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleCancel()}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl" onKeyDown={handleKeyDown}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CropIcon className="h-5 w-5" /> Recortar imagen
           </DialogTitle>
+          <DialogDescription>
+            Define el encuadre. Atajos: <kbd className="px-1 rounded border border-border bg-muted/50 text-[10px]">Ctrl</kbd>+
+            <kbd className="px-1 rounded border border-border bg-muted/50 text-[10px]">Enter</kbd> para aplicar,{' '}
+            <kbd className="px-1 rounded border border-border bg-muted/50 text-[10px]">Esc</kbd> para cancelar.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -265,16 +294,18 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
             <p className="text-xs text-muted-foreground">
               Arrastra los bordes para definir el área. Después se optimizará a WebP automáticamente.
             </p>
-            <div className="flex flex-col items-center gap-1">
-              <Label className="text-xs text-muted-foreground">Vista previa</Label>
+            <div className="flex flex-col items-center gap-1" role="region" aria-label="Vista previa del recorte">
+              <Label className="text-xs text-muted-foreground" id="crop-preview-label">Vista previa</Label>
               <div
                 className="bg-muted/30 border border-border rounded p-2 flex items-center justify-center"
                 style={{ width: 256, height: 256 }}
+                aria-labelledby="crop-preview-label"
               >
                 <canvas
                   ref={previewRef}
                   className="max-w-full max-h-full rounded shadow-sm"
                   style={{ imageRendering: 'auto', display: previewSize ? 'block' : 'none' }}
+                  aria-hidden="true"
                 />
                 {!previewSize && (
                   <span className="text-[11px] text-muted-foreground text-center px-2">
@@ -287,6 +318,10 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
                   {previewSize.w} × {previewSize.h} px
                 </span>
               )}
+              {/* Mensaje accesible para lectores de pantalla */}
+              <span className="sr-only" aria-live="polite" aria-atomic="true">
+                {previewAria}
+              </span>
             </div>
           </div>
 
@@ -308,7 +343,13 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
           <Button type="button" variant="outline" onClick={handleCancel}>
             Cancelar
           </Button>
-          <Button type="button" onClick={handleConfirm} disabled={tooSmall}>
+          <Button
+            ref={confirmBtnRef}
+            type="button"
+            onClick={handleConfirm}
+            disabled={tooSmall}
+            aria-label={tooSmall ? 'Aplicar deshabilitado: área demasiado pequeña' : 'Aplicar recorte y subir imagen'}
+          >
             <CropIcon className="h-4 w-4 mr-2" /> Aplicar y subir
           </Button>
         </DialogFooter>
