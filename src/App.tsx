@@ -20,6 +20,7 @@ import EdiblesPage from "./pages/EdiblesPage.tsx";
 import LaboratoriosPage from "./pages/LaboratoriosPage.tsx";
 import MarcasPage from "./pages/MarcasPage.tsx";
 import NeshikaPage from "./pages/NeshikaPage.tsx";
+import CustomPage from "./pages/CustomPage.tsx";
 import SeoHead from "./components/SeoHead.tsx";
 import RedirectHandler from "./components/RedirectHandler.tsx";
 import ThemeProvider from "./components/ThemeProvider.tsx";
@@ -52,6 +53,7 @@ const App = () => (
           <Route path="/marcas" element={<MarcasPage />} />
           <Route path="/neshika" element={<NeshikaPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/:slug" element={<CustomPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
