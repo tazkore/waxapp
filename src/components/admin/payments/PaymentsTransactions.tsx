@@ -209,6 +209,46 @@ const PaymentsTransactions = () => {
           </table>
         )}
       </div>
+
+      <Sheet open={!!auditTx} onOpenChange={(o) => !o && setAuditTx(null)}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Historial de transacción</SheetTitle>
+            <SheetDescription>
+              {auditTx && (
+                <span className="font-mono text-xs">{auditTx.reference ?? auditTx.external_id ?? auditTx.id.slice(0, 8)}</span>
+              )}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4 space-y-3">
+            {auditLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+            ) : auditEntries.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Sin cambios registrados.</p>
+            ) : (
+              auditEntries.map(e => (
+                <div key={e.id} className="border border-border rounded p-3 text-sm space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline" className="text-xs">{FIELD_LABEL[e.field_name] ?? e.field_name}</Badge>
+                    <span className="text-xs text-muted-foreground">{new Date(e.created_at).toLocaleString('es-MX')}</span>
+                  </div>
+                  {e.change_type === 'create' ? (
+                    <div className="text-xs">Transacción creada con estado <span className="font-mono">{e.new_value}</span></div>
+                  ) : (
+                    <div className="text-xs flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-muted-foreground line-through">{fmtVal(e.field_name, e.old_value)}</span>
+                      <span>→</span>
+                      <span className="font-mono font-medium">{fmtVal(e.field_name, e.new_value)}</span>
+                    </div>
+                  )}
+                  {e.notes && <div className="text-xs text-muted-foreground italic">"{e.notes}"</div>}
+                  <div className="text-[11px] text-muted-foreground">Por: {e.changed_by_email ?? 'sistema'}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
