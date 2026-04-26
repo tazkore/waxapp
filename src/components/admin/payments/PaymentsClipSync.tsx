@@ -73,6 +73,7 @@ const PaymentsClipSync = () => {
   const [until, setUntil] = useState(new Date().toISOString().slice(0, 16));
   const [result, setResult] = useState<SyncResult | null>(null);
   const [runs, setRuns] = useState<SyncRun[]>([]);
+  const [bulkReconciling, setBulkReconciling] = useState(false);
 
   const loadRuns = useCallback(async () => {
     const { data } = await supabase
