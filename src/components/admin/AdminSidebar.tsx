@@ -1,4 +1,4 @@
-import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound } from 'lucide-react';
+import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound, Network } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -29,8 +29,9 @@ const allNavItems = [
   { title: 'Amazon Seller', icon: ShoppingBag, key: 'amazon', adminOnly: true },
   { title: 'Chatbot IA', icon: Brain, key: 'chatbot', adminOnly: true },
   { title: 'Integraciones', icon: Puzzle, key: 'integrations', adminOnly: true },
-  { title: 'API & Conexiones', icon: KeyRound, key: 'api-keys', adminOnly: true },
-  { title: 'Configuración', icon: Settings, key: 'settings', adminOnly: true },
+    { title: 'API & Conexiones', icon: KeyRound, key: 'api-keys', adminOnly: true },
+    { title: 'Conexiones de Entorno', icon: Network, key: 'env-connections', adminOnly: true },
+    { title: 'Configuración', icon: Settings, key: 'settings', adminOnly: true },
 ];
 
 interface AdminSidebarProps {
