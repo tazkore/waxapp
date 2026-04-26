@@ -87,6 +87,8 @@ const SeoSection = () => {
   const selectPage = (page: SeoPage) => {
     setSelectedPage(page);
     setEditData({
+      page_path: page.page_path,
+      page_title: page.page_title,
       meta_title: page.meta_title || '',
       meta_description: page.meta_description || '',
       keywords: page.keywords || [],
