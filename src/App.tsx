@@ -21,6 +21,7 @@ import LaboratoriosPage from "./pages/LaboratoriosPage.tsx";
 import MarcasPage from "./pages/MarcasPage.tsx";
 import NeshikaPage from "./pages/NeshikaPage.tsx";
 import SeoHead from "./components/SeoHead.tsx";
+import RedirectHandler from "./components/RedirectHandler.tsx";
 
 const queryClient = new QueryClient();
 
