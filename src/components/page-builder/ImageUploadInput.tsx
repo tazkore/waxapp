@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Upload, Loader2, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { optimizeImage, buildStoragePath, publicUrl } from '@/lib/imageOptimizer';
+import ImageCropDialog from './ImageCropDialog';
 
 interface Props {
   value: string;
@@ -19,15 +20,25 @@ const ImageUploadInput = ({ value, onChange, placeholder = 'https://... o sube u
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [stats, setStats] = useState<{ before: number; after: number } | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const { toast } = useToast();
 
-  const handleFile = async (file: File) => {
+  const handleSelected = (file: File) => {
     if (!file.type.startsWith('image/')) {
       return toast({ title: 'Archivo inválido', description: 'Selecciona una imagen.', variant: 'destructive' });
     }
     if (file.size > 25 * 1024 * 1024) {
       return toast({ title: 'Imagen muy grande', description: 'Máximo 25MB (se comprimirá automáticamente).', variant: 'destructive' });
     }
+    // SVG/GIF no se recortan
+    if (file.type === 'image/svg+xml' || file.type === 'image/gif') {
+      handleFile(file);
+      return;
+    }
+    setPendingFile(file);
+  };
+
+  const handleFile = async (file: File) => {
     setUploading(true);
     setStats(null);
     try {
