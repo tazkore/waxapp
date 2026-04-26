@@ -240,11 +240,16 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleCancel()}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl" onKeyDown={handleKeyDown}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CropIcon className="h-5 w-5" /> Recortar imagen
           </DialogTitle>
+          <DialogDescription>
+            Define el encuadre. Atajos: <kbd className="px-1 rounded border border-border bg-muted/50 text-[10px]">Ctrl</kbd>+
+            <kbd className="px-1 rounded border border-border bg-muted/50 text-[10px]">Enter</kbd> para aplicar,{' '}
+            <kbd className="px-1 rounded border border-border bg-muted/50 text-[10px]">Esc</kbd> para cancelar.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
