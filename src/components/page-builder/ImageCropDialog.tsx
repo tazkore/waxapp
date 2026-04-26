@@ -343,7 +343,13 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
           <Button type="button" variant="outline" onClick={handleCancel}>
             Cancelar
           </Button>
-          <Button type="button" onClick={handleConfirm} disabled={tooSmall}>
+          <Button
+            ref={confirmBtnRef}
+            type="button"
+            onClick={handleConfirm}
+            disabled={tooSmall}
+            aria-label={tooSmall ? 'Aplicar deshabilitado: área demasiado pequeña' : 'Aplicar recorte y subir imagen'}
+          >
             <CropIcon className="h-4 w-4 mr-2" /> Aplicar y subir
           </Button>
         </DialogFooter>
