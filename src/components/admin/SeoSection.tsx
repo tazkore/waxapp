@@ -56,6 +56,8 @@ interface SeoRedirect {
   hit_count: number;
   last_hit_at: string | null;
   created_at: string;
+  is_wildcard: boolean;
+  priority: number;
 }
 
 const SeoSection = () => {
@@ -82,7 +84,7 @@ const SeoSection = () => {
   const [newPage, setNewPage] = useState({ page_path: '', page_title: '' });
   const [creating, setCreating] = useState(false);
   const [redirects, setRedirects] = useState<SeoRedirect[]>([]);
-  const [newRedirect, setNewRedirect] = useState({ from_path: '', to_path: '' });
+  const [newRedirect, setNewRedirect] = useState({ from_path: '', to_path: '', is_wildcard: false, priority: 0 });
   const [addingRedirect, setAddingRedirect] = useState(false);
   const { toast } = useToast();
 
@@ -173,14 +175,24 @@ const SeoSection = () => {
       toast({ title: 'Error', description: 'Las rutas origen y destino no pueden ser iguales.', variant: 'destructive' });
       return;
     }
+    // Si el patrón contiene * o :param, marcar como wildcard automáticamente
+    const looksWildcard = /\*/.test(from) || /:[A-Za-z_]/.test(from);
+    const isWildcard = newRedirect.is_wildcard || looksWildcard;
+
     setAddingRedirect(true);
     const { error } = await supabase.from('seo_redirects' as any).insert({
-      from_path: from, to_path: to, status_code: 301, is_active: true, reason: 'Manual',
+      from_path: from,
+      to_path: to,
+      status_code: 301,
+      is_active: true,
+      reason: isWildcard ? 'Manual (wildcard)' : 'Manual',
+      is_wildcard: isWildcard,
+      priority: newRedirect.priority || 0,
     } as any);
     if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
     else {
-      toast({ title: 'Redirect creado', description: `${from} → ${to}` });
-      setNewRedirect({ from_path: '', to_path: '' });
+      toast({ title: 'Redirect creado', description: `${from} → ${to}${isWildcard ? ' (wildcard)' : ''}` });
+      setNewRedirect({ from_path: '', to_path: '', is_wildcard: false, priority: 0 });
       fetchRedirects();
     }
     setAddingRedirect(false);
@@ -636,30 +648,55 @@ const SeoSection = () => {
             <Badge variant="outline" className="text-[10px]">{redirects.length} configurados</Badge>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto] gap-2 items-end mb-4 p-3 rounded-lg bg-muted/40 border border-border">
-            <div>
-              <Label className="text-[10px] mb-1 block">Desde (ruta antigua)</Label>
-              <Input
-                value={newRedirect.from_path}
-                onChange={(e) => setNewRedirect({ ...newRedirect, from_path: e.target.value })}
-                placeholder="/ruta-vieja"
-                className="font-mono text-xs"
-              />
+          <div className="space-y-2 mb-4 p-3 rounded-lg bg-muted/40 border border-border">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto] gap-2 items-end">
+              <div>
+                <Label className="text-[10px] mb-1 block">Desde (ruta antigua o patrón)</Label>
+                <Input
+                  value={newRedirect.from_path}
+                  onChange={(e) => setNewRedirect({ ...newRedirect, from_path: e.target.value })}
+                  placeholder="/ruta-vieja  ó  /old/*  ó  /blog/:slug"
+                  className="font-mono text-xs"
+                />
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground self-center mb-2 hidden md:block" />
+              <div>
+                <Label className="text-[10px] mb-1 block">Hacia (ruta nueva)</Label>
+                <Input
+                  value={newRedirect.to_path}
+                  onChange={(e) => setNewRedirect({ ...newRedirect, to_path: e.target.value })}
+                  placeholder="/ruta-nueva  ó  /new/*  ó  /articulos/:slug"
+                  className="font-mono text-xs"
+                />
+              </div>
+              <Button size="sm" onClick={handleAddRedirect} disabled={addingRedirect}>
+                {addingRedirect ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                Añadir
+              </Button>
             </div>
-            <ArrowRight className="h-4 w-4 text-muted-foreground self-center mb-2 hidden md:block" />
-            <div>
-              <Label className="text-[10px] mb-1 block">Hacia (ruta nueva)</Label>
-              <Input
-                value={newRedirect.to_path}
-                onChange={(e) => setNewRedirect({ ...newRedirect, to_path: e.target.value })}
-                placeholder="/ruta-nueva"
-                className="font-mono text-xs"
-              />
+            <div className="flex items-center justify-between gap-3 pt-1 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={newRedirect.is_wildcard || /\*/.test(newRedirect.from_path) || /:[A-Za-z_]/.test(newRedirect.from_path)}
+                  onCheckedChange={(v) => setNewRedirect({ ...newRedirect, is_wildcard: v })}
+                />
+                <Label className="text-[11px]">Wildcard / parámetros</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-[11px] text-muted-foreground">Prioridad</Label>
+                <Input
+                  type="number"
+                  value={newRedirect.priority}
+                  onChange={(e) => setNewRedirect({ ...newRedirect, priority: parseInt(e.target.value) || 0 })}
+                  className="w-20 h-8 text-xs"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground basis-full">
+                Sintaxis: <code className="font-mono">/old/*</code> captura todo lo que sigue (usa <code>*</code> en destino).{' '}
+                <code className="font-mono">/blog/:slug</code> captura un segmento (usa <code>:slug</code> en destino).
+                Mayor prioridad = se evalúa primero.
+              </p>
             </div>
-            <Button size="sm" onClick={handleAddRedirect} disabled={addingRedirect}>
-              {addingRedirect ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
-              Añadir
-            </Button>
           </div>
 
           {redirects.length === 0 ? (
@@ -674,6 +711,9 @@ const SeoSection = () => {
                   }`}
                 >
                   <Badge variant="outline" className="text-[9px] shrink-0">{r.status_code}</Badge>
+                  {r.is_wildcard && (
+                    <Badge variant="outline" className="text-[9px] shrink-0 border-primary/40 text-primary">wildcard</Badge>
+                  )}
                   <div className="flex-1 min-w-0 flex items-center gap-2 text-xs font-mono">
                     <span className="text-muted-foreground truncate">{r.from_path}</span>
                     <ArrowRight className="h-3 w-3 text-primary shrink-0" />
