@@ -25,6 +25,9 @@ import {
   Settings2,
   CheckCircle2,
   AlertCircle,
+  ArrowRight,
+  Trash2,
+  Power,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
