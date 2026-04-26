@@ -142,6 +142,52 @@ const PaymentsClipSync = () => {
     }
   };
 
+  const reconcileAll = async () => {
+    if (!result || result.discrepancies.length === 0) return;
+    setBulkReconciling(true);
+    const items = result.discrepancies;
+    let ok = 0;
+    const failed: string[] = [];
+    const nowIso = new Date().toISOString();
+
+    // Run in parallel batches of 5 to avoid overwhelming the DB
+    const BATCH = 5;
+    for (let i = 0; i < items.length; i += BATCH) {
+      const chunk = items.slice(i, i + BATCH);
+      const results = await Promise.all(
+        chunk.map((d) =>
+          supabase
+            .from('payment_transactions')
+            .update({
+              status: d.remote_status,
+              amount: d.remote_amount,
+              verified_at: nowIso,
+              notes: `Reconciliado en lote desde Clip (${d.local_status} → ${d.remote_status})`,
+            })
+            .eq('id', d.transaction_id)
+            .then(({ error }) => ({ id: d.transaction_id, ext: d.external_id, error }))
+        )
+      );
+      for (const r of results) {
+        if (r.error) failed.push(r.ext);
+        else ok++;
+      }
+    }
+
+    setBulkReconciling(false);
+    setResult({
+      ...result,
+      discrepancies: result.discrepancies.filter((d) => failed.includes(d.external_id)),
+      discrepancies_count: failed.length,
+    });
+
+    if (failed.length === 0) {
+      toast.success(`${ok} transacciones reconciliadas con Clip`);
+    } else {
+      toast.warning(`${ok} reconciliadas · ${failed.length} fallaron`);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <Card>
