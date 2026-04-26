@@ -98,7 +98,21 @@ const PaymentsProofs = () => {
       verified_at: new Date().toISOString(),
     }).eq('id', proof.transaction_id);
 
-    toast({ title: '✅ Comprobante aprobado' });
+    const tx = proof.payment_transactions;
+    if (tx?.customer_email) {
+      supabase.functions.invoke('notify-payment-proof', {
+        body: {
+          proof_id: proof.id,
+          status: 'approved',
+          customer_email: tx.customer_email,
+          customer_name: tx.customer_name,
+          amount: tx.amount,
+          reference: tx.reference,
+        },
+      }).catch((e) => console.error('notify failed:', e));
+    }
+
+    toast({ title: '✅ Comprobante aprobado, notificando al cliente' });
     load();
   };
 
