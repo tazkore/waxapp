@@ -294,16 +294,18 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
             <p className="text-xs text-muted-foreground">
               Arrastra los bordes para definir el área. Después se optimizará a WebP automáticamente.
             </p>
-            <div className="flex flex-col items-center gap-1">
-              <Label className="text-xs text-muted-foreground">Vista previa</Label>
+            <div className="flex flex-col items-center gap-1" role="region" aria-label="Vista previa del recorte">
+              <Label className="text-xs text-muted-foreground" id="crop-preview-label">Vista previa</Label>
               <div
                 className="bg-muted/30 border border-border rounded p-2 flex items-center justify-center"
                 style={{ width: 256, height: 256 }}
+                aria-labelledby="crop-preview-label"
               >
                 <canvas
                   ref={previewRef}
                   className="max-w-full max-h-full rounded shadow-sm"
                   style={{ imageRendering: 'auto', display: previewSize ? 'block' : 'none' }}
+                  aria-hidden="true"
                 />
                 {!previewSize && (
                   <span className="text-[11px] text-muted-foreground text-center px-2">
@@ -316,6 +318,10 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
                   {previewSize.w} × {previewSize.h} px
                 </span>
               )}
+              {/* Mensaje accesible para lectores de pantalla */}
+              <span className="sr-only" aria-live="polite" aria-atomic="true">
+                {previewAria}
+              </span>
             </div>
           </div>
 
