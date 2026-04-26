@@ -99,12 +99,15 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
     const image = imgRef.current;
     if (!canvas || !image || !completed || completed.width < 2 || completed.height < 2) {
       setPreviewSize(null);
+      setTooSmall(false);
       return;
     }
     const scaleX = image.naturalWidth / image.width;
     const scaleY = image.naturalHeight / image.height;
     const realW = Math.round(completed.width * scaleX);
     const realH = Math.round(completed.height * scaleY);
+
+    setTooSmall(realW < MIN_REAL_PX || realH < MIN_REAL_PX);
 
     // Limitamos el canvas mostrado a 240px de ancho/alto manteniendo proporción
     const max = 240;
@@ -138,7 +141,24 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
       reset();
       return;
     }
-    const cropped = await getCroppedFile(imgRef.current, completed, file.name, file.type);
+    if (tooSmall) {
+      toast({
+        title: 'Área demasiado pequeña',
+        description: `El recorte debe medir al menos ${MIN_REAL_PX}×${MIN_REAL_PX} px en la imagen original.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    // Saneamos el área final dentro de los límites de la imagen
+    const img = imgRef.current;
+    const safe: PixelCrop = {
+      unit: 'px',
+      x: Math.max(0, Math.min(completed.x, img.width)),
+      y: Math.max(0, Math.min(completed.y, img.height)),
+      width: Math.min(completed.width, img.width - Math.max(0, completed.x)),
+      height: Math.min(completed.height, img.height - Math.max(0, completed.y)),
+    };
+    const cropped = await getCroppedFile(img, safe, file.name, file.type);
     onConfirm(cropped);
     reset();
   };
