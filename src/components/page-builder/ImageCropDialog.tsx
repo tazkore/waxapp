@@ -69,7 +69,44 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
     }
   };
 
-  const handleConfirm = async () => {
+  // Dibuja vista previa del recorte en el canvas
+  useEffect(() => {
+    const canvas = previewRef.current;
+    const image = imgRef.current;
+    if (!canvas || !image || !completed || completed.width < 2 || completed.height < 2) {
+      setPreviewSize(null);
+      return;
+    }
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    const realW = Math.round(completed.width * scaleX);
+    const realH = Math.round(completed.height * scaleY);
+
+    // Limitamos el canvas mostrado a 240px de ancho/alto manteniendo proporción
+    const max = 240;
+    const ratio = Math.min(max / realW, max / realH, 1);
+    canvas.width = Math.max(1, Math.round(realW * ratio));
+    canvas.height = Math.max(1, Math.round(realH * ratio));
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(
+      image,
+      completed.x * scaleX,
+      completed.y * scaleY,
+      completed.width * scaleX,
+      completed.height * scaleY,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+    setPreviewSize({ w: realW, h: realH });
+  }, [completed, src]);
+
+
     if (!file) return;
     if (!completed || !imgRef.current) {
       // Sin recorte → devolver original
