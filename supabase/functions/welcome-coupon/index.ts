@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "WAXAPP <onboarding@resend.dev>",
+            from: "WAXAPP <noreply@updates.grupoko.com>",
             to: [user.email],
             subject: `🎁 Tu cupón de bienvenida: ${coupon.value}% de descuento`,
             html: `<div style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#fff;color:#111;">
