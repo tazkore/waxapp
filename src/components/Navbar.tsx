@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ShoppingCart, Menu, X, User, Shield } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, Shield, Search } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCartStore } from '@/store/cartStore';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
+import GlobalSearch from './GlobalSearch';
 
 const navLinks = [
   { label: 'Tienda', href: '/#tienda' },
@@ -20,11 +21,24 @@ const Navbar = () => {
   const count = totalItems();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => setSession(session));
     return () => subscription.unsubscribe();
+  }, []);
+
+  // Cmd/Ctrl + K shortcut
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   return (
@@ -43,6 +57,14 @@ const Navbar = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="rounded-lg p-2 text-foreground transition-colors hover:bg-muted"
+            title="Buscar (Ctrl+K)"
+            aria-label="Buscar"
+          >
+            <Search className="h-5 w-5" />
+          </button>
           <button onClick={toggleCart} className="relative rounded-lg p-2 text-foreground transition-colors hover:bg-muted">
             <ShoppingCart className="h-5 w-5" />
             {count > 0 && (
@@ -107,6 +129,8 @@ const Navbar = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </nav>
   );
 };
