@@ -4,7 +4,13 @@ import 'react-image-crop/dist/ReactCrop.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Crop as CropIcon, RotateCcw } from 'lucide-react';
+import { Crop as CropIcon, RotateCcw, AlertTriangle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+// Mínimos en píxeles reales de la imagen original
+const MIN_REAL_PX = 64;
+// Mínimo en píxeles del área seleccionada (en coords del display)
+const MIN_DISPLAY_PX = 20;
 
 interface Props {
   open: boolean;
@@ -34,8 +40,26 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
   const [completed, setCompleted] = useState<PixelCrop | null>(null);
   const [aspect, setAspect] = useState<number | undefined>(undefined);
   const [previewSize, setPreviewSize] = useState<{ w: number; h: number } | null>(null);
+  const [tooSmall, setTooSmall] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const previewRef = useRef<HTMLCanvasElement>(null);
+  const { toast } = useToast();
+
+  // Limita el área de recorte a los bordes de la imagen mostrada
+  const clampCrop = useCallback((c: Crop): Crop => {
+    const img = imgRef.current;
+    if (!img || c.unit !== 'px') return c;
+    const W = img.width;
+    const H = img.height;
+    let x = Math.max(0, Math.min(c.x, W));
+    let y = Math.max(0, Math.min(c.y, H));
+    let w = Math.max(MIN_DISPLAY_PX, Math.min(c.width, W - x));
+    let h = Math.max(MIN_DISPLAY_PX, Math.min(c.height, H - y));
+    // Si tras el clamp se sale, reposicionamos
+    if (x + w > W) x = Math.max(0, W - w);
+    if (y + h > H) y = Math.max(0, H - h);
+    return { ...c, x, y, width: w, height: h };
+  }, []);
 
   // Cargar src cuando llega/cambia el file (limpiando estado previo)
   useEffect(() => {
@@ -75,12 +99,15 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
     const image = imgRef.current;
     if (!canvas || !image || !completed || completed.width < 2 || completed.height < 2) {
       setPreviewSize(null);
+      setTooSmall(false);
       return;
     }
     const scaleX = image.naturalWidth / image.width;
     const scaleY = image.naturalHeight / image.height;
     const realW = Math.round(completed.width * scaleX);
     const realH = Math.round(completed.height * scaleY);
+
+    setTooSmall(realW < MIN_REAL_PX || realH < MIN_REAL_PX);
 
     // Limitamos el canvas mostrado a 240px de ancho/alto manteniendo proporción
     const max = 240;
@@ -114,7 +141,24 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
       reset();
       return;
     }
-    const cropped = await getCroppedFile(imgRef.current, completed, file.name, file.type);
+    if (tooSmall) {
+      toast({
+        title: 'Área demasiado pequeña',
+        description: `El recorte debe medir al menos ${MIN_REAL_PX}×${MIN_REAL_PX} px en la imagen original.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    // Saneamos el área final dentro de los límites de la imagen
+    const img = imgRef.current;
+    const safe: PixelCrop = {
+      unit: 'px',
+      x: Math.max(0, Math.min(completed.x, img.width)),
+      y: Math.max(0, Math.min(completed.y, img.height)),
+      width: Math.min(completed.width, img.width - Math.max(0, completed.x)),
+      height: Math.min(completed.height, img.height - Math.max(0, completed.y)),
+    };
+    const cropped = await getCroppedFile(img, safe, file.name, file.type);
     onConfirm(cropped);
     reset();
   };
@@ -125,6 +169,7 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
     setCompleted(null);
     setAspect(undefined);
     setPreviewSize(null);
+    setTooSmall(false);
   };
 
   const handleCancel = () => {
@@ -163,8 +208,8 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
             {src && (
               <ReactCrop
                 crop={crop}
-                onChange={(c) => setCrop(c)}
-                onComplete={(c) => setCompleted(c)}
+                onChange={(c) => setCrop(clampCrop(c))}
+                onComplete={(c) => setCompleted(clampCrop(c) as PixelCrop)}
                 aspect={aspect}
                 keepSelection
               >
@@ -201,12 +246,22 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
                 )}
               </div>
               {previewSize && (
-                <span className="text-[11px] text-muted-foreground">
+                <span className={`text-[11px] ${tooSmall ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
                   {previewSize.w} × {previewSize.h} px
                 </span>
               )}
             </div>
           </div>
+
+          {tooSmall && (
+            <div className="flex items-start gap-2 rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span>
+                El área seleccionada es muy pequeña. Selecciona al menos {MIN_REAL_PX}×{MIN_REAL_PX} px de la imagen original
+                para conservar la calidad.
+              </span>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2">
@@ -216,7 +271,7 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
           <Button type="button" variant="outline" onClick={handleCancel}>
             Cancelar
           </Button>
-          <Button type="button" onClick={handleConfirm}>
+          <Button type="button" onClick={handleConfirm} disabled={tooSmall}>
             <CropIcon className="h-4 w-4 mr-2" /> Aplicar y subir
           </Button>
         </DialogFooter>
