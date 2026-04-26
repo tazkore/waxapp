@@ -1,19 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RefreshCw, AlertTriangle, CheckCircle2, Clock, ArrowDownUp } from 'lucide-react';
+import { RefreshCw, AlertTriangle, CheckCircle2, Clock, ArrowDownUp, RotateCw, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface SyncResult {
   ok: boolean;
+  run_id: string | null;
   mode: string;
   since: string;
   until: string;
+  status: string;
   total_remote: number;
   upserts: number;
   inserted: number;
@@ -27,46 +29,90 @@ interface SyncResult {
     local_amount: number;
     remote_amount: number;
   }>;
+  last_offset: number | null;
+  last_cursor: string | null;
   synced_at: string;
 }
 
-const isoDaysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 16);
+interface SyncRun {
+  id: string;
+  mode: string;
+  since: string | null;
+  until: string | null;
+  status: string;
+  total_remote: number;
+  upserts: number;
+  discrepancies_count: number;
+  attempts: number;
+  last_offset: number | null;
+  last_cursor: string | null;
+  error_message: string | null;
+  parent_run_id: string | null;
+  started_at: string;
+  finished_at: string | null;
+}
+
+const isoLocal = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 16);
+
+const statusBadge = (s: string) => {
+  if (s === 'success') return <Badge className="bg-green-500/15 text-green-500 border-green-500/30">Exitoso</Badge>;
+  if (s === 'failed') return <Badge className="bg-destructive/15 text-destructive border-destructive/30">Fallido</Badge>;
+  if (s === 'partial') return <Badge className="bg-yellow-500/15 text-yellow-500 border-yellow-500/30">Parcial</Badge>;
+  if (s === 'running') return <Badge variant="outline">En curso</Badge>;
+  return <Badge variant="outline">{s}</Badge>;
+};
 
 const PaymentsClipSync = () => {
   const [loading, setLoading] = useState(false);
-  const [since, setSince] = useState(isoDaysAgo(1));
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [since, setSince] = useState(isoLocal(1));
   const [until, setUntil] = useState(new Date().toISOString().slice(0, 16));
   const [result, setResult] = useState<SyncResult | null>(null);
-  const [lastSyncs, setLastSyncs] = useState<SyncResult[]>([]);
+  const [runs, setRuns] = useState<SyncRun[]>([]);
 
-  useEffect(() => {
-    const stored = localStorage.getItem('clip_sync_history');
-    if (stored) {
-      try { setLastSyncs(JSON.parse(stored).slice(0, 5)); } catch { /* noop */ }
-    }
+  const loadRuns = useCallback(async () => {
+    const { data } = await supabase
+      .from('clip_sync_runs')
+      .select('*')
+      .order('started_at', { ascending: false })
+      .limit(15);
+    setRuns((data ?? []) as SyncRun[]);
   }, []);
 
-  const runSync = async (mode: 'manual' | 'cron' = 'manual') => {
-    setLoading(true);
+  useEffect(() => { loadRuns(); }, [loadRuns]);
+
+  const runSync = async (
+    mode: 'manual' | 'cron' = 'manual',
+    extra: { retry_run_id?: string } = {}
+  ) => {
+    if (extra.retry_run_id) setRetryingId(extra.retry_run_id);
+    else setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('clip-sync-payments', {
-        body: {
-          mode,
-          since: new Date(since).toISOString(),
-          until: new Date(until).toISOString(),
-        },
-      });
+      const payload: Record<string, unknown> = {
+        mode,
+        since: new Date(since).toISOString(),
+        until: new Date(until).toISOString(),
+      };
+      if (extra.retry_run_id) payload.retry_run_id = extra.retry_run_id;
+
+      const { data, error } = await supabase.functions.invoke('clip-sync-payments', { body: payload });
       if (error) throw error;
       const r = data as SyncResult;
       setResult(r);
-      const next = [r, ...lastSyncs].slice(0, 5);
-      setLastSyncs(next);
-      localStorage.setItem('clip_sync_history', JSON.stringify(next));
-      toast.success(`Sync OK · ${r.upserts} transacciones · ${r.discrepancies_count} discrepancias`);
+      if (!r.ok) {
+        toast.error(`Sync falló · puedes reintentar desde el historial`);
+      } else if (r.status === 'partial') {
+        toast.warning(`Sync parcial · ${r.upserts} procesadas, faltan páginas. Reintenta para continuar.`);
+      } else {
+        toast.success(`Sync OK · ${r.upserts} transacciones · ${r.discrepancies_count} discrepancias`);
+      }
+      loadRuns();
     } catch (e) {
       toast.error('Error sincronizando: ' + (e as Error).message);
+      loadRuns();
     } finally {
       setLoading(false);
+      setRetryingId(null);
     }
   };
 
@@ -117,7 +163,7 @@ const PaymentsClipSync = () => {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            La sincronización automática corre cada hora vía cron. Webhooks en tiempo real ya están activos.
+            Reintentos automáticos (3 intentos con backoff) ante errores 429/5xx de Clip. Si una sync queda parcial o falla, puedes reanudarla desde el último cursor.
           </p>
         </CardContent>
       </Card>
@@ -183,45 +229,81 @@ const PaymentsClipSync = () => {
         </Card>
       )}
 
-      {lastSyncs.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Clock className="h-4 w-4" /> Últimas sincronizaciones
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Clock className="h-4 w-4" /> Historial de sincronizaciones
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {runs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aún no hay sincronizaciones registradas.</p>
+          ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Fecha</TableHead>
+                  <TableHead>Inicio</TableHead>
+                  <TableHead>Estado</TableHead>
                   <TableHead>Modo</TableHead>
-                  <TableHead>Rango</TableHead>
                   <TableHead className="text-right">Pagos</TableHead>
-                  <TableHead className="text-right">Discrepancias</TableHead>
+                  <TableHead className="text-right">Discrep.</TableHead>
+                  <TableHead className="text-right">Intentos</TableHead>
+                  <TableHead>Cursor/Offset</TableHead>
+                  <TableHead className="text-right">Acción</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lastSyncs.map((s, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="text-xs">{new Date(s.synced_at).toLocaleString()}</TableCell>
-                    <TableCell><Badge variant="outline">{s.mode}</Badge></TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {new Date(s.since).toLocaleDateString()} → {new Date(s.until).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-right">{s.upserts}</TableCell>
-                    <TableCell className="text-right">
-                      {s.discrepancies_count > 0
-                        ? <span className="text-yellow-500">{s.discrepancies_count}</span>
-                        : <span className="text-muted-foreground">0</span>}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {runs.map((r) => {
+                  const canRetry = r.status === 'failed' || r.status === 'partial';
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell className="text-xs whitespace-nowrap">
+                        {new Date(r.started_at).toLocaleString('es-MX')}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          {statusBadge(r.status)}
+                          {r.error_message && (
+                            <span className="text-xs text-destructive flex items-center gap-1 max-w-[280px] truncate" title={r.error_message}>
+                              <XCircle className="h-3 w-3 flex-shrink-0" /> {r.error_message}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell><Badge variant="outline">{r.mode}</Badge></TableCell>
+                      <TableCell className="text-right">{r.upserts}</TableCell>
+                      <TableCell className="text-right">
+                        {r.discrepancies_count > 0
+                          ? <span className="text-yellow-500">{r.discrepancies_count}</span>
+                          : <span className="text-muted-foreground">0</span>}
+                      </TableCell>
+                      <TableCell className="text-right">{r.attempts}</TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground">
+                        {r.last_cursor ? `cur:${r.last_cursor.slice(0, 10)}…` : `off:${r.last_offset ?? 0}`}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {canRetry ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={retryingId === r.id}
+                            onClick={() => runSync('manual', { retry_run_id: r.id })}
+                          >
+                            <RotateCw className={`h-3 w-3 mr-1 ${retryingId === r.id ? 'animate-spin' : ''}`} />
+                            Reintentar sync
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
