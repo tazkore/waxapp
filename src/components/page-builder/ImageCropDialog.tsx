@@ -189,13 +189,12 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
                 className="bg-muted/30 border border-border rounded p-2 flex items-center justify-center"
                 style={{ width: 256, height: 256 }}
               >
-                {previewSize ? (
-                  <canvas
-                    ref={previewRef}
-                    className="max-w-full max-h-full rounded shadow-sm"
-                    style={{ imageRendering: 'auto' }}
-                  />
-                ) : (
+                <canvas
+                  ref={previewRef}
+                  className="max-w-full max-h-full rounded shadow-sm"
+                  style={{ imageRendering: 'auto', display: previewSize ? 'block' : 'none' }}
+                />
+                {!previewSize && (
                   <span className="text-[11px] text-muted-foreground text-center px-2">
                     Define un área de recorte para ver la vista previa
                   </span>
