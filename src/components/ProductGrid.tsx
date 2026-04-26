@@ -1,28 +1,38 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
-import { products as staticProducts } from '@/data/products';
 import ProductCard from './ProductCard';
 
-const categories = ['Todos', 'Nano-Tech', 'Comestibles', 'Hardware'];
-
-interface DbInfo { stock: number; image_url: string | null; brand_id: string | null; }
+interface DbProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  price: number;
+  compare_at_price: number | null;
+  stock: number;
+  image_url: string | null;
+  brand_id: string | null;
+  sku: string | null;
+}
 
 const ProductGrid = () => {
   const [active, setActive] = useState('Todos');
   const [activeBrand, setActiveBrand] = useState<string>('all');
-  const [dbInfo, setDbInfo] = useState<Record<string, DbInfo>>({});
+  const [products, setProducts] = useState<DbProduct[]>([]);
   const [brands, setBrands] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
     const fetchAll = async () => {
-      const { data } = await supabase.from('products').select('name, stock, image_url, brand_id');
-      if (data) {
-        const map: Record<string, DbInfo> = {};
-        data.forEach((p: any) => { map[p.name] = { stock: p.stock, image_url: p.image_url, brand_id: p.brand_id }; });
-        setDbInfo(map);
-      }
-      const { data: brandData } = await (supabase as any).from('brands').select('id, name').eq('is_active', true).order('name');
+      const { data } = await (supabase as any)
+        .from('products')
+        .select('id, name, description, category, price, compare_at_price, stock, image_url, brand_id, sku')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+      setProducts((data as DbProduct[]) ?? []);
+
+      const { data: brandData } = await (supabase as any)
+        .from('brands').select('id, name').eq('is_active', true).order('name');
       setBrands(brandData ?? []);
     };
     fetchAll();
@@ -34,14 +44,9 @@ const ProductGrid = () => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  const productsWithDb = staticProducts.map(p => ({
-    ...p,
-    stock: dbInfo[p.title]?.stock ?? 999,
-    image_url: dbInfo[p.title]?.image_url ?? null,
-    brand_id: dbInfo[p.title]?.brand_id ?? null,
-  }));
+  const categories = ['Todos', ...Array.from(new Set(products.map(p => p.category).filter(Boolean) as string[]))];
 
-  const filtered = productsWithDb.filter((p) => {
+  const filtered = products.filter((p) => {
     const catOk = active === 'Todos' || p.category === active;
     const brandOk = activeBrand === 'all' || p.brand_id === activeBrand;
     return catOk && brandOk;
@@ -93,7 +98,19 @@ const ProductGrid = () => {
 
         <motion.div layout className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((p) => (
-            <ProductCard key={p.id} product={p} outOfStock={(p as any).stock === 0} />
+            <ProductCard
+              key={p.id}
+              product={{
+                id: p.id,
+                title: p.name,
+                category: p.category ?? 'General',
+                price: Number(p.price),
+                compare_at_price: p.compare_at_price != null ? Number(p.compare_at_price) : null,
+                image_url: p.image_url,
+                description: p.description ?? undefined,
+              }}
+              outOfStock={p.stock === 0}
+            />
           ))}
         </motion.div>
       </div>
