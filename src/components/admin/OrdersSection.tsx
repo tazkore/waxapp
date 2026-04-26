@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import GenerateLabelButton from './GenerateLabelButton';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Order = Tables<'orders'>;
@@ -412,6 +413,12 @@ const OrdersSection = () => {
                     <Input value={editTracking} onChange={e => setEditTracking(e.target.value)} className="bg-muted border-border" placeholder="SKD-00000" />
                   </div>
                 </div>
+                {selectedOrder && (
+                  <GenerateLabelButton
+                    orderId={selectedOrder.id}
+                    onCreated={(tn) => setEditTracking(tn)}
+                  />
+                )}
                 <div className="space-y-2">
                   <Label className="text-foreground">Dirección de envío</Label>
                   <Textarea value={editAddress} onChange={e => setEditAddress(e.target.value)} className="bg-muted border-border resize-none" rows={2} />
