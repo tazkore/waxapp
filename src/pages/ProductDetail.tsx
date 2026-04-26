@@ -20,6 +20,7 @@ const ProductDetail = () => {
 
   const [dbVariants, setDbVariants] = useState<ProductVariant[] | null>(null);
   const [loadingVariants, setLoadingVariants] = useState(true);
+  const [productImage, setProductImage] = useState<string | null>(null);
   const [selectedVariant, setSelectedVariant] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [openAccordion, setOpenAccordion] = useState<string | null>('benefits');
@@ -30,20 +31,21 @@ const ProductDetail = () => {
     const fetch = async () => {
       const { data: dbProduct } = await supabase
         .from('products')
-        .select('id')
+        .select('id, image_url')
         .eq('name', product.title)
         .maybeSingle();
 
       if (dbProduct) {
+        setProductImage((dbProduct as any).image_url ?? null);
         const { data: variants } = await supabase
           .from('product_variants')
-          .select('name, price, stock')
+          .select('name, price, stock, image_url')
           .eq('product_id', dbProduct.id)
           .eq('is_active', true)
           .order('price');
 
         if (variants && variants.length > 0) {
-          setDbVariants(variants.map(v => ({ name: v.name, price: v.price })));
+          setDbVariants(variants.map((v: any) => ({ name: v.name, price: v.price })));
         }
       }
       setLoadingVariants(false);
@@ -111,8 +113,16 @@ const ProductDetail = () => {
             animate={{ opacity: 1, x: 0 }}
             className="space-y-4"
           >
-            <div className="aspect-square rounded-xl border border-border bg-card flex items-center justify-center relative overflow-hidden">
-              <span className="font-display text-4xl text-muted-foreground/20">WAXAPP</span>
+            <div className="aspect-square rounded-xl border border-border bg-card flex items-center justify-center relative overflow-hidden group">
+              {productImage ? (
+                <img
+                  src={productImage}
+                  alt={product.title}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                />
+              ) : (
+                <span className="font-display text-4xl text-muted-foreground/20">WAXAPP</span>
+              )}
               {product.badge && (
                 <span className="absolute top-4 right-4 rounded-md bg-secondary px-3 py-1 text-xs font-bold text-secondary-foreground">
                   {product.badge}
