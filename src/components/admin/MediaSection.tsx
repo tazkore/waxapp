@@ -26,7 +26,7 @@ const MediaSection = () => {
 
   const load = async () => {
     setLoading(true);
-    const folders = ['products', 'brand', 'banners', 'misc'];
+    const folders = ['products', 'brands', 'brand', 'banners', 'misc'];
     const all: MediaFile[] = [];
     for (const f of folders) {
       const { data, error } = await supabase.storage.from('media').list(f, {
@@ -34,16 +34,18 @@ const MediaSection = () => {
         sortBy: { column: 'created_at', order: 'desc' },
       });
       if (!error && data) {
-        data.filter(d => d.name && !d.name.startsWith('.')).forEach(d => {
-          const path = `${f}/${d.name}`;
-          all.push({
-            name: d.name,
-            path,
-            url: `${SUPABASE_URL}/storage/v1/object/public/media/${path}`,
-            size: (d.metadata as any)?.size,
-            created_at: d.created_at,
+        data
+          .filter(d => d.name && !d.name.startsWith('.') && !d.name.includes('-thumb.'))
+          .forEach(d => {
+            const path = `${f}/${d.name}`;
+            all.push({
+              name: d.name,
+              path,
+              url: `${SUPABASE_URL}/storage/v1/object/public/media/${path}`,
+              size: (d.metadata as any)?.size,
+              created_at: d.created_at,
+            });
           });
-        });
       }
     }
     setFiles(all);
@@ -57,17 +59,21 @@ const MediaSection = () => {
     if (!fileList || fileList.length === 0) return;
     setUploading(true);
     let ok = 0, fail = 0;
+    const { optimizeImage, buildStoragePath } = await import('@/lib/imageOptimizer');
     for (const file of Array.from(fileList)) {
-      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '-').toLowerCase();
-      const path = `${folder}/${Date.now()}-${safe}`;
-      const { error } = await supabase.storage.from('media').upload(path, file, {
-        cacheControl: '3600',
-        upsert: false,
-      });
-      if (error) { fail++; console.error(error); } else { ok++; }
+      try {
+        const { full, thumb } = await optimizeImage(file);
+        const paths = buildStoragePath(folder, file.name);
+        const r1 = await supabase.storage.from('media').upload(paths.full, full, { cacheControl: '3600', contentType: 'image/webp' });
+        await supabase.storage.from('media').upload(paths.thumb, thumb, { cacheControl: '3600', contentType: 'image/webp' });
+        if (r1.error) { fail++; console.error(r1.error); } else { ok++; }
+      } catch (err) {
+        fail++;
+        console.error(err);
+      }
     }
     setUploading(false);
-    toast.success(`${ok} subida(s)${fail ? `, ${fail} con error` : ''}`);
+    toast.success(`${ok} optimizada(s) y subida(s)${fail ? `, ${fail} con error` : ''}`);
     if (inputRef.current) inputRef.current.value = '';
     load();
   };
@@ -79,7 +85,9 @@ const MediaSection = () => {
 
   const remove = async (path: string) => {
     if (!confirm('¿Eliminar este archivo? No se puede deshacer.')) return;
-    const { error } = await supabase.storage.from('media').remove([path]);
+    // Also remove the matching thumbnail if it exists
+    const thumbPath = path.replace(/(\.[^.]+)$/, '-thumb$1');
+    const { error } = await supabase.storage.from('media').remove([path, thumbPath]);
     if (error) { toast.error(error.message); return; }
     toast.success('Eliminado');
     load();
@@ -105,6 +113,7 @@ const MediaSection = () => {
             className="h-10 px-3 rounded-md border border-input bg-background text-sm"
           >
             <option value="products">Productos</option>
+            <option value="brands">Marcas</option>
             <option value="brand">Branding</option>
             <option value="banners">Banners</option>
             <option value="misc">Otros</option>
