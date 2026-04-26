@@ -46,6 +46,18 @@ interface SeoPage {
   updated_at: string;
 }
 
+interface SeoRedirect {
+  id: string;
+  from_path: string;
+  to_path: string;
+  status_code: number;
+  is_active: boolean;
+  reason: string | null;
+  hit_count: number;
+  last_hit_at: string | null;
+  created_at: string;
+}
+
 const SeoSection = () => {
   const [pages, setPages] = useState<SeoPage[]>([]);
   const [loading, setLoading] = useState(true);
