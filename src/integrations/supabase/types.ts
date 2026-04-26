@@ -425,6 +425,51 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_pages: {
+        Row: {
+          blocks: Json
+          created_at: string
+          display_order: number
+          id: string
+          meta_description: string | null
+          meta_title: string | null
+          og_image_url: string | null
+          show_in_navbar: boolean
+          slug: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          blocks?: Json
+          created_at?: string
+          display_order?: number
+          id?: string
+          meta_description?: string | null
+          meta_title?: string | null
+          og_image_url?: string | null
+          show_in_navbar?: boolean
+          slug: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          blocks?: Json
+          created_at?: string
+          display_order?: number
+          id?: string
+          meta_description?: string | null
+          meta_title?: string | null
+          og_image_url?: string | null
+          show_in_navbar?: boolean
+          slug?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customer_profiles: {
         Row: {
           address: string | null
@@ -554,6 +599,93 @@ export type Database = {
           slug?: string
           updated_at?: string
           version?: string | null
+        }
+        Relationships: []
+      }
+      nav_menu_items: {
+        Row: {
+          created_at: string
+          display_order: number
+          icon: string | null
+          id: string
+          is_active: boolean
+          label: string
+          menu_id: string
+          open_in_new_tab: boolean
+          parent_id: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          menu_id: string
+          open_in_new_tab?: boolean
+          parent_id?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          menu_id?: string
+          open_in_new_tab?: boolean
+          parent_id?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nav_menu_items_menu_id_fkey"
+            columns: ["menu_id"]
+            isOneToOne: false
+            referencedRelation: "nav_menus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nav_menu_items_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "nav_menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nav_menus: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          location: string
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location?: string
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location?: string
+          name?: string
+          slug?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1059,6 +1191,69 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      theme_settings: {
+        Row: {
+          color_accent: string
+          color_background: string
+          color_foreground: string
+          color_primary: string
+          color_secondary: string
+          created_at: string
+          custom_css: string | null
+          favicon_url: string | null
+          font_body: string
+          font_heading: string
+          id: string
+          is_active: boolean
+          logo_dark_url: string | null
+          logo_url: string | null
+          og_image_url: string | null
+          site_name: string
+          tagline: string | null
+          updated_at: string
+        }
+        Insert: {
+          color_accent?: string
+          color_background?: string
+          color_foreground?: string
+          color_primary?: string
+          color_secondary?: string
+          created_at?: string
+          custom_css?: string | null
+          favicon_url?: string | null
+          font_body?: string
+          font_heading?: string
+          id?: string
+          is_active?: boolean
+          logo_dark_url?: string | null
+          logo_url?: string | null
+          og_image_url?: string | null
+          site_name?: string
+          tagline?: string | null
+          updated_at?: string
+        }
+        Update: {
+          color_accent?: string
+          color_background?: string
+          color_foreground?: string
+          color_primary?: string
+          color_secondary?: string
+          created_at?: string
+          custom_css?: string | null
+          favicon_url?: string | null
+          font_body?: string
+          font_heading?: string
+          id?: string
+          is_active?: boolean
+          logo_dark_url?: string | null
+          logo_url?: string | null
+          og_image_url?: string | null
+          site_name?: string
+          tagline?: string | null
           updated_at?: string
         }
         Relationships: []
