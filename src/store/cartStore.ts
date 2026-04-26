@@ -121,7 +121,7 @@ export const useCartStore = create<CartState>()(
 
             const localItems = get().items;
             const serverItems = (data?.items as unknown as CartItem[]) ?? [];
-            const merged = mergeCarts(localItems, serverItems);
+            const merged = mergeCarts(localItems as any, serverItems as any) as unknown as CartItem[];
             set({ items: merged });
 
             await supabase
