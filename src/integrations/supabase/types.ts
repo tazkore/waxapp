@@ -532,6 +532,7 @@ export type Database = {
           name: string
           price: number
           sku: string | null
+          slug: string | null
           stock: number
           updated_at: string
           warehouse_id: string | null
@@ -548,6 +549,7 @@ export type Database = {
           name: string
           price?: number
           sku?: string | null
+          slug?: string | null
           stock?: number
           updated_at?: string
           warehouse_id?: string | null
@@ -564,6 +566,7 @@ export type Database = {
           name?: string
           price?: number
           sku?: string | null
+          slug?: string | null
           stock?: number
           updated_at?: string
           warehouse_id?: string | null
@@ -667,6 +670,60 @@ export type Database = {
           page_path?: string
           page_title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      shipments: {
+        Row: {
+          carrier: string
+          cost: number
+          created_at: string
+          destination_postal: string | null
+          id: string
+          label_url: string | null
+          order_id: string
+          origin_postal: string | null
+          raw: Json | null
+          service_level: string | null
+          status: string
+          tracking_number: string | null
+          tracking_url: string | null
+          updated_at: string
+          weight_kg: number | null
+        }
+        Insert: {
+          carrier: string
+          cost?: number
+          created_at?: string
+          destination_postal?: string | null
+          id?: string
+          label_url?: string | null
+          order_id: string
+          origin_postal?: string | null
+          raw?: Json | null
+          service_level?: string | null
+          status?: string
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Update: {
+          carrier?: string
+          cost?: number
+          created_at?: string
+          destination_postal?: string | null
+          id?: string
+          label_url?: string | null
+          order_id?: string
+          origin_postal?: string | null
+          raw?: Json | null
+          service_level?: string | null
+          status?: string
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+          weight_kg?: number | null
         }
         Relationships: []
       }
