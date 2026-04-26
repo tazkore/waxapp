@@ -230,6 +230,7 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
               <TableHead className="text-muted-foreground text-center">Stock</TableHead>
               <TableHead className="text-muted-foreground">Estado</TableHead>
               <TableHead className="text-muted-foreground text-right">Precio</TableHead>
+              <TableHead className="text-muted-foreground text-right">Antes</TableHead>
               <TableHead className="text-muted-foreground text-center">Acciones</TableHead>
             </TableRow>
           </TableHeader>
