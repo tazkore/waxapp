@@ -29,6 +29,7 @@ import ThemeSection from '@/components/admin/ThemeSection';
 import PaymentsSection from '@/components/admin/PaymentsSection';
 import ApiKeysSection from '@/components/admin/ApiKeysSection';
 import EnvironmentConnectionsSection from '@/components/admin/EnvironmentConnectionsSection';
+import StaffSection from '@/components/admin/StaffSection';
 
 const Admin = () => {
   const [active, setActive] = useState('overview');
@@ -71,6 +72,7 @@ const Admin = () => {
       case 'integrations': return isAdmin ? <IntegrationsSection /> : <OverviewSection onNavigate={setActive} />;
       case 'api-keys': return isAdmin ? <ApiKeysSection /> : <OverviewSection onNavigate={setActive} />;
       case 'env-connections': return isAdmin ? <EnvironmentConnectionsSection /> : <OverviewSection onNavigate={setActive} />;
+      case 'staff': return isAdmin ? <StaffSection /> : <OverviewSection onNavigate={setActive} />;
       case 'settings': return isAdmin ? <SettingsSection /> : <OverviewSection onNavigate={setActive} />;
       default: return <OverviewSection onNavigate={setActive} />;
     }
