@@ -101,10 +101,16 @@ const SeoSection = () => {
 
   const handleSave = async () => {
     if (!selectedPage) return;
+    if (!editData.page_path.trim() || !editData.page_title.trim()) {
+      toast({ title: 'Error', description: 'La ruta (slug) y el título son obligatorios.', variant: 'destructive' });
+      return;
+    }
     setSaving(true);
     const { error } = await supabase
       .from('seo_pages')
       .update({
+        page_path: editData.page_path.trim(),
+        page_title: editData.page_title.trim(),
         meta_title: editData.meta_title || null,
         meta_description: editData.meta_description || null,
         keywords: editData.keywords,
@@ -115,12 +121,27 @@ const SeoSection = () => {
       } as any)
       .eq('id', selectedPage.id);
     if (error) {
-      toast({ title: 'Error', description: 'No se pudo guardar.', variant: 'destructive' });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Guardado', description: `SEO de "${selectedPage.page_title}" actualizado.` });
+      toast({ title: 'Guardado', description: `SEO de "${editData.page_title}" actualizado.` });
       fetchPages();
     }
     setSaving(false);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedPage) return;
+    if (!confirm(`¿Eliminar la página SEO "${selectedPage.page_title}"? Esta acción no se puede deshacer.`)) return;
+    setDeleting(true);
+    const { error } = await supabase.from('seo_pages').delete().eq('id', selectedPage.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Eliminada', description: 'Página SEO eliminada.' });
+      setSelectedPage(null);
+      fetchPages();
+    }
+    setDeleting(false);
   };
 
   const handleCreatePage = async () => {
