@@ -1,1 +1,7 @@
 project_id = "nammhqyeletjuwgkceir"
+
+[functions.clip-webhook]
+verify_jwt = false
+
+[functions.register-manual-payment]
+verify_jwt = false
