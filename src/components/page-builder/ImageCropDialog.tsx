@@ -124,6 +124,7 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
     setCrop(undefined);
     setCompleted(null);
     setAspect(undefined);
+    setPreviewSize(null);
   };
 
   const handleCancel = () => {
@@ -178,9 +179,35 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
             )}
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Arrastra los bordes para definir el área. Después se optimizará a WebP automáticamente.
-          </p>
+          <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
+            <p className="text-xs text-muted-foreground">
+              Arrastra los bordes para definir el área. Después se optimizará a WebP automáticamente.
+            </p>
+            <div className="flex flex-col items-center gap-1">
+              <Label className="text-xs text-muted-foreground">Vista previa</Label>
+              <div
+                className="bg-muted/30 border border-border rounded p-2 flex items-center justify-center"
+                style={{ width: 256, height: 256 }}
+              >
+                {previewSize ? (
+                  <canvas
+                    ref={previewRef}
+                    className="max-w-full max-h-full rounded shadow-sm"
+                    style={{ imageRendering: 'auto' }}
+                  />
+                ) : (
+                  <span className="text-[11px] text-muted-foreground text-center px-2">
+                    Define un área de recorte para ver la vista previa
+                  </span>
+                )}
+              </div>
+              {previewSize && (
+                <span className="text-[11px] text-muted-foreground">
+                  {previewSize.w} × {previewSize.h} px
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         <DialogFooter className="gap-2">
