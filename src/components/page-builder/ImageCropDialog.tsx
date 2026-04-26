@@ -43,6 +43,8 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
   const [tooSmall, setTooSmall] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const previewRef = useRef<HTMLCanvasElement>(null);
+  // Cache de la última previsualización dibujada (evita repintar si el área no cambió)
+  const lastDrawRef = useRef<{ src: string; key: string } | null>(null);
   const { toast } = useToast();
 
   // Limita el área de recorte a los bordes de la imagen mostrada
