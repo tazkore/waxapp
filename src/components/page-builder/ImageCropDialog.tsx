@@ -385,12 +385,26 @@ async function getCroppedFile(
     canvas.height
   );
 
-  // Conservamos el tipo original (la optimización posterior lo convierte a WebP)
+  // Tipo de salida: SVG/GIF → PNG (no se pueden recortar manteniendo formato).
+  // WebP se soporta nativamente en navegadores modernos; si toBlob falla, caemos a JPEG.
   const outType = mimeType === 'image/svg+xml' || mimeType === 'image/gif' ? 'image/png' : mimeType;
-  const blob: Blob = await new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Canvas vacío'))), outType, 0.95)
-  );
-  return new File([blob], fileName, { type: outType });
+
+  const tryEncode = (type: string): Promise<Blob | null> =>
+    new Promise((resolve) => canvas.toBlob((b) => resolve(b), type, 0.95));
+
+  let blob = await tryEncode(outType);
+  let finalType = outType;
+  if (!blob && outType === 'image/webp') {
+    // Safari < 14 no codifica WebP → fallback a JPEG sin perder el recorte
+    blob = await tryEncode('image/jpeg');
+    finalType = 'image/jpeg';
+  }
+  if (!blob) throw new Error('Canvas vacío al codificar la imagen recortada');
+
+  const finalName = finalType === outType
+    ? fileName
+    : fileName.replace(/\.[^.]+$/, '') + (finalType === 'image/jpeg' ? '.jpg' : '.png');
+  return new File([blob], finalName, { type: finalType });
 }
 
 export default ImageCropDialog;
