@@ -68,6 +68,42 @@ export type Database = {
           },
         ]
       }
+      admin_notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          read_at: string | null
+          read_by: string | null
+          severity: string
+          title: string
+          type: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          read_at?: string | null
+          read_by?: string | null
+          severity?: string
+          title: string
+          type: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          read_at?: string | null
+          read_by?: string | null
+          severity?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       amazon_config: {
         Row: {
           created_at: string
@@ -1066,6 +1102,7 @@ export type Database = {
           currency: string
           customer_email: string | null
           customer_name: string | null
+          expires_at: string | null
           external_id: string | null
           fee_amount: number
           gateway_id: string | null
@@ -1089,6 +1126,7 @@ export type Database = {
           currency?: string
           customer_email?: string | null
           customer_name?: string | null
+          expires_at?: string | null
           external_id?: string | null
           fee_amount?: number
           gateway_id?: string | null
@@ -1112,6 +1150,7 @@ export type Database = {
           currency?: string
           customer_email?: string | null
           customer_name?: string | null
+          expires_at?: string | null
           external_id?: string | null
           fee_amount?: number
           gateway_id?: string | null
