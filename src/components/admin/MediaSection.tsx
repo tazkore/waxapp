@@ -34,16 +34,18 @@ const MediaSection = () => {
         sortBy: { column: 'created_at', order: 'desc' },
       });
       if (!error && data) {
-        data.filter(d => d.name && !d.name.startsWith('.')).forEach(d => {
-          const path = `${f}/${d.name}`;
-          all.push({
-            name: d.name,
-            path,
-            url: `${SUPABASE_URL}/storage/v1/object/public/media/${path}`,
-            size: (d.metadata as any)?.size,
-            created_at: d.created_at,
+        data
+          .filter(d => d.name && !d.name.startsWith('.') && !d.name.includes('-thumb.'))
+          .forEach(d => {
+            const path = `${f}/${d.name}`;
+            all.push({
+              name: d.name,
+              path,
+              url: `${SUPABASE_URL}/storage/v1/object/public/media/${path}`,
+              size: (d.metadata as any)?.size,
+              created_at: d.created_at,
+            });
           });
-        });
       }
     }
     setFiles(all);
