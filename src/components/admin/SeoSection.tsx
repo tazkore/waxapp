@@ -48,6 +48,8 @@ const SeoSection = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPage, setSelectedPage] = useState<SeoPage | null>(null);
   const [editData, setEditData] = useState({
+    page_path: '',
+    page_title: '',
     meta_title: '',
     meta_description: '',
     keywords: [] as string[],
@@ -56,6 +58,7 @@ const SeoSection = () => {
     auto_sitemap: true,
     canonical_url: '',
   });
+  const [deleting, setDeleting] = useState(false);
   const [keywordInput, setKeywordInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [globalSitemap, setGlobalSitemap] = useState(true);
@@ -84,6 +87,8 @@ const SeoSection = () => {
   const selectPage = (page: SeoPage) => {
     setSelectedPage(page);
     setEditData({
+      page_path: page.page_path,
+      page_title: page.page_title,
       meta_title: page.meta_title || '',
       meta_description: page.meta_description || '',
       keywords: page.keywords || [],
@@ -96,10 +101,16 @@ const SeoSection = () => {
 
   const handleSave = async () => {
     if (!selectedPage) return;
+    if (!editData.page_path.trim() || !editData.page_title.trim()) {
+      toast({ title: 'Error', description: 'La ruta (slug) y el título son obligatorios.', variant: 'destructive' });
+      return;
+    }
     setSaving(true);
     const { error } = await supabase
       .from('seo_pages')
       .update({
+        page_path: editData.page_path.trim(),
+        page_title: editData.page_title.trim(),
         meta_title: editData.meta_title || null,
         meta_description: editData.meta_description || null,
         keywords: editData.keywords,
@@ -110,12 +121,27 @@ const SeoSection = () => {
       } as any)
       .eq('id', selectedPage.id);
     if (error) {
-      toast({ title: 'Error', description: 'No se pudo guardar.', variant: 'destructive' });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Guardado', description: `SEO de "${selectedPage.page_title}" actualizado.` });
+      toast({ title: 'Guardado', description: `SEO de "${editData.page_title}" actualizado.` });
       fetchPages();
     }
     setSaving(false);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedPage) return;
+    if (!confirm(`¿Eliminar la página SEO "${selectedPage.page_title}"? Esta acción no se puede deshacer.`)) return;
+    setDeleting(true);
+    const { error } = await supabase.from('seo_pages').delete().eq('id', selectedPage.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Eliminada', description: 'Página SEO eliminada.' });
+      setSelectedPage(null);
+      fetchPages();
+    }
+    setDeleting(false);
   };
 
   const handleCreatePage = async () => {
@@ -270,12 +296,41 @@ const SeoSection = () => {
             <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} key={selectedPage.id}>
               <Card className="border-border bg-card">
                 <CardContent className="p-6 space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-foreground">{selectedPage.page_title}</h3>
-                    <Button size="sm" className="gap-1.5" onClick={handleSave} disabled={saving}>
-                      {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                      Guardar
-                    </Button>
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <h3 className="text-base font-semibold text-foreground truncate">{selectedPage.page_title}</h3>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" className="gap-1.5 text-destructive hover:text-destructive border-destructive/30" onClick={handleDelete} disabled={deleting || saving}>
+                        {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                        Eliminar
+                      </Button>
+                      <Button size="sm" className="gap-1.5" onClick={handleSave} disabled={saving}>
+                        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        Guardar
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Identidad de la página: título y slug editables */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg bg-muted/40 border border-border">
+                    <div>
+                      <Label className="text-xs mb-1 block">Título de la Página</Label>
+                      <Input
+                        value={editData.page_title}
+                        onChange={(e) => setEditData({ ...editData, page_title: e.target.value })}
+                        placeholder="Mi página"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">Nombre interno mostrado en el panel.</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs mb-1 block">Slug / Ruta (page_path)</Label>
+                      <Input
+                        value={editData.page_path}
+                        onChange={(e) => setEditData({ ...editData, page_path: e.target.value })}
+                        placeholder="/mi-pagina"
+                        className="font-mono"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">Debe iniciar con "/". Coincide con la ruta del frontend.</p>
+                    </div>
                   </div>
 
                   <Tabs defaultValue="meta">
