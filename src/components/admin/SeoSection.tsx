@@ -711,6 +711,9 @@ const SeoSection = () => {
                   }`}
                 >
                   <Badge variant="outline" className="text-[9px] shrink-0">{r.status_code}</Badge>
+                  {r.is_wildcard && (
+                    <Badge variant="outline" className="text-[9px] shrink-0 border-primary/40 text-primary">wildcard</Badge>
+                  )}
                   <div className="flex-1 min-w-0 flex items-center gap-2 text-xs font-mono">
                     <span className="text-muted-foreground truncate">{r.from_path}</span>
                     <ArrowRight className="h-3 w-3 text-primary shrink-0" />
