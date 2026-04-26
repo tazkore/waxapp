@@ -169,6 +169,7 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
     setCompleted(null);
     setAspect(undefined);
     setPreviewSize(null);
+    setTooSmall(false);
   };
 
   const handleCancel = () => {
@@ -207,8 +208,8 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
             {src && (
               <ReactCrop
                 crop={crop}
-                onChange={(c) => setCrop(c)}
-                onComplete={(c) => setCompleted(c)}
+                onChange={(c) => setCrop(clampCrop(c))}
+                onComplete={(c) => setCompleted(clampCrop(c) as PixelCrop)}
                 aspect={aspect}
                 keepSelection
               >
