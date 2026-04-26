@@ -1,4 +1,4 @@
-import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone } from 'lucide-react';
+import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone, Newspaper } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -20,6 +20,7 @@ const allNavItems = [
   { title: 'Multimedia', icon: ImageIcon, key: 'media' },
   { title: 'Marcas', icon: Bookmark, key: 'brands' },
   { title: 'Banners Home', icon: Megaphone, key: 'banners' },
+  { title: 'Blog', icon: Newspaper, key: 'blog' },
   { title: 'Centro de Operaciones', icon: ClipboardList, key: 'operations' },
   { title: 'Compras & Corporativo', icon: ShoppingCart, key: 'purchasing' },
   { title: 'SEO & Indexación', icon: Rocket, key: 'seo' },
