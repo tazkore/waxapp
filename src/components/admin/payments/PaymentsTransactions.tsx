@@ -100,6 +100,24 @@ const PaymentsTransactions = () => {
     );
   });
 
+  const [auditTx, setAuditTx] = useState<Tx | null>(null);
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+
+  const openAudit = async (tx: Tx) => {
+    setAuditTx(tx);
+    setAuditLoading(true);
+    setAuditEntries([]);
+    const { data, error } = await supabase
+      .from('payment_transaction_audit' as any)
+      .select('*')
+      .eq('transaction_id', tx.id)
+      .order('created_at', { ascending: false });
+    if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    setAuditEntries((data as any) ?? []);
+    setAuditLoading(false);
+  };
+
   const updateStatus = async (id: string, status: string) => {
     const patch: any = { status };
     if (status === 'paid') patch.paid_at = new Date().toISOString();
