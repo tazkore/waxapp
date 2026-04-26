@@ -55,19 +55,25 @@ interface Integration {
 
 const categoryIcons: Record<string, React.ElementType> = {
   pagos: CreditCard,
+  payments: CreditCard,
   email: Mail,
   marketplace: ShoppingBag,
   analytics: BarChart3,
   mensajeria: MessageCircle,
+  messaging: MessageCircle,
+  automation: Puzzle,
   other: Puzzle,
 };
 
 const categoryLabels: Record<string, string> = {
   pagos: 'Pagos',
+  payments: 'Pagos',
   email: 'Email',
   marketplace: 'Marketplace',
   analytics: 'Analytics',
   mensajeria: 'Mensajería',
+  messaging: 'Mensajería',
+  automation: 'Automatización',
   other: 'Otro',
 };
 
