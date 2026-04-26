@@ -3,12 +3,15 @@ import AgeGate from '@/components/AgeGate';
 import Navbar from '@/components/Navbar';
 import HeroSection from '@/components/HeroSection';
 import TrustSignals from '@/components/TrustSignals';
+import FeaturedCarousel from '@/components/FeaturedCarousel';
 import ProductGrid from '@/components/ProductGrid';
 import CartDrawer from '@/components/CartDrawer';
 import Footer from '@/components/Footer';
 import NanoTechSection from '@/components/NanoTechSection';
 import LegalSection from '@/components/LegalSection';
 import FAQSection from '@/components/FAQSection';
+import WelcomeBanner from '@/components/WelcomeBanner';
+import ChatbotWidget from '@/components/ChatbotWidget';
 
 const Index = () => {
   const [verified, setVerified] = useState(false);
@@ -19,15 +22,18 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <WelcomeBanner />
       <Navbar />
       <CartDrawer />
       <HeroSection />
       <TrustSignals />
+      <FeaturedCarousel />
       <ProductGrid />
       <NanoTechSection />
       <LegalSection />
       <FAQSection />
       <Footer />
+      <ChatbotWidget />
     </div>
   );
 };

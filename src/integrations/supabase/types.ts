@@ -68,6 +68,159 @@ export type Database = {
           },
         ]
       }
+      amazon_config: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+          last_sync_status: string | null
+          marketplace_id: string | null
+          notes: string | null
+          refresh_token: string | null
+          region: string | null
+          seller_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          last_sync_status?: string | null
+          marketplace_id?: string | null
+          notes?: string | null
+          refresh_token?: string | null
+          region?: string | null
+          seller_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          last_sync_status?: string | null
+          marketplace_id?: string | null
+          notes?: string | null
+          refresh_token?: string | null
+          region?: string | null
+          seller_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      amazon_orders: {
+        Row: {
+          amazon_order_id: string
+          buyer_email: string | null
+          fulfillment_channel: string | null
+          id: string
+          items: Json | null
+          order_status: string | null
+          purchase_date: string | null
+          raw: Json | null
+          synced_at: string
+          total: number | null
+        }
+        Insert: {
+          amazon_order_id: string
+          buyer_email?: string | null
+          fulfillment_channel?: string | null
+          id?: string
+          items?: Json | null
+          order_status?: string | null
+          purchase_date?: string | null
+          raw?: Json | null
+          synced_at?: string
+          total?: number | null
+        }
+        Update: {
+          amazon_order_id?: string
+          buyer_email?: string | null
+          fulfillment_channel?: string | null
+          id?: string
+          items?: Json | null
+          order_status?: string | null
+          purchase_date?: string | null
+          raw?: Json | null
+          synced_at?: string
+          total?: number | null
+        }
+        Relationships: []
+      }
+      amazon_products: {
+        Row: {
+          asin: string
+          fulfillment_channel: string | null
+          id: string
+          image_url: string | null
+          price: number | null
+          quantity: number | null
+          raw: Json | null
+          sku: string | null
+          status: string | null
+          synced_at: string
+          title: string
+        }
+        Insert: {
+          asin: string
+          fulfillment_channel?: string | null
+          id?: string
+          image_url?: string | null
+          price?: number | null
+          quantity?: number | null
+          raw?: Json | null
+          sku?: string | null
+          status?: string | null
+          synced_at?: string
+          title: string
+        }
+        Update: {
+          asin?: string
+          fulfillment_channel?: string | null
+          id?: string
+          image_url?: string | null
+          price?: number | null
+          quantity?: number | null
+          raw?: Json | null
+          sku?: string | null
+          status?: string | null
+          synced_at?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      chatbot_kb: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          id: string
+          is_active: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           created_at: string
@@ -371,9 +524,11 @@ export type Database = {
           category: string | null
           created_at: string
           description: string | null
+          featured_order: number
           id: string
           image_url: string | null
           is_active: boolean
+          is_featured: boolean
           name: string
           price: number
           sku: string | null
@@ -385,9 +540,11 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          featured_order?: number
           id?: string
           image_url?: string | null
           is_active?: boolean
+          is_featured?: boolean
           name: string
           price?: number
           sku?: string | null
@@ -399,9 +556,11 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          featured_order?: number
           id?: string
           image_url?: string | null
           is_active?: boolean
+          is_featured?: boolean
           name?: string
           price?: number
           sku?: string | null
