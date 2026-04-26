@@ -298,6 +298,30 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
                       <span className="text-foreground">${p.price.toLocaleString()}</span>
                     )}
                   </TableCell>
+                  <TableCell className="text-right">
+                    {isAdmin ? (
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={(p as any).compare_at_price ?? ''}
+                        placeholder="—"
+                        onChange={(e) => {
+                          const v = e.target.value === '' ? null : (parseFloat(e.target.value) || 0);
+                          setProducts(prev => prev.map(pr => pr.id === p.id ? { ...pr, compare_at_price: v } as any : pr));
+                        }}
+                        onBlur={async (e) => {
+                          const v = e.target.value === '' ? null : (parseFloat(e.target.value) || 0);
+                          await (supabase as any).from('products').update({ compare_at_price: v }).eq('id', p.id);
+                        }}
+                        className="w-24 ml-auto text-right bg-muted border-border h-8 text-sm"
+                      />
+                    ) : (
+                      <span className="text-muted-foreground line-through">
+                        {(p as any).compare_at_price != null ? `$${Number((p as any).compare_at_price).toLocaleString()}` : '—'}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-center">
                     {isAdmin && (
                       <div className="flex justify-center gap-2">
