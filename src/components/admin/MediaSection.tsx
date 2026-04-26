@@ -85,7 +85,9 @@ const MediaSection = () => {
 
   const remove = async (path: string) => {
     if (!confirm('¿Eliminar este archivo? No se puede deshacer.')) return;
-    const { error } = await supabase.storage.from('media').remove([path]);
+    // Also remove the matching thumbnail if it exists
+    const thumbPath = path.replace(/(\.[^.]+)$/, '-thumb$1');
+    const { error } = await supabase.storage.from('media').remove([path, thumbPath]);
     if (error) { toast.error(error.message); return; }
     toast.success('Eliminado');
     load();
