@@ -4,8 +4,37 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Download, Check, X } from 'lucide-react';
+import { Loader2, Download, Check, X, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+
+interface AuditEntry {
+  id: string;
+  field_name: string;
+  old_value: string | null;
+  new_value: string | null;
+  change_type: string;
+  changed_by_email: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+const FIELD_LABEL: Record<string, string> = {
+  status: 'Estado',
+  amount: 'Monto',
+  net_amount: 'Monto neto',
+  fee_amount: 'Comisión',
+  created: 'Creación',
+};
+
+const fmtVal = (field: string, v: string | null) => {
+  if (v === null) return '—';
+  if (['amount', 'net_amount', 'fee_amount'].includes(field)) {
+    const n = Number(v);
+    return isNaN(n) ? v : n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+  }
+  return v;
+};
 
 interface Tx {
   id: string;
