@@ -100,7 +100,15 @@ const SeoSection = () => {
     setLoading(false);
   };
 
-  useEffect(() => { fetchPages(); }, []);
+  const fetchRedirects = async () => {
+    const { data } = await supabase
+      .from('seo_redirects' as any)
+      .select('*')
+      .order('created_at', { ascending: false });
+    setRedirects(((data as unknown) as SeoRedirect[]) || []);
+  };
+
+  useEffect(() => { fetchPages(); fetchRedirects(); }, []);
 
   const selectPage = (page: SeoPage) => {
     setSelectedPage(page);
