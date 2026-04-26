@@ -67,8 +67,8 @@ const PaymentsGateways = () => {
       name: editing.name,
       description: editing.description,
       instructions: editing.instructions,
-      fees: editing.fees,
-      config: editing.config,
+      fees: editing.fees as unknown as Record<string, number>,
+      config: editing.config as unknown as Record<string, unknown>,
       requires_verification: editing.requires_verification,
       supports_refunds: editing.supports_refunds,
     }).eq('id', editing.id);
