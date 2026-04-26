@@ -48,6 +48,8 @@ const SeoSection = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPage, setSelectedPage] = useState<SeoPage | null>(null);
   const [editData, setEditData] = useState({
+    page_path: '',
+    page_title: '',
     meta_title: '',
     meta_description: '',
     keywords: [] as string[],
@@ -56,6 +58,7 @@ const SeoSection = () => {
     auto_sitemap: true,
     canonical_url: '',
   });
+  const [deleting, setDeleting] = useState(false);
   const [keywordInput, setKeywordInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [globalSitemap, setGlobalSitemap] = useState(true);
