@@ -101,6 +101,8 @@ const ClientAuth = () => {
       if (profileError) {
         toast({ title: 'Error al crear perfil', description: profileError.message, variant: 'destructive' });
       } else {
+        // Fire-and-forget welcome coupon (trigger already created the discount; this sends the email)
+        supabase.functions.invoke('welcome-coupon').catch((err) => console.warn('welcome-coupon:', err));
         setSignupDone(true);
       }
     }
