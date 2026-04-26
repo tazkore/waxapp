@@ -193,12 +193,15 @@ const PaymentsTransactions = () => {
                   <td className="p-2"><Badge variant="outline" className={STATUS_VARIANT[t.status] ?? ''}>{t.status}</Badge></td>
                   <td className="p-2 font-mono text-xs">{t.reference ?? t.external_id ?? '—'}</td>
                   <td className="p-2">
-                    {t.status === 'pending' && (
-                      <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500" onClick={() => updateStatus(t.id, 'paid')} title="Marcar como pagado"><Check className="h-4 w-4" /></Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => updateStatus(t.id, 'cancelled')} title="Cancelar"><X className="h-4 w-4" /></Button>
-                      </div>
-                    )}
+                    <div className="flex gap-1 justify-end">
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openAudit(t)} title="Ver historial"><History className="h-4 w-4" /></Button>
+                      {t.status === 'pending' && (
+                        <>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500" onClick={() => updateStatus(t.id, 'paid')} title="Marcar como pagado"><Check className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => updateStatus(t.id, 'cancelled')} title="Cancelar"><X className="h-4 w-4" /></Button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
