@@ -22,17 +22,19 @@ import MarcasPage from "./pages/MarcasPage.tsx";
 import NeshikaPage from "./pages/NeshikaPage.tsx";
 import SeoHead from "./components/SeoHead.tsx";
 import RedirectHandler from "./components/RedirectHandler.tsx";
+import ThemeProvider from "./components/ThemeProvider.tsx";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <SeoHead />
-        <RedirectHandler />
+      <ThemeProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <SeoHead />
+          <RedirectHandler />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/producto/:id" element={<ProductDetail />} />
