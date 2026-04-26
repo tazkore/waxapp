@@ -215,6 +215,29 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
     onCancel();
   };
 
+  // Auto-focus cuando abre o cuando hay un recorte válido listo
+  useEffect(() => {
+    if (open && previewSize && !tooSmall) {
+      // Pequeño delay para esperar a que el dialog termine de animar
+      const t = setTimeout(() => confirmBtnRef.current?.focus(), 80);
+      return () => clearTimeout(t);
+    }
+  }, [open, previewSize, tooSmall]);
+
+  // Atajos de teclado: Ctrl/Cmd+Enter aplica, Esc lo gestiona el Dialog
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (!tooSmall) handleConfirm();
+    }
+  };
+
+  const previewAria = !previewSize
+    ? 'Sin área de recorte definida. Arrastra los bordes sobre la imagen para seleccionar.'
+    : tooSmall
+      ? `Área seleccionada de ${previewSize.w} por ${previewSize.h} píxeles. Demasiado pequeña, mínimo ${MIN_REAL_PX} por ${MIN_REAL_PX}.`
+      : `Vista previa lista: ${previewSize.w} por ${previewSize.h} píxeles. Pulsa Control Enter para aplicar.`;
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleCancel()}>
       <DialogContent className="max-w-3xl">
