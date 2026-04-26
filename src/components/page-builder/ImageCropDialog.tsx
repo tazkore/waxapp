@@ -4,7 +4,13 @@ import 'react-image-crop/dist/ReactCrop.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Crop as CropIcon, RotateCcw } from 'lucide-react';
+import { Crop as CropIcon, RotateCcw, AlertTriangle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+// Mínimos en píxeles reales de la imagen original
+const MIN_REAL_PX = 64;
+// Mínimo en píxeles del área seleccionada (en coords del display)
+const MIN_DISPLAY_PX = 20;
 
 interface Props {
   open: boolean;
