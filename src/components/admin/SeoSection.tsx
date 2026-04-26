@@ -175,14 +175,24 @@ const SeoSection = () => {
       toast({ title: 'Error', description: 'Las rutas origen y destino no pueden ser iguales.', variant: 'destructive' });
       return;
     }
+    // Si el patrón contiene * o :param, marcar como wildcard automáticamente
+    const looksWildcard = /\*/.test(from) || /:[A-Za-z_]/.test(from);
+    const isWildcard = newRedirect.is_wildcard || looksWildcard;
+
     setAddingRedirect(true);
     const { error } = await supabase.from('seo_redirects' as any).insert({
-      from_path: from, to_path: to, status_code: 301, is_active: true, reason: 'Manual',
+      from_path: from,
+      to_path: to,
+      status_code: 301,
+      is_active: true,
+      reason: isWildcard ? 'Manual (wildcard)' : 'Manual',
+      is_wildcard: isWildcard,
+      priority: newRedirect.priority || 0,
     } as any);
     if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
     else {
-      toast({ title: 'Redirect creado', description: `${from} → ${to}` });
-      setNewRedirect({ from_path: '', to_path: '' });
+      toast({ title: 'Redirect creado', description: `${from} → ${to}${isWildcard ? ' (wildcard)' : ''}` });
+      setNewRedirect({ from_path: '', to_path: '', is_wildcard: false, priority: 0 });
       fetchRedirects();
     }
     setAddingRedirect(false);
