@@ -12,6 +12,7 @@ import LegalSection from '@/components/LegalSection';
 import FAQSection from '@/components/FAQSection';
 import WelcomeBanner from '@/components/WelcomeBanner';
 import ChatbotWidget from '@/components/ChatbotWidget';
+import BrandShowcase from '@/components/BrandShowcase';
 
 const Index = () => {
   const [verified, setVerified] = useState(false);
@@ -27,8 +28,9 @@ const Index = () => {
       <CartDrawer />
       <HeroSection />
       <TrustSignals />
-      <FeaturedCarousel />
-      <ProductGrid />
+        <FeaturedCarousel />
+        <BrandShowcase />
+        <ProductGrid />
       <NanoTechSection />
       <LegalSection />
       <FAQSection />
