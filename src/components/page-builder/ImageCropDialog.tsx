@@ -35,15 +35,23 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
   const [aspect, setAspect] = useState<number | undefined>(undefined);
   const imgRef = useRef<HTMLImageElement>(null);
 
-  // Cargar src cuando llega/cambia el file
+  // Cargar src cuando llega/cambia el file (limpiando estado previo)
   useEffect(() => {
-    if (!file) {
-      setSrc('');
-      return;
-    }
+    setSrc('');
+    setCrop(undefined);
+    setCompleted(null);
+    if (!file) return;
+
+    let cancelled = false;
     const reader = new FileReader();
-    reader.onload = () => setSrc(reader.result as string);
+    reader.onload = () => {
+      if (!cancelled) setSrc(reader.result as string);
+    };
     reader.readAsDataURL(file);
+    return () => {
+      cancelled = true;
+      reader.abort();
+    };
   }, [file]);
 
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
