@@ -121,17 +121,7 @@ export const useCartStore = create<CartState>()(
 
             const localItems = get().items;
             const serverItems = (data?.items as unknown as CartItem[]) ?? [];
-
-            // Merge: sum quantities for matching id+variant; prefer local price/metadata
-            const map = new Map<string, CartItem>();
-            const keyOf = (i: CartItem) => `${i.id}::${i.selectedVariant ?? ''}`;
-            for (const it of serverItems) map.set(keyOf(it), { ...it });
-            for (const it of localItems) {
-              const k = keyOf(it);
-              const prev = map.get(k);
-              map.set(k, prev ? { ...it, quantity: prev.quantity + it.quantity } : { ...it });
-            }
-            const merged = Array.from(map.values());
+            const merged = mergeCarts(localItems, serverItems);
             set({ items: merged });
 
             await supabase
