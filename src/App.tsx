@@ -32,6 +32,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <SeoHead />
+        <RedirectHandler />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/producto/:id" element={<ProductDetail />} />
