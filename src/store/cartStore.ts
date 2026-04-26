@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase } from '@/integrations/supabase/client';
+import { mergeCarts } from '@/lib/mergeCarts';
 
 export interface ProductVariant {
   name: string;
@@ -120,17 +121,7 @@ export const useCartStore = create<CartState>()(
 
             const localItems = get().items;
             const serverItems = (data?.items as unknown as CartItem[]) ?? [];
-
-            // Merge: sum quantities for matching id+variant; prefer local price/metadata
-            const map = new Map<string, CartItem>();
-            const keyOf = (i: CartItem) => `${i.id}::${i.selectedVariant ?? ''}`;
-            for (const it of serverItems) map.set(keyOf(it), { ...it });
-            for (const it of localItems) {
-              const k = keyOf(it);
-              const prev = map.get(k);
-              map.set(k, prev ? { ...it, quantity: prev.quantity + it.quantity } : { ...it });
-            }
-            const merged = Array.from(map.values());
+            const merged = mergeCarts(localItems as any, serverItems as any) as unknown as CartItem[];
             set({ items: merged });
 
             await supabase
