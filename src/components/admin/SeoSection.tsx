@@ -296,12 +296,41 @@ const SeoSection = () => {
             <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} key={selectedPage.id}>
               <Card className="border-border bg-card">
                 <CardContent className="p-6 space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-foreground">{selectedPage.page_title}</h3>
-                    <Button size="sm" className="gap-1.5" onClick={handleSave} disabled={saving}>
-                      {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                      Guardar
-                    </Button>
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <h3 className="text-base font-semibold text-foreground truncate">{selectedPage.page_title}</h3>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" className="gap-1.5 text-destructive hover:text-destructive border-destructive/30" onClick={handleDelete} disabled={deleting || saving}>
+                        {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                        Eliminar
+                      </Button>
+                      <Button size="sm" className="gap-1.5" onClick={handleSave} disabled={saving}>
+                        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        Guardar
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Identidad de la página: título y slug editables */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg bg-muted/40 border border-border">
+                    <div>
+                      <Label className="text-xs mb-1 block">Título de la Página</Label>
+                      <Input
+                        value={editData.page_title}
+                        onChange={(e) => setEditData({ ...editData, page_title: e.target.value })}
+                        placeholder="Mi página"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">Nombre interno mostrado en el panel.</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs mb-1 block">Slug / Ruta (page_path)</Label>
+                      <Input
+                        value={editData.page_path}
+                        onChange={(e) => setEditData({ ...editData, page_path: e.target.value })}
+                        placeholder="/mi-pagina"
+                        className="font-mono"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">Debe iniciar con "/". Coincide con la ruta del frontend.</p>
+                    </div>
                   </div>
 
                   <Tabs defaultValue="meta">
