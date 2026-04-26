@@ -81,6 +81,31 @@ const InventorySection = ({ isAdmin = false }: { isAdmin?: boolean }) => {
 
   useEffect(() => { fetchProducts(); fetchWarehouses(); fetchBrands(); }, []);
 
+  // Realtime: keep table in sync when stock/price changes from anywhere
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-products-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
+        setProducts((prev) => {
+          if (payload.eventType === 'INSERT') {
+            const row = payload.new as Product;
+            return prev.some((p) => p.id === row.id) ? prev : [row, ...prev];
+          }
+          if (payload.eventType === 'UPDATE') {
+            const row = payload.new as Product;
+            return prev.map((p) => (p.id === row.id ? { ...p, ...row } : p));
+          }
+          if (payload.eventType === 'DELETE') {
+            const oldId = (payload.old as { id?: string })?.id;
+            return oldId ? prev.filter((p) => p.id !== oldId) : prev;
+          }
+          return prev;
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   const openCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
