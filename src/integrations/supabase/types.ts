@@ -503,6 +503,69 @@ export type Database = {
         }
         Relationships: []
       }
+      clip_sync_runs: {
+        Row: {
+          attempts: number
+          discrepancies_count: number
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          inserted: number
+          last_cursor: string | null
+          last_offset: number | null
+          mode: string
+          parent_run_id: string | null
+          since: string | null
+          started_at: string
+          status: string
+          total_remote: number
+          triggered_by: string | null
+          until: string | null
+          updated: number
+          upserts: number
+        }
+        Insert: {
+          attempts?: number
+          discrepancies_count?: number
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          inserted?: number
+          last_cursor?: string | null
+          last_offset?: number | null
+          mode?: string
+          parent_run_id?: string | null
+          since?: string | null
+          started_at?: string
+          status?: string
+          total_remote?: number
+          triggered_by?: string | null
+          until?: string | null
+          updated?: number
+          upserts?: number
+        }
+        Update: {
+          attempts?: number
+          discrepancies_count?: number
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          inserted?: number
+          last_cursor?: string | null
+          last_offset?: number | null
+          mode?: string
+          parent_run_id?: string | null
+          since?: string | null
+          started_at?: string
+          status?: string
+          total_remote?: number
+          triggered_by?: string | null
+          until?: string | null
+          updated?: number
+          upserts?: number
+        }
+        Relationships: []
+      }
       custom_pages: {
         Row: {
           blocks: Json
