@@ -118,7 +118,7 @@ const ImageUploadInput = ({ value, onChange, placeholder = 'https://... o sube u
         <input
           ref={inputRef}
           type="file"
-          accept="image/*,.heic,.heif"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,image/*,.heic,.heif,.webp"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
