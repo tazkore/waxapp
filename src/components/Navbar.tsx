@@ -80,8 +80,14 @@ const Navbar = () => {
         </a>
 
         <div className="hidden gap-8 md:flex">
-          {navLinks.map((l) => (
-            <a key={l.href} href={l.href} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+          {navLinks.map((l, idx) => (
+            <a
+              key={`${l.href}-${idx}`}
+              href={l.href}
+              target={l.openInNewTab ? '_blank' : undefined}
+              rel={l.openInNewTab ? 'noreferrer' : undefined}
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
               {l.label}
             </a>
           ))}
