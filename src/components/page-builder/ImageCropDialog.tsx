@@ -68,6 +68,7 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
     setSrc('');
     setCrop(undefined);
     setCompleted(null);
+    lastDrawRef.current = null;
     if (!file) return;
 
     let cancelled = false;
