@@ -171,7 +171,31 @@ const ImageCropDialog = ({ open, file, onCancel, onConfirm }: Props) => {
       width: Math.min(completed.width, img.width - Math.max(0, completed.x)),
       height: Math.min(completed.height, img.height - Math.max(0, completed.y)),
     };
+
+    // Validación final: el área debe estar dentro de la imagen y coincidir con la preview
+    if (safe.width < 2 || safe.height < 2) {
+      toast({ title: 'Recorte inválido', description: 'El área seleccionada está vacía.', variant: 'destructive' });
+      return;
+    }
+    const scaleX = img.naturalWidth / img.width;
+    const scaleY = img.naturalHeight / img.height;
+    const expectedW = Math.round(safe.width * scaleX);
+    const expectedH = Math.round(safe.height * scaleY);
+
+    if (previewSize && (Math.abs(previewSize.w - expectedW) > 1 || Math.abs(previewSize.h - expectedH) > 1)) {
+      toast({
+        title: 'Vista previa desincronizada',
+        description: `Preview ${previewSize.w}×${previewSize.h} ≠ calculado ${expectedW}×${expectedH}. Ajusta de nuevo el área.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const cropped = await getCroppedFile(img, safe, file.name, file.type);
+    toast({
+      title: '✂️ Recorte aplicado',
+      description: `Imagen recortada a ${expectedW}×${expectedH} px. Subiendo y optimizando…`,
+    });
     onConfirm(cropped);
     reset();
   };
