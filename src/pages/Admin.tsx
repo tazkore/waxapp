@@ -21,6 +21,7 @@ import WarehousesSection from '@/components/admin/WarehousesSection';
 import ShippingSection from '@/components/admin/ShippingSection';
 import AmazonSection from '@/components/admin/AmazonSection';
 import KnowledgeBaseSection from '@/components/admin/KnowledgeBaseSection';
+import MediaSection from '@/components/admin/MediaSection';
 
 const Admin = () => {
   const [active, setActive] = useState('overview');
@@ -49,6 +50,7 @@ const Admin = () => {
       case 'shipping': return <ShippingSection />;
       case 'clients': return <ClientsSection />;
       case 'marketing': return <MarketingSection />;
+      case 'media': return <MediaSection />;
       case 'operations': return <OperationsSection />;
       case 'purchasing': return <PurchasingSection />;
       case 'seo': return <SeoSection />;
