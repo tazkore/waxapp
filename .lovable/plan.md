@@ -1,94 +1,114 @@
-## Plan: Multimedia + Tienda + Marcas + Más Integraciones
-
-Trabajo grande dividido en 6 bloques. Todo conectado vía la biblioteca de Multimedia, productos, variantes, marcas e integraciones.
-
----
-
-### 1. Optimización de imágenes (Multimedia)
-- Comprimir/redimensionar en el navegador antes de subir usando `browser-image-compression` (max 1600px lado mayor, calidad 0.82, formato WebP cuando sea posible).
-- Generar **2 versiones** por imagen subida: `original` y `thumb` (400px) en la misma carpeta (`<folder>/<ts>-name.webp` y `<folder>/<ts>-name-thumb.webp`).
-- Ajustar `MediaSection.tsx` para mostrar el `thumb` en la grilla (carga rápida) y copiar la URL `original` por defecto, con opción "Copiar miniatura".
-- Añadir indicador de tamaño antes/después y barra de progreso por archivo.
-
-### 2. Galería selector reutilizable + integración con Inventario
-- Nuevo componente `MediaPickerDialog` (modal) con búsqueda, filtro por carpeta (productos/branding/banners/marcas/otros) y selección única.
-- En `InventorySection.tsx`, en el formulario de producto agregar campo **Imagen** con tres botones:
-  - **Subir imagen** (file input → sube a `media/products/` con compresión y autoselecciona).
-  - **Seleccionar de galería** (abre `MediaPickerDialog`).
-  - **Quitar imagen**.
-  - Preview en miniatura con botón **Editar/Cambiar**.
-- Mismo control replicado en cada fila de **Variantes** (nueva columna `image_url`).
-- Migración: `ALTER TABLE product_variants ADD COLUMN image_url text;`.
-- Actualizar `ProductCard` y `ProductDetail` para usar `product.image_url` real (fallback al placeholder actual).
-
-### 3. Multimedia: nueva carpeta "marcas" y selector mejorado
-- Añadir `brands` a las carpetas disponibles en `MediaSection`.
-- Las imágenes subidas se guardan automáticamente en la carpeta seleccionada (ya funciona; se añaden los nuevos valores y un selector visual con conteos por carpeta).
-
-### 4. Sección de Marcas (Backend + Frontend)
-- **Migración** nueva tabla `brands`:
-  - `id uuid PK`, `name text unique`, `slug text unique`, `logo_url text`, `description text`, `website text`, `is_featured bool default false`, `display_order int default 0`, `is_active bool default true`, timestamps.
-  - RLS: lectura pública, escritura admin.
-- **Migración** `ALTER TABLE products ADD COLUMN brand_id uuid REFERENCES brands(id);`.
-- **Admin**: nueva sección `BrandsSection.tsx` (CRUD) en `AdminSidebar` + `Admin.tsx`. Incluye selector de logo desde `MediaPickerDialog`.
-- **En el formulario de Producto** agregar dropdown **Marca**.
-- **Frontend landing**: nueva sección `BrandsStrip.tsx` (carrusel de logos infinito tipo "as seen in") usando `brands` activas, insertado entre `TrustSignals` y `FeaturedCarousel`.
-- **Tienda**: filtro adicional por marca en `ProductGrid`.
-
-### 5. Carrusel premium de banners en landing
-- Nuevo componente `PromoBanners.tsx` que lee imágenes de la carpeta `media/banners/` (vía `supabase.storage.list`) y opcionalmente metadatos desde una nueva tabla simple `banners` (`id, image_path, title, subtitle, cta_text, cta_url, is_active, display_order`).
-- Migración `banners` con RLS pública lectura / admin escritura.
-- Admin: pestaña **Banners** dentro de `MediaSection` (o sección aparte) para asignar título/CTA a cada imagen.
-- Diseño: full-width, autoplay, parallax sutil, gradientes oscuros, CTA principal. Insertado debajo del `Hero`.
-
-### 6. Quick View + Hover Zoom en Tienda
-- `ProductCard`: agregar botón **Vista Rápida** (icono ojo) que abre `QuickViewDialog` con imagen grande, descripción, precio, selector de variante y "Agregar al carrito" sin salir de la tienda.
-- Hover zoom: contenedor de imagen con `overflow-hidden` y `scale-110` + `translate` siguiendo el mouse (sin librerías extra).
-
-### 7. Más integraciones (App Store)
-Insertar (vía `INSERT INTO integrations`) nuevas apps disponibles para activar:
-- **Mailchimp** (email marketing)
-- **Meta Pixel / Conversions API** (analytics + ads)
-- **Google Analytics 4** (analytics)
-- **TikTok Pixel** (ads)
-- **WhatsApp Business Cloud API** (mensajería)
-- **MercadoLibre** (marketplace, refrescar config)
-- **Shopify Sync** (marketplace)
-- **Zapier Webhooks** (automation)
-- **Slack Notifications** (ops)
-- **Stripe** (pagos alternativo a Clip)
-Para cada una se agrega un placeholder de configuración (campos en `config` jsonb) en `IntegrationsSection`. Las que requieren keys reales mostrarán un CTA "Configurar API key" que pedirá al usuario añadir el secreto correspondiente cuando decida activarlas.
-
-### 8. Actualizar inventario con URLs reales
-Tras crear el picker de galería, ejecutar `UPDATE` masivo en `products` para asignar `image_url` a los productos existentes mapeándolos por nombre con las imágenes ya subidas en `media/products/` (krt-horchata, boutiq-switch, elfthc-*, fume-*).
+## Resumen
+Crear sistema de blog completo con generación de artículos por IA + SEO automático, agregar páginas faltantes (CBD, Edibles, Laboratorios, Marcas, Neshika), reorganizar la home (quitar Legalidad, agregar Laboratorios y Marcas), y crear la marca especial Neshika con su logo.
 
 ---
 
-### Detalles técnicos
-- Dependencia nueva: `browser-image-compression` (~12kb gz).
-- Storage: se sigue usando el bucket público `media`. Añadir convención `brands/` para logos.
-- RLS para nuevas tablas (`brands`, `banners`): SELECT público, INSERT/UPDATE/DELETE solo `admin`.
-- Realtime: no se activa en estas tablas (sin PII).
-- No se tocan archivos prohibidos (`client.ts`, `types.ts`, `.env`, `config.toml` project-level).
+## 1. Blog con IA + SEO
 
-### Archivos nuevos
-- `src/components/admin/MediaPickerDialog.tsx`
-- `src/components/admin/BrandsSection.tsx`
-- `src/components/QuickViewDialog.tsx`
-- `src/components/PromoBanners.tsx`
-- `src/components/BrandsStrip.tsx`
-- `src/lib/imageOptimizer.ts`
-- 2-3 migraciones SQL (variantes image_url, brands, banners + integraciones nuevas)
+### Base de datos
+Nueva tabla `blog_posts`:
+- `id`, `slug` (único), `title`, `excerpt`, `content` (markdown/HTML)
+- `cover_image_url`, `author`, `category` (cbd, edibles, nano, etc.)
+- `meta_title`, `meta_description`, `keywords[]`, `og_image_url`
+- `status` (draft/published), `published_at`, `views`
+- `created_at`, `updated_at`
+- RLS: lectura pública para `published`, escritura solo admins/moderadores
+- Realtime habilitado
 
-### Archivos editados
-- `MediaSection.tsx`, `InventorySection.tsx`, `AdminSidebar.tsx`, `Admin.tsx`
-- `ProductCard.tsx`, `ProductGrid.tsx`, `ProductDetail.tsx`, `Index.tsx`
-- `IntegrationsSection.tsx`
+### Edge Function `generate-blog-post`
+- Input: tema/keyword + categoría + tono opcional
+- Usa Lovable AI (`google/gemini-2.5-pro`) con tool calling para devolver JSON estructurado:
+  - `title`, `slug`, `excerpt`, `content` (~800-1200 palabras, markdown), `meta_title` (≤60 char), `meta_description` (≤155 char), `keywords[]` (5-8), `category`
+- Opcionalmente genera imagen de portada con `google/gemini-2.5-flash-image`, sube a bucket `media`, retorna `cover_image_url`
+- Solo accesible para usuarios con rol admin/moderator (verify_jwt = true)
 
-### Resultado para el usuario
-- Subidas más ligeras y rápidas, miniaturas instantáneas.
-- En cada producto y variante: subir / cambiar / elegir de galería con un clic.
-- Nueva sección **Marcas** en admin y tira de marcas en el home.
-- Carrusel premium de banners gestionable desde admin.
-- Vista rápida y zoom en la tienda usando las imágenes reales.
-- 10 nuevas integraciones disponibles en el App Store.
+### Admin: nueva sección "Blog"
+- Item nuevo en `AdminSidebar` con icono `Newspaper`
+- `BlogSection.tsx`:
+  - Tabla con todos los posts (título, categoría, estado, vistas, fecha)
+  - Botón "Nuevo artículo" → editor con campos manuales
+  - Botón "✨ Generar con IA" → modal: tema + categoría + checkbox "generar imagen" → llama edge function → precarga el editor con el resultado para revisión
+  - Editor: título, slug (auto desde título), excerpt, contenido (textarea con preview markdown), categoría, imagen de portada (ImageField existente), pestaña SEO (meta_title, meta_description, keywords, og_image), estado (draft/publicado)
+  - Acciones: guardar borrador, publicar, eliminar
+
+### Frontend público
+- Ruta `/blog` → `Blog.tsx`: listado de posts publicados con filtros por categoría, paginación, tarjetas con imagen + excerpt
+- Ruta `/blog/:slug` → `BlogPost.tsx`: render del artículo con SEO dinámico (extender `useSeoMeta` para cargar desde `blog_posts` cuando la ruta sea `/blog/:slug`), JSON-LD `Article`, sección "Artículos relacionados"
+- Link "Blog" en Navbar y Footer
+
+---
+
+## 2. Reestructurar la Home
+
+### Cambios en `Index.tsx`
+- **Quitar**: `<LegalSection />`
+- **Agregar/Reordenar**:
+  - `<LaboratoriosSection />` nuevo: grid mostrando los laboratorios/proveedores (Ace Ultra, Muha Meds, Fryd, Kik Kalibloom, etc.) con logo + tagline
+  - `<MarcasSection />` nuevo (o reusar `BrandShowcase` existente con tarjeta destacada de Neshika que enlaza a `/neshika`)
+- Actualizar `Navbar` links: quitar "Legalidad", agregar "Blog", "CBD", "Edibles", "Marcas"
+
+---
+
+## 3. Nuevas páginas
+
+| Ruta | Componente | Contenido |
+|---|---|---|
+| `/cbd` | `CbdPage.tsx` | Hero + intro a CBD, beneficios, ProductGrid filtrado por categoría `cbd`, FAQ específico |
+| `/edibles` | `EdiblesPage.tsx` | Hero + intro, ProductGrid filtrado por categoría `edibles`, info dosificación |
+| `/laboratorios` | `LaboratoriosPage.tsx` | Listado completo de laboratorios con descripción larga |
+| `/marcas` | `MarcasPage.tsx` | Grid de marcas con tarjeta destacada Neshika |
+| `/neshika` | `NeshikaPage.tsx` | Página dedicada con logo Neshika prominente, historia, productos exclusivos de la marca, paleta acorde al logo (turquesa/dorado) sobre Dark Mode Tech |
+| `/blog` y `/blog/:slug` | `Blog.tsx`, `BlogPost.tsx` | (sección 1) |
+
+- Necesitamos columna `category` en `products` (verificar; si no, agregar enum o text) para filtrar CBD/Edibles
+- Cada nueva ruta registrada en `App.tsx` y poblada en `seo_pages` con valores por defecto
+
+### Logo Neshika
+- Copiar `user-uploads://logo_Neshika_oficial.png` a `src/assets/neshika-logo.png`
+- Crear marca "Neshika" en tabla `brands` con `logo_url` apuntando al asset (o subir a bucket `media`)
+- Tarjeta especial en home y `/marcas` con borde turquesa + glow, link a `/neshika`
+
+---
+
+## 4. SEO
+
+- Insertar entradas en `seo_pages` para `/blog`, `/cbd`, `/edibles`, `/laboratorios`, `/marcas`, `/neshika` con meta_title/description y `auto_sitemap = true` para que aparezcan en `generate-sitemap`
+- Para `/blog/:slug`: extender `useSeoMeta` para detectar el patrón y cargar SEO desde `blog_posts` en lugar de `seo_pages`
+- Generador de IA produce SEO ya optimizado por artículo
+
+---
+
+## Detalles técnicos
+
+```text
+src/
+├── pages/
+│   ├── Blog.tsx                (nuevo)
+│   ├── BlogPost.tsx            (nuevo)
+│   ├── CbdPage.tsx             (nuevo)
+│   ├── EdiblesPage.tsx         (nuevo)
+│   ├── LaboratoriosPage.tsx    (nuevo)
+│   ├── MarcasPage.tsx          (nuevo)
+│   └── NeshikaPage.tsx         (nuevo)
+├── components/
+│   ├── LaboratoriosSection.tsx (nuevo, para home)
+│   ├── admin/BlogSection.tsx   (nuevo)
+│   └── admin/BlogEditor.tsx    (nuevo)
+├── assets/neshika-logo.png     (copiado del upload)
+└── hooks/useSeoMeta.ts         (extendido para /blog/:slug)
+
+supabase/
+├── migrations/...              (blog_posts + RLS + realtime + seo_pages seed)
+└── functions/generate-blog-post/index.ts (nuevo)
+```
+
+- Usa `react-markdown` (instalar) para renderizar contenido del blog
+- Reutiliza `ImageField`, `MediaPickerDialog` para imágenes
+- Categorías de productos: si la columna no existe, migración para añadir `category text` a `products` y backfill de los 4 productos seed
+
+---
+
+## Preguntas opcionales
+1. ¿La generación de imagen de portada por IA debe ser obligatoria o solo opcional por artículo? (default: opcional)
+2. ¿Quieres comentarios en los artículos del blog? (default: no, solo lectura)
+3. Para `/cbd` y `/edibles`: ¿filtrar productos existentes por categoría o son catálogos separados? (default: filtrar; requiere asignar categoría a productos)
