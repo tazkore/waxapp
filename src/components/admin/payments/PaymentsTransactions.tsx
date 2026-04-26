@@ -4,8 +4,37 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Download, Check, X } from 'lucide-react';
+import { Loader2, Download, Check, X, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+
+interface AuditEntry {
+  id: string;
+  field_name: string;
+  old_value: string | null;
+  new_value: string | null;
+  change_type: string;
+  changed_by_email: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+const FIELD_LABEL: Record<string, string> = {
+  status: 'Estado',
+  amount: 'Monto',
+  net_amount: 'Monto neto',
+  fee_amount: 'Comisión',
+  created: 'Creación',
+};
+
+const fmtVal = (field: string, v: string | null) => {
+  if (v === null) return '—';
+  if (['amount', 'net_amount', 'fee_amount'].includes(field)) {
+    const n = Number(v);
+    return isNaN(n) ? v : n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+  }
+  return v;
+};
 
 interface Tx {
   id: string;
@@ -70,6 +99,24 @@ const PaymentsTransactions = () => {
       t.external_id?.toLowerCase().includes(s)
     );
   });
+
+  const [auditTx, setAuditTx] = useState<Tx | null>(null);
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+
+  const openAudit = async (tx: Tx) => {
+    setAuditTx(tx);
+    setAuditLoading(true);
+    setAuditEntries([]);
+    const { data, error } = await supabase
+      .from('payment_transaction_audit' as any)
+      .select('*')
+      .eq('transaction_id', tx.id)
+      .order('created_at', { ascending: false });
+    if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    setAuditEntries((data as any) ?? []);
+    setAuditLoading(false);
+  };
 
   const updateStatus = async (id: string, status: string) => {
     const patch: any = { status };
@@ -146,12 +193,15 @@ const PaymentsTransactions = () => {
                   <td className="p-2"><Badge variant="outline" className={STATUS_VARIANT[t.status] ?? ''}>{t.status}</Badge></td>
                   <td className="p-2 font-mono text-xs">{t.reference ?? t.external_id ?? '—'}</td>
                   <td className="p-2">
-                    {t.status === 'pending' && (
-                      <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500" onClick={() => updateStatus(t.id, 'paid')} title="Marcar como pagado"><Check className="h-4 w-4" /></Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => updateStatus(t.id, 'cancelled')} title="Cancelar"><X className="h-4 w-4" /></Button>
-                      </div>
-                    )}
+                    <div className="flex gap-1 justify-end">
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openAudit(t)} title="Ver historial"><History className="h-4 w-4" /></Button>
+                      {t.status === 'pending' && (
+                        <>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500" onClick={() => updateStatus(t.id, 'paid')} title="Marcar como pagado"><Check className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => updateStatus(t.id, 'cancelled')} title="Cancelar"><X className="h-4 w-4" /></Button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -159,6 +209,46 @@ const PaymentsTransactions = () => {
           </table>
         )}
       </div>
+
+      <Sheet open={!!auditTx} onOpenChange={(o) => !o && setAuditTx(null)}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Historial de transacción</SheetTitle>
+            <SheetDescription>
+              {auditTx && (
+                <span className="font-mono text-xs">{auditTx.reference ?? auditTx.external_id ?? auditTx.id.slice(0, 8)}</span>
+              )}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4 space-y-3">
+            {auditLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+            ) : auditEntries.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Sin cambios registrados.</p>
+            ) : (
+              auditEntries.map(e => (
+                <div key={e.id} className="border border-border rounded p-3 text-sm space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline" className="text-xs">{FIELD_LABEL[e.field_name] ?? e.field_name}</Badge>
+                    <span className="text-xs text-muted-foreground">{new Date(e.created_at).toLocaleString('es-MX')}</span>
+                  </div>
+                  {e.change_type === 'create' ? (
+                    <div className="text-xs">Transacción creada con estado <span className="font-mono">{e.new_value}</span></div>
+                  ) : (
+                    <div className="text-xs flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-muted-foreground line-through">{fmtVal(e.field_name, e.old_value)}</span>
+                      <span>→</span>
+                      <span className="font-mono font-medium">{fmtVal(e.field_name, e.new_value)}</span>
+                    </div>
+                  )}
+                  {e.notes && <div className="text-xs text-muted-foreground italic">"{e.notes}"</div>}
+                  <div className="text-[11px] text-muted-foreground">Por: {e.changed_by_email ?? 'sistema'}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
