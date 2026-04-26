@@ -5,9 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RefreshCw, AlertTriangle, CheckCircle2, Clock, ArrowDownUp, RotateCw, XCircle } from 'lucide-react';
+import { RefreshCw, AlertTriangle, CheckCircle2, Clock, ArrowDownUp, RotateCw, XCircle, CheckCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface SyncResult {
   ok: boolean;
@@ -69,6 +73,7 @@ const PaymentsClipSync = () => {
   const [until, setUntil] = useState(new Date().toISOString().slice(0, 16));
   const [result, setResult] = useState<SyncResult | null>(null);
   const [runs, setRuns] = useState<SyncRun[]>([]);
+  const [bulkReconciling, setBulkReconciling] = useState(false);
 
   const loadRuns = useCallback(async () => {
     const { data } = await supabase
@@ -137,6 +142,52 @@ const PaymentsClipSync = () => {
     }
   };
 
+  const reconcileAll = async () => {
+    if (!result || result.discrepancies.length === 0) return;
+    setBulkReconciling(true);
+    const items = result.discrepancies;
+    let ok = 0;
+    const failed: string[] = [];
+    const nowIso = new Date().toISOString();
+
+    // Run in parallel batches of 5 to avoid overwhelming the DB
+    const BATCH = 5;
+    for (let i = 0; i < items.length; i += BATCH) {
+      const chunk = items.slice(i, i + BATCH);
+      const results = await Promise.all(
+        chunk.map((d) =>
+          supabase
+            .from('payment_transactions')
+            .update({
+              status: d.remote_status,
+              amount: d.remote_amount,
+              verified_at: nowIso,
+              notes: `Reconciliado en lote desde Clip (${d.local_status} → ${d.remote_status})`,
+            })
+            .eq('id', d.transaction_id)
+            .then(({ error }) => ({ id: d.transaction_id, ext: d.external_id, error }))
+        )
+      );
+      for (const r of results) {
+        if (r.error) failed.push(r.ext);
+        else ok++;
+      }
+    }
+
+    setBulkReconciling(false);
+    setResult({
+      ...result,
+      discrepancies: result.discrepancies.filter((d) => failed.includes(d.external_id)),
+      discrepancies_count: failed.length,
+    });
+
+    if (failed.length === 0) {
+      toast.success(`${ok} transacciones reconciliadas con Clip`);
+    } else {
+      toast.warning(`${ok} reconciliadas · ${failed.length} fallaron`);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -191,10 +242,32 @@ const PaymentsClipSync = () => {
 
       {result && result.discrepancies.length > 0 && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
             <CardTitle className="flex items-center gap-2 text-yellow-500">
               <AlertTriangle className="h-5 w-5" /> Reconciliación de discrepancias
             </CardTitle>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" disabled={bulkReconciling}>
+                  <CheckCheck className={`h-4 w-4 mr-2 ${bulkReconciling ? 'animate-pulse' : ''}`} />
+                  {bulkReconciling ? 'Aplicando…' : `Aplicar todo (${result.discrepancies.length})`}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Aplicar Clip a todas las discrepancias?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Se actualizarán <strong>{result.discrepancies.length}</strong> transacciones locales con
+                    el estado y monto reportados por Clip. Esta acción quedará registrada en la auditoría
+                    de cada transacción y no se puede deshacer en lote.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={reconcileAll}>Sí, aplicar todo</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardHeader>
           <CardContent>
             <Table>
