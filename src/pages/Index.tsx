@@ -13,6 +13,8 @@ import FAQSection from '@/components/FAQSection';
 import WelcomeBanner from '@/components/WelcomeBanner';
 import ChatbotWidget from '@/components/ChatbotWidget';
 import BrandShowcase from '@/components/BrandShowcase';
+import PromoBanners from '@/components/PromoBanners';
+import BrandsStrip from '@/components/BrandsStrip';
 
 const Index = () => {
   const [verified, setVerified] = useState(false);
@@ -28,9 +30,11 @@ const Index = () => {
       <CartDrawer />
       <HeroSection />
       <TrustSignals />
-        <FeaturedCarousel />
-        <BrandShowcase />
-        <ProductGrid />
+      <PromoBanners />
+      <BrandsStrip />
+      <FeaturedCarousel />
+      <BrandShowcase />
+      <ProductGrid />
       <NanoTechSection />
       <LegalSection />
       <FAQSection />
