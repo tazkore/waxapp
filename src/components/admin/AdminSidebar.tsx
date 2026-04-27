@@ -1,4 +1,4 @@
-import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound, Network, UserCog } from 'lucide-react';
+import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound, Network, UserCog, Shield } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -32,6 +32,7 @@ const allNavItems = [
     { title: 'Staff & Usuarios', icon: UserCog, key: 'staff', adminOnly: true },
     { title: 'API & Conexiones', icon: KeyRound, key: 'api-keys', adminOnly: true },
     { title: 'Conexiones de Entorno', icon: Network, key: 'env-connections', adminOnly: true },
+    { title: 'Auditoría de Acceso', icon: Shield, key: 'access-audit', adminOnly: true },
     { title: 'Configuración', icon: Settings, key: 'settings', adminOnly: true },
 ];
 
