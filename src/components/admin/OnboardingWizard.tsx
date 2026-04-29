@@ -25,6 +25,7 @@ const OnboardingWizard = ({ open, onClose, onJumpToImporter }: Props) => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [data, setData] = useState<any>({});
+  const [dontShowAgain, setDontShowAgain] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
