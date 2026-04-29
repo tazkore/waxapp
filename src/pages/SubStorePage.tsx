@@ -132,8 +132,9 @@ const SubStorePage = () => {
         )}
       </section>
 
-      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-        Sub-tienda remixada · {store.name}
+      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground space-y-1">
+        <p>Sub-tienda · {store.name}</p>
+        <p>© WAXAPP<span className="text-primary">.</span>MX {new Date().getFullYear()} · Hecho con ciencia.</p>
       </footer>
     </div>
   );

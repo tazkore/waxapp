@@ -24,7 +24,7 @@ const Footer = () => (
         </div>
       </div>
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        WAXAPP.MX © 2024. Hecho con ciencia.
+        © WAXAPP<span className="text-primary">.</span>MX {new Date().getFullYear()} · Hecho con ciencia.
       </p>
     </div>
   </footer>
