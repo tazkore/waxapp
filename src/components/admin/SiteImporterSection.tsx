@@ -106,7 +106,7 @@ const SiteImporterSection = () => {
     setBusy("scrape");
     try {
       const { data, error } = await supabase.functions.invoke("firecrawl-scrape-products", {
-        body: { job_id: jobId, urls: Array.from(selectedLinks) },
+        body: { job_id: jobId, urls: Array.from(selectedLinks), provider },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
