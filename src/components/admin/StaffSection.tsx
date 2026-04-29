@@ -343,16 +343,59 @@ const StaffSection = () => {
           {permsLoading ? (
             <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
           ) : (
-            <div className="grid grid-cols-1 gap-2 max-h-[50vh] overflow-y-auto py-2">
-              {ALL_PERMISSIONS.map(p => (
-                <label key={p.key} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer border border-border">
-                  <Checkbox checked={permsSelected.includes(p.key)} onCheckedChange={() => togglePerm(p.key)} />
-                  <div className="flex-1">
-                    <p className="text-sm text-foreground">{p.label}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{p.key}</p>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto py-2">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Permisos globales</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {ALL_PERMISSIONS.map(p => (
+                    <label key={p.key} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer border border-border">
+                      <Checkbox checked={permsSelected.includes(p.key)} onCheckedChange={() => togglePerm(p.key)} />
+                      <div className="flex-1">
+                        <p className="text-sm text-foreground">{p.label}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{p.key}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {allSubStores.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Tiendas asignadas (administrador por marca)</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {allSubStores.map(s => {
+                      const assigned = !!storeAssignments[s.id];
+                      return (
+                        <div key={s.id} className="flex items-center gap-3 p-2 rounded-md border border-border">
+                          <Checkbox
+                            checked={assigned}
+                            onCheckedChange={(v) => {
+                              setStoreAssignments(prev => {
+                                const next = { ...prev };
+                                if (v) next[s.id] = next[s.id] || 'admin';
+                                else delete next[s.id];
+                                return next;
+                              });
+                            }}
+                          />
+                          <div className="flex-1">
+                            <p className="text-sm text-foreground">{s.name}</p>
+                            <p className="text-xs text-muted-foreground font-mono">/s/{s.slug}</p>
+                          </div>
+                          {assigned && (
+                            <Select value={storeAssignments[s.id]} onValueChange={(v) => setStoreAssignments(prev => ({ ...prev, [s.id]: v }))}>
+                              <SelectTrigger className="w-36 h-8"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="admin">Administrador</SelectItem>
+                                <SelectItem value="moderator">Moderador</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                </label>
-              ))}
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
