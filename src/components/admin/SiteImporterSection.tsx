@@ -47,7 +47,7 @@ const SiteImporterSection = () => {
     if (!url.trim()) return;
     setBusy("map");
     try {
-      const { data, error } = await supabase.functions.invoke("firecrawl-map", { body: { url, limit: 100 } });
+      const { data, error } = await supabase.functions.invoke("firecrawl-map", { body: { url, limit: 100, provider } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setJobId(data.job_id);
