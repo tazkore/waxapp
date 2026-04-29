@@ -167,7 +167,15 @@ const SiteImporterSection = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Select value={provider} onValueChange={(v) => setProvider(v as Provider)} disabled={step !== "url"}>
+              <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="firecrawl">Firecrawl</SelectItem>
+                <SelectItem value="jina">Jina Reader</SelectItem>
+                <SelectItem value="scrapingbee">ScrapingBee</SelectItem>
+              </SelectContent>
+            </Select>
             <Input
               placeholder="https://mi-tienda-anterior.com"
               value={url}
@@ -181,6 +189,9 @@ const SiteImporterSection = () => {
               {busy === "branding" ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Palette className="h-4 w-4 mr-1" />Branding</>}
             </Button>
           </div>
+          <p className="text-[11px] text-muted-foreground">
+            Proveedores: Firecrawl (calidad alta), Jina Reader (gratis con rate-limit), ScrapingBee (JS rendering).
+          </p>
           {jobId && <p className="text-xs text-muted-foreground">Job: <code>{jobId.slice(0, 8)}…</code></p>}
         </CardContent>
       </Card>
