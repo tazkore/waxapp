@@ -15,6 +15,7 @@ const ThemeImporterSection = () => {
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [theme, setTheme] = useState<any>(null);
+  const [provider, setProvider] = useState<Provider>("firecrawl");
 
   const analyze = async () => {
     if (!url.trim()) { toast.error("Ingresa una URL"); return; }
@@ -22,7 +23,7 @@ const ThemeImporterSection = () => {
     setTheme(null);
     try {
       const { data, error } = await supabase.functions.invoke("firecrawl-import-theme", {
-        body: { url: url.trim() },
+        body: { url: url.trim(), provider },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
