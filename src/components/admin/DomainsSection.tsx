@@ -138,6 +138,31 @@ const DomainsSection = ({ onImportFromDomain }: Props) => {
         <Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" /> Nuevo dominio</Button>
       </div>
 
+      {domains.some((d) => d.status !== "active" && d.sub_store_id) && (
+        <Card className="p-4 border-amber-500/30 bg-amber-500/5">
+          <p className="text-sm font-medium text-amber-600 mb-2">⚠ Direcciones temporales activas</p>
+          <p className="text-xs text-muted-foreground mb-2">
+            Mientras los dominios externos no se verifican, las sub-tiendas son accesibles vía rutas temporales:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {domains.filter((d) => d.status !== "active" && d.sub_store_id).map((d) => {
+              const sub = subStores.find((s) => s.id === d.sub_store_id);
+              if (!sub) return null;
+              const tempUrl = `${window.location.origin}/s/${sub.slug}`;
+              return (
+                <button
+                  key={d.id}
+                  onClick={() => { navigator.clipboard.writeText(tempUrl); toast.success("Copiado: " + tempUrl); }}
+                  className="text-xs px-3 py-1.5 rounded-full border border-amber-500/30 bg-background hover:bg-amber-500/10 transition"
+                >
+                  {d.hostname} → <span className="text-primary font-mono">/s/{sub.slug}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
       ) : domains.length === 0 ? (

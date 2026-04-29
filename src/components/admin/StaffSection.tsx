@@ -40,20 +40,33 @@ const StaffSection = () => {
   const [permsSelected, setPermsSelected] = useState<string[]>([]);
   const [permsLoading, setPermsLoading] = useState(false);
   const [permsSaving, setPermsSaving] = useState(false);
+  const [allSubStores, setAllSubStores] = useState<{ id: string; name: string; slug: string }[]>([]);
+  const [storeAssignments, setStoreAssignments] = useState<Record<string, string>>({}); // storeId -> role
 
   const openPermissions = async (u: ManagedUser) => {
     setPermsUser(u);
     setPermsLoading(true);
     setPermsSelected([]);
+    setStoreAssignments({});
     const { data: { session } } = await supabase.auth.getSession();
-    const res = await supabase.functions.invoke('manage-users', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${session?.access_token}` },
-      body: { action: 'list_permissions', user_id: u.id },
-    });
-    if (!res.error && !res.data?.error) {
-      setPermsSelected(res.data?.permissions ?? []);
-    }
+    const [permsRes, subsRes, assignRes] = await Promise.all([
+      supabase.functions.invoke('manage-users', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: { action: 'list_permissions', user_id: u.id },
+      }),
+      supabase.from('sub_stores').select('id,name,slug').eq('is_active', true).order('name'),
+      supabase.functions.invoke('manage-users', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: { action: 'list_substore_access', user_id: u.id },
+      }),
+    ]);
+    if (!permsRes.error && !permsRes.data?.error) setPermsSelected(permsRes.data?.permissions ?? []);
+    setAllSubStores(subsRes.data ?? []);
+    const map: Record<string, string> = {};
+    (assignRes.data?.assignments ?? []).forEach((a: any) => { map[a.sub_store_id] = a.role; });
+    setStoreAssignments(map);
     setPermsLoading(false);
   };
 
@@ -65,15 +78,23 @@ const StaffSection = () => {
     if (!permsUser) return;
     setPermsSaving(true);
     const { data: { session } } = await supabase.auth.getSession();
-    const res = await supabase.functions.invoke('manage-users', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${session?.access_token}` },
-      body: { action: 'set_permissions', user_id: permsUser.id, permissions: permsSelected },
-    });
-    if (res.error || res.data?.error) {
-      toast({ title: 'Error', description: res.data?.error || 'No se pudieron guardar permisos.', variant: 'destructive' });
+    const assignments = Object.entries(storeAssignments).map(([sub_store_id, role]) => ({ sub_store_id, role }));
+    const [permsRes, storesRes] = await Promise.all([
+      supabase.functions.invoke('manage-users', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: { action: 'set_permissions', user_id: permsUser.id, permissions: permsSelected },
+      }),
+      supabase.functions.invoke('manage-users', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: { action: 'set_substore_access', user_id: permsUser.id, assignments },
+      }),
+    ]);
+    if (permsRes.error || permsRes.data?.error || storesRes.error || storesRes.data?.error) {
+      toast({ title: 'Error', description: permsRes.data?.error || storesRes.data?.error || 'No se pudieron guardar.', variant: 'destructive' });
     } else {
-      toast({ title: 'Permisos actualizados', description: permsUser.email });
+      toast({ title: 'Permisos y tiendas actualizados', description: permsUser.email });
       setPermsUser(null);
     }
     setPermsSaving(false);
@@ -322,16 +343,59 @@ const StaffSection = () => {
           {permsLoading ? (
             <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
           ) : (
-            <div className="grid grid-cols-1 gap-2 max-h-[50vh] overflow-y-auto py-2">
-              {ALL_PERMISSIONS.map(p => (
-                <label key={p.key} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer border border-border">
-                  <Checkbox checked={permsSelected.includes(p.key)} onCheckedChange={() => togglePerm(p.key)} />
-                  <div className="flex-1">
-                    <p className="text-sm text-foreground">{p.label}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{p.key}</p>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto py-2">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Permisos globales</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {ALL_PERMISSIONS.map(p => (
+                    <label key={p.key} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer border border-border">
+                      <Checkbox checked={permsSelected.includes(p.key)} onCheckedChange={() => togglePerm(p.key)} />
+                      <div className="flex-1">
+                        <p className="text-sm text-foreground">{p.label}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{p.key}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {allSubStores.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Tiendas asignadas (administrador por marca)</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {allSubStores.map(s => {
+                      const assigned = !!storeAssignments[s.id];
+                      return (
+                        <div key={s.id} className="flex items-center gap-3 p-2 rounded-md border border-border">
+                          <Checkbox
+                            checked={assigned}
+                            onCheckedChange={(v) => {
+                              setStoreAssignments(prev => {
+                                const next = { ...prev };
+                                if (v) next[s.id] = next[s.id] || 'admin';
+                                else delete next[s.id];
+                                return next;
+                              });
+                            }}
+                          />
+                          <div className="flex-1">
+                            <p className="text-sm text-foreground">{s.name}</p>
+                            <p className="text-xs text-muted-foreground font-mono">/s/{s.slug}</p>
+                          </div>
+                          {assigned && (
+                            <Select value={storeAssignments[s.id]} onValueChange={(v) => setStoreAssignments(prev => ({ ...prev, [s.id]: v }))}>
+                              <SelectTrigger className="w-36 h-8"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="admin">Administrador</SelectItem>
+                                <SelectItem value="moderator">Moderador</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                </label>
-              ))}
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>

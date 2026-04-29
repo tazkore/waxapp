@@ -36,11 +36,14 @@ import SiteImporterSection from '@/components/admin/SiteImporterSection';
 import ImportedProductsPreviewSection from '@/components/admin/ImportedProductsPreviewSection';
 import ThemeImporterSection from '@/components/admin/ThemeImporterSection';
 import DomainsSection from '@/components/admin/DomainsSection';
+import SubStoreAdminPanel from '@/components/admin/SubStoreAdminPanel';
+import Copyright from '@/components/Copyright';
 import { useOnboardingStatus } from '@/hooks/useOnboardingStatus';
 import { useEffect } from 'react';
 
 const Admin = () => {
   const [active, setActive] = useState('overview');
+  const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
   const { role, loading, isAdmin } = useUserRole();
   const navigate = useNavigate();
   const { needsOnboarding, dismiss } = useOnboardingStatus();
@@ -101,12 +104,18 @@ const Admin = () => {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        <AdminSidebar activeSection={active} onNavigate={setActive} showSettings={isAdmin} />
+        <AdminSidebar
+          activeSection={active}
+          onNavigate={setActive}
+          showSettings={isAdmin && !activeStoreId}
+          activeStoreId={activeStoreId}
+          onSelectStore={setActiveStoreId}
+        />
         <div className="flex-1 flex flex-col">
           <header className="h-14 flex items-center border-b border-border px-4 gap-3">
             <SidebarTrigger className="text-muted-foreground" />
             <span className="text-sm text-muted-foreground font-medium">
-              WAXAPP<span className="text-primary">.</span> Admin Panel
+              WAXAPP<span className="text-primary">.</span> {activeStoreId ? 'Sub-tienda' : 'Admin Panel'}
             </span>
             <Badge variant="outline" className="ml-2 text-xs capitalize border-primary/30 text-primary">
               {role}
@@ -119,7 +128,8 @@ const Admin = () => {
             </div>
           </header>
           <main className="flex-1 p-6 md:p-8 overflow-auto">
-            {renderSection()}
+            {activeStoreId ? <SubStoreAdminPanel subStoreId={activeStoreId} isAdmin={isAdmin} /> : renderSection()}
+            {!activeStoreId && <Copyright className="mt-8 pt-6 border-t border-border" />}
           </main>
         </div>
       </div>

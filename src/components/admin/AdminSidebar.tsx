@@ -1,13 +1,20 @@
-import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound, Network, UserCog, Shield, Sparkles, Wand2, Eye, Globe } from 'lucide-react';
+import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound, Network, UserCog, Shield, Sparkles, Wand2, Eye, Globe, Store, ChevronDown } from 'lucide-react';
+import { useState } from 'react';
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
+import { useAccessibleSubStores } from '@/hooks/useAccessibleSubStores';
+import Copyright from '@/components/Copyright';
 
 const allNavItems = [
   { title: 'Vista General', icon: BarChart3, key: 'overview' },
@@ -45,10 +52,14 @@ interface AdminSidebarProps {
   activeSection: string;
   onNavigate: (key: string) => void;
   showSettings?: boolean;
+  activeStoreId?: string | null;
+  onSelectStore?: (storeId: string | null) => void;
 }
 
-const AdminSidebar = ({ activeSection, onNavigate, showSettings = true }: AdminSidebarProps) => {
+const AdminSidebar = ({ activeSection, onNavigate, showSettings = true, activeStoreId, onSelectStore }: AdminSidebarProps) => {
   const navItems = allNavItems.filter(item => !item.adminOnly || showSettings);
+  const { stores, loading: storesLoading } = useAccessibleSubStores();
+  const [storesOpen, setStoresOpen] = useState(true);
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
@@ -59,15 +70,44 @@ const AdminSidebar = ({ activeSection, onNavigate, showSettings = true }: AdminS
           </span>
           <span className="text-xs text-muted-foreground ml-2">Admin</span>
         </div>
+
+        {stores.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="flex items-center justify-between cursor-pointer" onClick={() => setStoresOpen(!storesOpen)}>
+              <span className="flex items-center gap-2"><Store className="h-3 w-3" />Tiendas</span>
+              <ChevronDown className={`h-3 w-3 transition-transform ${storesOpen ? '' : '-rotate-90'}`} />
+            </SidebarGroupLabel>
+            {storesOpen && (
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {storesLoading && <SidebarMenuItem><div className="px-3 py-1 text-xs text-muted-foreground">Cargando…</div></SidebarMenuItem>}
+                  {stores.map((s) => (
+                    <SidebarMenuItem key={s.id}>
+                      <SidebarMenuButton
+                        onClick={() => onSelectStore?.(s.id)}
+                        className={`cursor-pointer ${activeStoreId === s.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                      >
+                        <Store className="h-4 w-4" />
+                        <span className="truncate">{s.name}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            )}
+          </SidebarGroup>
+        )}
+
         <SidebarGroup>
+          {showSettings && stores.length > 0 && <SidebarGroupLabel>Tienda principal</SidebarGroupLabel>}
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton
-                    onClick={() => onNavigate(item.key)}
+                    onClick={() => { onSelectStore?.(null); onNavigate(item.key); }}
                     className={`cursor-pointer ${
-                      activeSection === item.key
+                      !activeStoreId && activeSection === item.key
                         ? 'bg-primary/10 text-primary'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                     }`}
@@ -80,6 +120,10 @@ const AdminSidebar = ({ activeSection, onNavigate, showSettings = true }: AdminS
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <div className="mt-auto px-3 py-3 group-data-[collapsible=icon]:hidden">
+          <Copyright className="text-[10px]" />
+        </div>
       </SidebarContent>
     </Sidebar>
   );
