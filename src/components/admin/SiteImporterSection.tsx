@@ -7,12 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Globe, Wand2, Download, Palette, AlertCircle } from "lucide-react";
+import { Loader2, Globe, Wand2, Download, Palette, AlertCircle, Store } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type Provider = "firecrawl" | "jina" | "scrapingbee";
 
-type Step = "url" | "mapped" | "extracted" | "done";
+type Step = "url" | "mapped" | "extracted" | "store" | "done";
 
 interface ExtractedProduct {
   source_url: string;
@@ -36,6 +36,9 @@ const SiteImporterSection = () => {
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const [branding, setBranding] = useState<any>(null);
   const [provider, setProvider] = useState<Provider>("firecrawl");
+  const [importedIds, setImportedIds] = useState<string[]>([]);
+  const [storeName, setStoreName] = useState("");
+  const [storeSlug, setStoreSlug] = useState("");
   const { toast } = useToast();
 
   const fail = (e: any, ctx: string) => {
@@ -131,10 +134,81 @@ const SiteImporterSection = () => {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      setImportedIds(data.product_ids || []);
       toast({ title: "Importación completa", description: `${data.imported} productos importados (inactivos)` });
-      setStep("done");
+      // Auto-suggest store name from URL
+      try {
+        const u = new URL(url);
+        const host = u.hostname.replace(/^www\./, "").split(".")[0];
+        const niceName = host.charAt(0).toUpperCase() + host.slice(1);
+        setStoreName(niceName);
+        setStoreSlug(host.toLowerCase());
+      } catch {}
+      setStep("store");
     } catch (e: any) {
       fail(e, "Error al importar");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const createSubStore = async () => {
+    if (!storeName.trim() || !storeSlug.trim()) return;
+    setBusy("substore");
+    try {
+      // 1. Find or create brand
+      let brand_id: string | null = null;
+      const { data: existingBrand } = await supabase.from("brands").select("id").eq("slug", storeSlug).maybeSingle();
+      if (existingBrand?.id) {
+        brand_id = existingBrand.id;
+      } else {
+        const { data: newBrand, error: bErr } = await supabase
+          .from("brands")
+          .insert({ name: storeName, slug: storeSlug, logo_url: branding?.images?.logo ?? null, is_active: true })
+          .select("id")
+          .single();
+        if (bErr) throw bErr;
+        brand_id = newBrand.id;
+      }
+
+      // 2. Create sub-store with branding
+      const subPayload: any = {
+        name: storeName,
+        slug: storeSlug,
+        brand_id,
+        is_active: true,
+        logo_url: branding?.images?.logo ?? null,
+        favicon_url: branding?.images?.favicon ?? null,
+        color_primary: branding?.colors?.primary ?? null,
+        color_secondary: branding?.colors?.secondary ?? null,
+        color_accent: branding?.colors?.accent ?? null,
+        font_heading: branding?.fonts?.[0]?.family ?? null,
+        font_body: branding?.fonts?.[1]?.family ?? branding?.fonts?.[0]?.family ?? null,
+        hero_headline: storeName,
+      };
+      const { data: subStore, error: sErr } = await supabase.from("sub_stores").insert(subPayload).select("id").single();
+      if (sErr) throw sErr;
+
+      // 3. Assign imported products
+      if (importedIds.length > 0) {
+        await supabase.from("products").update({ sub_store_id: subStore.id, brand_id }).in("id", importedIds);
+      }
+
+      // 4. Register temporary domain + external pending
+      try {
+        const externalHost = new URL(url).hostname.replace(/^www\./, "");
+        await (supabase as any).from("domains").insert([
+          { hostname: externalHost, brand_id, sub_store_id: subStore.id, status: "pending", ssl_status: "pending", display_name: storeName, is_primary: true },
+          { hostname: `${storeSlug}.preview.waxapp.mx`, brand_id, sub_store_id: subStore.id, status: "active", ssl_status: "active", display_name: `${storeName} (temporal)`, notes: `Ruta funcional: /s/${storeSlug}` },
+        ]);
+      } catch (e) {
+        console.warn("domain insert", e);
+      }
+
+      toast({ title: "Sub-tienda creada", description: `${storeName} con ${importedIds.length} productos` });
+      setStep("done");
+    } catch (e: any) {
+      fail(e, "Error al crear sub-tienda");
     } finally {
       setBusy(null);
     }
@@ -149,6 +223,9 @@ const SiteImporterSection = () => {
     setProducts([]);
     setSelectedProducts(new Set());
     setBranding(null);
+    setImportedIds([]);
+    setStoreName("");
+    setStoreSlug("");
   };
 
   return (
