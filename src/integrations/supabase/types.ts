@@ -761,6 +761,66 @@ export type Database = {
         }
         Relationships: []
       }
+      domains: {
+        Row: {
+          brand_id: string | null
+          created_at: string
+          display_name: string | null
+          hostname: string
+          id: string
+          is_primary: boolean
+          last_scraped_at: string | null
+          notes: string | null
+          ssl_status: string
+          status: string
+          sub_store_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          hostname: string
+          id?: string
+          is_primary?: boolean
+          last_scraped_at?: string | null
+          notes?: string | null
+          ssl_status?: string
+          status?: string
+          sub_store_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          hostname?: string
+          id?: string
+          is_primary?: boolean
+          last_scraped_at?: string | null
+          notes?: string | null
+          ssl_status?: string
+          status?: string
+          sub_store_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "domains_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "domains_sub_store_id_fkey"
+            columns: ["sub_store_id"]
+            isOneToOne: false
+            referencedRelation: "sub_stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       environment_connections: {
         Row: {
           anon_key_secret_name: string | null
