@@ -104,7 +104,15 @@ const ThemeImporterSection = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Select value={provider} onValueChange={(v) => setProvider(v as Provider)} disabled={loading}>
+              <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="firecrawl">Firecrawl</SelectItem>
+                <SelectItem value="jina">Jina Reader</SelectItem>
+                <SelectItem value="scrapingbee">ScrapingBee</SelectItem>
+              </SelectContent>
+            </Select>
             <Input
               placeholder="https://miempresa.com"
               value={url}
@@ -116,7 +124,7 @@ const ThemeImporterSection = () => {
               Analizar
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">Tarda ~10-20s. Usa Firecrawl + Lovable AI.</p>
+          <p className="text-xs text-muted-foreground">Tarda ~10-20s. Combina el proveedor de scraping con Lovable AI.</p>
         </CardContent>
       </Card>
 
