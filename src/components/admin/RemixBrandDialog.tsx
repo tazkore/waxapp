@@ -62,7 +62,7 @@ const RemixBrandDialog = ({ open, onClose, brand, onCreated }: Props) => {
       setStoreSlug(ss.slug);
       const base: Snapshot = { ...DEFAULT_SNAPSHOT };
       SNAPSHOT_FIELDS.forEach((k) => { if ((ss as any)[k] != null) (base as any)[k] = (ss as any)[k]; });
-      setDraft(ss.draft_snapshot ?? base);
+      setDraft((ss.draft_snapshot && typeof ss.draft_snapshot === "object" && !Array.isArray(ss.draft_snapshot) ? (ss.draft_snapshot as Snapshot) : base));
       setSourceHtml(ss.source_html_excerpt ?? null);
       setDirty(!!ss.draft_snapshot);
       const { data: vs } = await supabase.from("sub_store_versions").select("*").eq("sub_store_id", ss.id).order("version_number", { ascending: false });
