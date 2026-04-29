@@ -39,6 +39,7 @@ Deno.serve(async (req) => {
 
     let imported = 0;
     const errors: string[] = [];
+    const product_ids: string[] = [];
 
     for (const p of products) {
       try {
@@ -75,11 +76,12 @@ Deno.serve(async (req) => {
           slug: slugify(p.name),
           is_active: false,
         };
-        const { error: insErr } = await admin.from("products").insert(insert);
+        const { data: ins, error: insErr } = await admin.from("products").insert(insert).select("id").single();
         if (insErr) {
           errors.push(`${p.name}: ${insErr.message}`);
         } else {
           imported++;
+          if (ins?.id) product_ids.push(ins.id);
         }
       } catch (e) {
         errors.push(`${p.name}: ${e instanceof Error ? e.message : String(e)}`);
@@ -95,7 +97,7 @@ Deno.serve(async (req) => {
       })
       .eq("id", job_id);
 
-    return new Response(JSON.stringify({ imported, errors }), {
+    return new Response(JSON.stringify({ imported, errors, product_ids }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

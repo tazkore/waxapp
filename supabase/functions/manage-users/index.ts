@@ -85,6 +85,30 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // === SUB-STORE STAFF ASSIGNMENTS (super_admin only) ===
+    if (body.action === "list_substore_access") {
+      if (!isSuperAdmin) return new Response(JSON.stringify({ error: "Solo super_admin" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const { user_id } = body;
+      const { data, error } = await supabase.from("sub_store_staff").select("sub_store_id, role").eq("user_id", user_id);
+      if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ assignments: data ?? [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (body.action === "set_substore_access") {
+      if (!isSuperAdmin) return new Response(JSON.stringify({ error: "Solo super_admin" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const { user_id, assignments } = body;
+      if (!user_id || !Array.isArray(assignments)) {
+        return new Response(JSON.stringify({ error: "user_id y assignments[] requeridos" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      await supabase.from("sub_store_staff").delete().eq("user_id", user_id);
+      if (assignments.length > 0) {
+        const rows = assignments.map((a: any) => ({ user_id, sub_store_id: a.sub_store_id, role: a.role || 'admin' }));
+        const { error } = await supabase.from("sub_store_staff").insert(rows);
+        if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     if (body.action === "create_staff") {
       const { email, password, role } = body;
       if (!email || !password || !role) {
