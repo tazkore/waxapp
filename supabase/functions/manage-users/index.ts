@@ -61,6 +61,30 @@ Deno.serve(async (req) => {
   if (req.method === "POST") {
     const body = await req.json();
 
+    // === PERMISSIONS MANAGEMENT (super_admin only) ===
+    if (body.action === "list_permissions") {
+      if (!isSuperAdmin) return new Response(JSON.stringify({ error: "Solo super_admin" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const { user_id } = body;
+      const { data, error } = await supabase.from("user_permissions").select("permission_key").eq("user_id", user_id);
+      if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ permissions: (data ?? []).map((d: any) => d.permission_key) }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (body.action === "set_permissions") {
+      if (!isSuperAdmin) return new Response(JSON.stringify({ error: "Solo super_admin" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const { user_id, permissions } = body;
+      if (!user_id || !Array.isArray(permissions)) {
+        return new Response(JSON.stringify({ error: "user_id y permissions[] requeridos" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      await supabase.from("user_permissions").delete().eq("user_id", user_id);
+      if (permissions.length > 0) {
+        const rows = permissions.map((p: string) => ({ user_id, permission_key: p, granted_by: user.id }));
+        const { error } = await supabase.from("user_permissions").insert(rows);
+        if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     if (body.action === "create_staff") {
       const { email, password, role } = body;
       if (!email || !password || !role) {
