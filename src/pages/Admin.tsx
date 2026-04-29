@@ -117,6 +117,11 @@ const Admin = () => {
           </main>
         </div>
       </div>
+      <OnboardingWizard
+        open={wizardOpen}
+        onClose={() => { setWizardOpen(false); dismiss(); }}
+        onJumpToImporter={() => setActive('importer')}
+      />
     </SidebarProvider>
   );
 };
