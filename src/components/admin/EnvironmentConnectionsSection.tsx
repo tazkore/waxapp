@@ -44,6 +44,22 @@ const EnvironmentConnectionsSection = () => {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<EnvConnection> | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
+  const [allChecks, setAllChecks] = useState<Array<{ name: string; ok: boolean; latency_ms: number; error?: string; configured: boolean }> | null>(null);
+  const [checkingAll, setCheckingAll] = useState(false);
+
+  const runAllChecks = async () => {
+    setCheckingAll(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("check-connectors", { body: {} });
+      if (error) throw error;
+      setAllChecks(data?.checks ?? []);
+      toast.success("Verificación completada");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Error al verificar");
+    } finally {
+      setCheckingAll(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
