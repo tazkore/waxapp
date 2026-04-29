@@ -1702,6 +1702,53 @@ export type Database = {
         }
         Relationships: []
       }
+      sub_store_versions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_published: boolean
+          label: string | null
+          notes: string | null
+          snapshot: Json
+          source: string
+          sub_store_id: string
+          version_number: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_published?: boolean
+          label?: string | null
+          notes?: string | null
+          snapshot?: Json
+          source?: string
+          sub_store_id: string
+          version_number: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_published?: boolean
+          label?: string | null
+          notes?: string | null
+          snapshot?: Json
+          source?: string
+          sub_store_id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_store_versions_sub_store_id_fkey"
+            columns: ["sub_store_id"]
+            isOneToOne: false
+            referencedRelation: "sub_stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sub_stores: {
         Row: {
           brand_id: string | null
@@ -1713,6 +1760,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          draft_snapshot: Json | null
           favicon_url: string | null
           font_body: string | null
           font_heading: string | null
@@ -1724,7 +1772,10 @@ export type Database = {
           logo_url: string | null
           name: string
           og_image_url: string | null
+          original_version_id: string | null
+          published_version_id: string | null
           slug: string
+          source_html_excerpt: string | null
           source_template: string | null
           tagline: string | null
           updated_at: string
@@ -1739,6 +1790,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          draft_snapshot?: Json | null
           favicon_url?: string | null
           font_body?: string | null
           font_heading?: string | null
@@ -1750,7 +1802,10 @@ export type Database = {
           logo_url?: string | null
           name: string
           og_image_url?: string | null
+          original_version_id?: string | null
+          published_version_id?: string | null
           slug: string
+          source_html_excerpt?: string | null
           source_template?: string | null
           tagline?: string | null
           updated_at?: string
@@ -1765,6 +1820,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          draft_snapshot?: Json | null
           favicon_url?: string | null
           font_body?: string | null
           font_heading?: string | null
@@ -1776,7 +1832,10 @@ export type Database = {
           logo_url?: string | null
           name?: string
           og_image_url?: string | null
+          original_version_id?: string | null
+          published_version_id?: string | null
           slug?: string
+          source_html_excerpt?: string | null
           source_template?: string | null
           tagline?: string | null
           updated_at?: string
@@ -1787,6 +1846,20 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_stores_original_version_id_fkey"
+            columns: ["original_version_id"]
+            isOneToOne: false
+            referencedRelation: "sub_store_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_stores_published_version_id_fkey"
+            columns: ["published_version_id"]
+            isOneToOne: false
+            referencedRelation: "sub_store_versions"
             referencedColumns: ["id"]
           },
         ]

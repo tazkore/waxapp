@@ -1,73 +1,102 @@
-# Wizard de Onboarding + Importador de Sitios con IA
+## Resumen
 
-Dos features integradas: un **wizard inicial de un solo paso** para configurar marca/logos/APIs, y un **importador de sitios** que copia productos e imágenes de cualquier web (incluyendo el sitio anterior del cliente) usando IA.
+Mejorar el flujo Remix de sub-tiendas para que cada cambio quede en **borrador con historial de versiones** (no se publica al instante), permita **revertir a la plantilla original**, **mejore con IA** la copia (textos, hero, tagline) tomando como base el sitio importado, y **descargue las imágenes** (logo, favicon, OG, hero) a Storage para no depender de la web original que será eliminada.
 
-## 1. Wizard Inicial "Setup en 1 paso"
+## Cambios de base de datos
 
-Modal/página que aparece automáticamente la primera vez que un super admin entra al panel (si `theme_settings.site_name = 'WAXAPP'` por defecto). Incluye:
+**Nueva tabla `sub_store_versions`** (snapshots completos):
+- `id`, `sub_store_id` (FK), `version_number` (int autoincremental por tienda)
+- `label` (ej. "Inicial desde firecrawl", "Mejora IA", "Manual")
+- `source` enum: `original_template` | `ai_improved` | `manual_edit` | `imported`
+- `snapshot` jsonb (todo el estado: colores, fuentes, copy, urls de assets locales)
+- `created_by`, `created_at`, `is_published` bool, `notes` text
+- RLS: super_admin/admin gestionan; público no lee.
 
-- **Identidad**: nombre del sitio, tagline, logo claro, logo oscuro, favicon, OG image (todos en una sola pantalla con drag & drop).
-- **Colores principales**: primario, secundario, fondo (3 color pickers).
-- **APIs / Conexiones rápidas** (botones que invocan los flujos existentes):
-  - Resend (emails) — vía connector
-  - Clip (pagos) — usa secrets ya guardados
-  - Firecrawl (scraping/importación) — vía connector
-  - Lovable AI — ya configurado, solo se muestra "✓ Activo"
-- **Importar tienda anterior** (opcional, expandible): campo URL + botón "Importar con IA" (lanza el wizard de importación, ver sección 2).
-- **Botón "Finalizar"**: guarda todo y marca `onboarding_completed = true`.
+**Cambios en `sub_stores`**:
+- `draft_snapshot jsonb` — borrador en edición (no visible al público).
+- `published_version_id uuid` — FK a la versión actualmente publicada en `/s/:slug`.
+- `original_version_id uuid` — FK a la versión "plantilla original" (la primera del Remix, inmutable).
 
-Acceso posterior: link permanente en sidebar **"Setup Inicial"** (icono Sparkles) por si el super admin quiere reabrirlo.
+`SubStorePage.tsx` siempre renderiza la versión publicada (no el draft).
 
-## 2. Importador de Sitios con Firecrawl + IA
+## Edge functions
 
-Sección nueva **"Importar Sitio"** en el sidebar (solo super_admin), también accesible desde el wizard.
+**Nueva `enhance-substore-copy`** (Lovable AI Gateway, Gemini 2.5 Flash):
+- Input: snapshot actual + `source_html_excerpt` (guardado en draft).
+- Tool-call `improve_copy` que devuelve: `tagline`, `hero_headline`, `hero_subtitle`, `description`, `seo_meta_title`, `seo_meta_description`, micro-copy de secciones.
+- Reglas: tono Dark Mode Tech, español MX, no inventar productos, mantener nombre de marca.
 
-Flujo:
+**Nueva `download-substore-assets`**:
+- Recibe `sub_store_id` + lista de URLs externas (logo, favicon, og, hero, gallery).
+- Descarga con `fetch`, valida content-type imagen, sube a bucket `media` en `sub-stores/{slug}/{tipo}-{hash}.{ext}`.
+- Devuelve URLs públicas y actualiza el draft. Maneja CORS / 404 con fallback al placeholder.
+
+**Modificar `firecrawl-import-theme`**:
+- Además de paleta/fuentes, devuelve `gallery_urls` (top 6 imágenes del hero/banners detectadas en el HTML) y guarda un `source_html_excerpt` (5–10 KB) en el draft para futuros enhancements IA.
+
+## UI: `RemixBrandDialog` rediseñado en pestañas
+
 ```text
-1. Usuario pega URL (ej: https://tienda-anterior.com)
-2. Firecrawl /map → descubre todas las URLs del sitio
-3. Usuario elige qué importar: [✓] Productos  [✓] Imágenes  [✓] Branding
-4. Por cada URL de producto: Firecrawl /scrape (markdown + screenshot + branding)
-5. Lovable AI extrae datos estructurados: { name, price, description, sku, images[] }
-6. Las imágenes se descargan y suben al bucket `media`
-7. Vista previa tabular: el admin marca cuáles importar, edita precios
-8. Click "Importar X productos" → INSERT batch en tabla products
+┌─────────────────────────────────────────┐
+│ Remix: <marca>     [Borrador no publicado] │
+├─────────────────────────────────────────┤
+│ [Editor] [Mejorar con IA] [Historial]   │
+├─────────────────────────────────────────┤
+│ ...contenido según pestaña...           │
+├─────────────────────────────────────────┤
+│ [Restaurar original] [Guardar borrador] │
+│           [Publicar versión]            │
+└─────────────────────────────────────────┘
 ```
 
-**¿Por qué Firecrawl?** Es el conector recomendado de Lovable, tiene plan gratis (500 créditos/mes), maneja JS/anti-bot, y devuelve markdown + branding (colores y fonts del sitio original) que podemos usar para autocompletar el theme.
+**Pestaña Editor**: campos actuales (colores, fuentes, hero) escribiendo en `draft_snapshot`. Muestra preview en vivo y badge "Borrador con cambios sin publicar".
 
-**Bonus "Copiar mi página anterior con IA"**: además de productos, extrae el branding (colores, logo, fonts) y propone aplicarlo al theme automáticamente — útil para migración total.
+**Pestaña Mejorar con IA**:
+- Botón "Mejorar copy con IA" → llama `enhance-substore-copy`, muestra diff lado-a-lado (antes/después por campo) con checkboxes para aceptar campo por campo.
+- Botón "Importar imágenes a almacenamiento" → llama `download-substore-assets`, muestra grid con miniaturas y permite elegir cuáles aplicar (logo / favicon / og / hero).
+- Aviso: "Recomendado antes de eliminar la web original".
 
-## 3. Cambios en BD
+**Pestaña Historial**:
+- Lista vertical de `sub_store_versions` (más reciente arriba), con badges: `Original` / `IA` / `Manual` / `Publicada`.
+- Cada fila: fecha, autor, label, acciones: `Ver preview`, `Restaurar como borrador`, `Publicar esta versión`.
+- La versión `original_version_id` siempre tiene botón destacado **"Volver a plantilla original"**.
 
-Una sola migración:
+**Acciones del footer**:
+- `Guardar borrador`: actualiza `draft_snapshot` (no crea versión).
+- `Publicar versión`: crea nuevo registro en `sub_store_versions` con el draft, lo marca `is_published=true`, actualiza `sub_stores.published_version_id`, copia campos al row de `sub_stores` para compatibilidad con `SubStorePage`.
+- `Restaurar original`: copia `snapshot` de `original_version_id` al `draft_snapshot` (no publica hasta confirmar).
 
-- Añadir columna `onboarding_completed boolean default false` a `theme_settings`.
-- Nueva tabla **import_jobs**: trackea cada importación (url origen, status, productos encontrados, importados, errores). RLS solo super_admin.
+## Flujo end-to-end
 
-## 4. Edge Functions nuevas
+1. Usuario abre Remix de "Cannesh" → si no existe sub-tienda, importa con Firecrawl + AI; al crear se guarda **versión #1 `original_template`** + se publica esa misma versión.
+2. Usuario edita colores → queda en `draft_snapshot`. La URL pública sigue mostrando la #1.
+3. Usuario presiona **"Mejorar con IA"** → revisa diffs, acepta los que quiera → draft actualizado.
+4. Usuario presiona **"Importar imágenes"** → assets quedan en bucket `media`; URLs externas reemplazadas en draft.
+5. Usuario presiona **"Publicar"** → se crea versión #2, se marca como publicada, sitio público actualizado.
+6. En cualquier momento puede ir a Historial → **"Volver a plantilla original"** para regresar a la #1.
 
-- **`firecrawl-map`**: recibe URL, llama Firecrawl /map, devuelve lista de URLs.
-- **`firecrawl-scrape-products`**: recibe array de URLs, scrape + extrae con Lovable AI (Gemini Flash) → JSON estructurado de productos.
-- **`firecrawl-import-branding`**: recibe URL, scrape con `formats: ['branding']`, devuelve colores/fonts/logos.
-- **`import-products`**: recibe productos validados, descarga imágenes a Storage, inserta en tabla `products`.
+## Detalles técnicos clave
 
-Todas verifican `super_admin` y registran en `import_jobs`.
+- **Idempotencia descarga assets**: hash SHA-1 de la URL como nombre de archivo para evitar duplicados en re-imports.
+- **Tamaño límite por imagen**: 5 MB; descartar si excede o si content-type ≠ image/*.
+- **Snapshot completo**: incluye TODOS los campos editables + `assets_map` (url externa → url interna) para auditoría.
+- **`SubStorePage.tsx`**: lee `published_version_id` y aplica el snapshot publicado (sin tocar draft).
+- **Migración compatible**: se mantienen las columnas planas existentes (color_primary, etc.) sincronizadas con la versión publicada para no romper consultas existentes.
+- **Trigger SQL** `sync_published_version_to_sub_store`: cuando se publica una versión, copia los campos planos del snapshot a `sub_stores`.
 
-## 5. UI nueva
+## Archivos a crear / modificar
 
-- `src/components/admin/OnboardingWizard.tsx` — modal con tabs internas (identidad/colores/APIs/importar).
-- `src/components/admin/SiteImporterSection.tsx` — sección dedicada al importador con vista previa y selección masiva.
-- Hook `useOnboardingStatus()` que detecta si hay que mostrar el wizard.
-- Entrada en `AdminSidebar.tsx` y `Admin.tsx` para `setup` e `importer`.
+**Nuevos**:
+- `supabase/migrations/<timestamp>_sub_store_versions.sql`
+- `supabase/functions/enhance-substore-copy/index.ts`
+- `supabase/functions/download-substore-assets/index.ts`
+- `src/components/admin/remix/VersionHistoryTab.tsx`
+- `src/components/admin/remix/AiEnhanceTab.tsx`
+- `src/components/admin/remix/RemixEditorTab.tsx`
+- `src/components/admin/remix/DiffField.tsx` (helper UI antes/después)
 
-## 6. Conexión Firecrawl
-
-Antes de implementar, te pediré aprobar la conexión a **Firecrawl** (conector estándar de Lovable, plan gratis 500 créditos/mes — alcanza para importar ~500 páginas). Si prefieres no usar Firecrawl, las alternativas gratuitas serias son escasas (ScrapingBee/Apify cobran rápido). Firecrawl es la mejor opción gratis + IA-ready.
-
-## Notas técnicas
-
-- El wizard usa los componentes shadcn ya existentes (Dialog, Tabs, Input, Button) y los tokens del design system Dark Mode Tech.
-- Las imágenes scrapeadas se guardan en `media/imported/{job_id}/...` para poder limpiar fácil.
-- Productos importados quedan como `is_active = false` por defecto para que el admin revise antes de publicar.
-- El conector Firecrawl es server-side: la edge function lee `FIRECRAWL_API_KEY` desde env, nunca se expone al browser.
+**Modificar**:
+- `src/components/admin/RemixBrandDialog.tsx` → contenedor con tabs + lógica de draft/publicar/restaurar.
+- `supabase/functions/firecrawl-import-theme/index.ts` → añadir `gallery_urls` y `source_html_excerpt`.
+- `src/pages/SubStorePage.tsx` → leer versión publicada vs columnas planas.
+- `src/integrations/supabase/types.ts` → autogenerado tras la migración.
