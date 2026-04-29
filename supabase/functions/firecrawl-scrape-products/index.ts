@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const FC_GATEWAY = "https://connector-gateway.lovable.dev/firecrawl";
+const FIRECRAWL_BASE = "https://api.firecrawl.dev";
 const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 const PRODUCT_TOOL = {
@@ -61,11 +61,10 @@ Deno.serve(async (req) => {
     const products: any[] = [];
     for (const url of limited) {
       try {
-        const fc = await fetch(`${FC_GATEWAY}/v2/scrape`, {
+        const fc = await fetch(`${FIRECRAWL_BASE}/v2/scrape`, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "X-Connection-Api-Key": FIRECRAWL_API_KEY,
+            Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
