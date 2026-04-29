@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Shield, ShieldCheck, ShieldOff, UserCog, UserPlus, Crown, Search, Trash2 } from 'lucide-react';
+import { Loader2, Shield, ShieldCheck, ShieldOff, UserCog, UserPlus, Crown, Search, Key } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
+import { ALL_PERMISSIONS } from '@/hooks/usePermissions';
 
 interface ManagedUser {
   id: string;
@@ -33,6 +35,49 @@ const StaffSection = () => {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('moderator');
   const [creating, setCreating] = useState(false);
+
+  const [permsUser, setPermsUser] = useState<ManagedUser | null>(null);
+  const [permsSelected, setPermsSelected] = useState<string[]>([]);
+  const [permsLoading, setPermsLoading] = useState(false);
+  const [permsSaving, setPermsSaving] = useState(false);
+
+  const openPermissions = async (u: ManagedUser) => {
+    setPermsUser(u);
+    setPermsLoading(true);
+    setPermsSelected([]);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await supabase.functions.invoke('manage-users', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+      body: { action: 'list_permissions', user_id: u.id },
+    });
+    if (!res.error && !res.data?.error) {
+      setPermsSelected(res.data?.permissions ?? []);
+    }
+    setPermsLoading(false);
+  };
+
+  const togglePerm = (key: string) => {
+    setPermsSelected(prev => prev.includes(key) ? prev.filter(p => p !== key) : [...prev, key]);
+  };
+
+  const savePermissions = async () => {
+    if (!permsUser) return;
+    setPermsSaving(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await supabase.functions.invoke('manage-users', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+      body: { action: 'set_permissions', user_id: permsUser.id, permissions: permsSelected },
+    });
+    if (res.error || res.data?.error) {
+      toast({ title: 'Error', description: res.data?.error || 'No se pudieron guardar permisos.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Permisos actualizados', description: permsUser.email });
+      setPermsUser(null);
+    }
+    setPermsSaving(false);
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -210,6 +255,11 @@ const StaffSection = () => {
                                 <SelectItem value="none">Sin Rol (Cliente)</SelectItem>
                               </SelectContent>
                             </Select>
+                            {isSuperAdmin && u.role && u.role !== 'super_admin' && (
+                              <Button size="sm" variant="outline" onClick={() => openPermissions(u)} className="gap-1">
+                                <Key className="h-3 w-3" /> Permisos
+                              </Button>
+                            )}
                             {savingId === u.id && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
                           </div>
                         </TableCell>
@@ -254,6 +304,40 @@ const StaffSection = () => {
             <Button variant="outline" onClick={() => setOpenCreate(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={creating} className="gap-2">
               {creating && <Loader2 className="h-4 w-4 animate-spin" />} Crear
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!permsUser} onOpenChange={(o) => !o && setPermsUser(null)}>
+        <DialogContent className="bg-card border-border max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <Key className="h-4 w-4 text-primary" /> Permisos de {permsUser?.email}
+            </DialogTitle>
+            <DialogDescription>
+              Selecciona las funciones que este usuario puede usar. El super admin siempre tiene acceso total.
+            </DialogDescription>
+          </DialogHeader>
+          {permsLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+          ) : (
+            <div className="grid grid-cols-1 gap-2 max-h-[50vh] overflow-y-auto py-2">
+              {ALL_PERMISSIONS.map(p => (
+                <label key={p.key} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer border border-border">
+                  <Checkbox checked={permsSelected.includes(p.key)} onCheckedChange={() => togglePerm(p.key)} />
+                  <div className="flex-1">
+                    <p className="text-sm text-foreground">{p.label}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{p.key}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPermsUser(null)}>Cancelar</Button>
+            <Button onClick={savePermissions} disabled={permsSaving} className="gap-2">
+              {permsSaving && <Loader2 className="h-4 w-4 animate-spin" />} Guardar permisos
             </Button>
           </DialogFooter>
         </DialogContent>
