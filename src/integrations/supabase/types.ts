@@ -1762,6 +1762,38 @@ export type Database = {
         }
         Relationships: []
       }
+      sub_store_staff: {
+        Row: {
+          created_at: string
+          id: string
+          role: string
+          sub_store_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: string
+          sub_store_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: string
+          sub_store_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_store_staff_sub_store_id_fkey"
+            columns: ["sub_store_id"]
+            isOneToOne: false
+            referencedRelation: "sub_stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sub_store_versions: {
         Row: {
           created_at: string
@@ -2175,6 +2207,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      has_substore_access: {
+        Args: { _store_id: string; _user_id: string }
         Returns: boolean
       }
     }
