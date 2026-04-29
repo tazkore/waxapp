@@ -373,12 +373,50 @@ const SiteImporterSection = () => {
         </Card>
       )}
 
+      {step === "store" && (
+        <Card className="border-primary/50">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Store className="h-4 w-4" /> 4. Crear sub-tienda con todo lo importado
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Se creará una marca y una sub-tienda con su propio tema, accesible en <code>/s/{storeSlug || "slug"}</code>.
+              Los <strong>{importedIds.length}</strong> productos importados quedarán asignados automáticamente.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Nombre de la tienda</Label>
+                <Input value={storeName} onChange={(e) => setStoreName(e.target.value)} placeholder="Cannesh" />
+              </div>
+              <div>
+                <Label className="text-xs">Slug (URL)</Label>
+                <Input
+                  value={storeSlug}
+                  onChange={(e) => setStoreSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
+                  placeholder="cannesh"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={createSubStore} disabled={!storeName || !storeSlug || busy !== null}>
+                {busy === "substore" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Store className="h-4 w-4 mr-2" />}
+                Crear sub-tienda
+              </Button>
+              <Button variant="ghost" onClick={() => setStep("done")}>Saltar</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {step === "done" && (
         <Card className="border-primary">
           <CardContent className="py-6 text-center space-y-3">
             <p className="font-medium">¡Importación completada!</p>
             <p className="text-sm text-muted-foreground">
               Los productos quedaron como <strong>inactivos</strong>. Revísalos en Inventario antes de publicar.
+              {storeSlug && <> La sub-tienda está disponible en <a href={`/s/${storeSlug}`} target="_blank" rel="noreferrer" className="text-primary underline">/s/{storeSlug}</a>.</>}
             </p>
             <Button variant="outline" onClick={reset}>Importar otro sitio</Button>
           </CardContent>
