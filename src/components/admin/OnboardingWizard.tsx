@@ -6,7 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Sparkles, Upload, Image as ImageIcon, Check, Globe, Palette, KeyRound, Rocket } from "lucide-react";
+
+const DISMISS_KEY = "wax_onboarding_dismissed";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
