@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { providerScrape, type Provider } from "../_shared/scrape-providers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
