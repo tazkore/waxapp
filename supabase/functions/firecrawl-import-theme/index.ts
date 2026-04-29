@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
     if (!tool) throw new Error("AI no devolvió tema");
     const theme = JSON.parse(tool.function.arguments);
 
-    // 3. Try to extract logo/favicon from html
+    // 3. Try to extract logo/favicon/og + gallery from html
     const logoMatch = html.match(/<link[^>]+rel=["'](?:icon|shortcut icon|apple-touch-icon)["'][^>]+href=["']([^"']+)["']/i);
     const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
     const absolutize = (u?: string) => {
@@ -127,10 +127,22 @@ Deno.serve(async (req) => {
       try { return new URL(u, url).toString(); } catch { return u; }
     };
 
+    // Extract top images from <img src> tags (skip 1x1 trackers + svgs already used)
+    const imgUrls = new Set<string>();
+    const imgRe = /<img[^>]+src=["']([^"']+\.(?:jpg|jpeg|png|webp|avif))(?:\?[^"']*)?["']/gi;
+    let m: RegExpExecArray | null;
+    while ((m = imgRe.exec(html)) && imgUrls.size < 10) {
+      const abs = absolutize(m[1]);
+      if (abs) imgUrls.add(abs);
+    }
+    const gallery_urls = Array.from(imgUrls).slice(0, 6);
+
     return new Response(JSON.stringify({
       ...theme,
       favicon_url: absolutize(logoMatch?.[1]) ?? null,
       og_image_url: absolutize(ogMatch?.[1]) ?? null,
+      gallery_urls,
+      source_html_excerpt: snippet.slice(0, 10000),
       source_url: url,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
