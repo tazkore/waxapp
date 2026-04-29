@@ -36,11 +36,14 @@ import SiteImporterSection from '@/components/admin/SiteImporterSection';
 import ImportedProductsPreviewSection from '@/components/admin/ImportedProductsPreviewSection';
 import ThemeImporterSection from '@/components/admin/ThemeImporterSection';
 import DomainsSection from '@/components/admin/DomainsSection';
+import SubStoreAdminPanel from '@/components/admin/SubStoreAdminPanel';
+import Copyright from '@/components/Copyright';
 import { useOnboardingStatus } from '@/hooks/useOnboardingStatus';
 import { useEffect } from 'react';
 
 const Admin = () => {
   const [active, setActive] = useState('overview');
+  const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
   const { role, loading, isAdmin } = useUserRole();
   const navigate = useNavigate();
   const { needsOnboarding, dismiss } = useOnboardingStatus();
