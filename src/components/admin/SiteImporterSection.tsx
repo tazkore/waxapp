@@ -6,8 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Globe, Wand2, Download, Palette, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+type Provider = "firecrawl" | "jina" | "scrapingbee";
 
 type Step = "url" | "mapped" | "extracted" | "done";
 
