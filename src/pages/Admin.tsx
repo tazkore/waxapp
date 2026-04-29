@@ -104,12 +104,18 @@ const Admin = () => {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        <AdminSidebar activeSection={active} onNavigate={setActive} showSettings={isAdmin} />
+        <AdminSidebar
+          activeSection={active}
+          onNavigate={setActive}
+          showSettings={isAdmin && !activeStoreId}
+          activeStoreId={activeStoreId}
+          onSelectStore={setActiveStoreId}
+        />
         <div className="flex-1 flex flex-col">
           <header className="h-14 flex items-center border-b border-border px-4 gap-3">
             <SidebarTrigger className="text-muted-foreground" />
             <span className="text-sm text-muted-foreground font-medium">
-              WAXAPP<span className="text-primary">.</span> Admin Panel
+              WAXAPP<span className="text-primary">.</span> {activeStoreId ? 'Sub-tienda' : 'Admin Panel'}
             </span>
             <Badge variant="outline" className="ml-2 text-xs capitalize border-primary/30 text-primary">
               {role}
@@ -122,7 +128,8 @@ const Admin = () => {
             </div>
           </header>
           <main className="flex-1 p-6 md:p-8 overflow-auto">
-            {renderSection()}
+            {activeStoreId ? <SubStoreAdminPanel subStoreId={activeStoreId} isAdmin={isAdmin} /> : renderSection()}
+            {!activeStoreId && <Copyright className="mt-8 pt-6 border-t border-border" />}
           </main>
         </div>
       </div>
