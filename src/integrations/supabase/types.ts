@@ -809,6 +809,54 @@ export type Database = {
         }
         Relationships: []
       }
+      import_jobs: {
+        Row: {
+          branding: Json | null
+          created_at: string
+          created_by: string | null
+          discovered_urls: Json | null
+          error: string | null
+          extracted_products: Json | null
+          id: string
+          products_extracted: number
+          products_imported: number
+          source_url: string
+          status: string
+          updated_at: string
+          urls_found: number
+        }
+        Insert: {
+          branding?: Json | null
+          created_at?: string
+          created_by?: string | null
+          discovered_urls?: Json | null
+          error?: string | null
+          extracted_products?: Json | null
+          id?: string
+          products_extracted?: number
+          products_imported?: number
+          source_url: string
+          status?: string
+          updated_at?: string
+          urls_found?: number
+        }
+        Update: {
+          branding?: Json | null
+          created_at?: string
+          created_by?: string | null
+          discovered_urls?: Json | null
+          error?: string | null
+          extracted_products?: Json | null
+          id?: string
+          products_extracted?: number
+          products_imported?: number
+          source_url?: string
+          status?: string
+          updated_at?: string
+          urls_found?: number
+        }
+        Relationships: []
+      }
       integrations: {
         Row: {
           api_docs_url: string | null
@@ -1703,6 +1751,7 @@ export type Database = {
           logo_dark_url: string | null
           logo_url: string | null
           og_image_url: string | null
+          onboarding_completed: boolean
           site_name: string
           tagline: string | null
           updated_at: string
@@ -1723,6 +1772,7 @@ export type Database = {
           logo_dark_url?: string | null
           logo_url?: string | null
           og_image_url?: string | null
+          onboarding_completed?: boolean
           site_name?: string
           tagline?: string | null
           updated_at?: string
@@ -1743,6 +1793,7 @@ export type Database = {
           logo_dark_url?: string | null
           logo_url?: string | null
           og_image_url?: string | null
+          onboarding_completed?: boolean
           site_name?: string
           tagline?: string | null
           updated_at?: string
