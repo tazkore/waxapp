@@ -6,8 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Globe, Wand2, Download, Palette, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+type Provider = "firecrawl" | "jina" | "scrapingbee";
 
 type Step = "url" | "mapped" | "extracted" | "done";
 
@@ -32,6 +35,7 @@ const SiteImporterSection = () => {
   const [products, setProducts] = useState<ExtractedProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const [branding, setBranding] = useState<any>(null);
+  const [provider, setProvider] = useState<Provider>("firecrawl");
   const { toast } = useToast();
 
   const fail = (e: any, ctx: string) => {
@@ -43,7 +47,7 @@ const SiteImporterSection = () => {
     if (!url.trim()) return;
     setBusy("map");
     try {
-      const { data, error } = await supabase.functions.invoke("firecrawl-map", { body: { url, limit: 100 } });
+      const { data, error } = await supabase.functions.invoke("firecrawl-map", { body: { url, limit: 100, provider } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setJobId(data.job_id);
@@ -65,7 +69,7 @@ const SiteImporterSection = () => {
   const fetchBranding = async () => {
     setBusy("branding");
     try {
-      const { data, error } = await supabase.functions.invoke("firecrawl-import-branding", { body: { url } });
+      const { data, error } = await supabase.functions.invoke("firecrawl-import-branding", { body: { url, provider } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setBranding(data.branding);
@@ -102,7 +106,7 @@ const SiteImporterSection = () => {
     setBusy("scrape");
     try {
       const { data, error } = await supabase.functions.invoke("firecrawl-scrape-products", {
-        body: { job_id: jobId, urls: Array.from(selectedLinks) },
+        body: { job_id: jobId, urls: Array.from(selectedLinks), provider },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -163,7 +167,15 @@ const SiteImporterSection = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Select value={provider} onValueChange={(v) => setProvider(v as Provider)} disabled={step !== "url"}>
+              <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="firecrawl">Firecrawl</SelectItem>
+                <SelectItem value="jina">Jina Reader</SelectItem>
+                <SelectItem value="scrapingbee">ScrapingBee</SelectItem>
+              </SelectContent>
+            </Select>
             <Input
               placeholder="https://mi-tienda-anterior.com"
               value={url}
@@ -177,6 +189,9 @@ const SiteImporterSection = () => {
               {busy === "branding" ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Palette className="h-4 w-4 mr-1" />Branding</>}
             </Button>
           </div>
+          <p className="text-[11px] text-muted-foreground">
+            Proveedores: Firecrawl (calidad alta), Jina Reader (gratis con rate-limit), ScrapingBee (JS rendering).
+          </p>
           {jobId && <p className="text-xs text-muted-foreground">Job: <code>{jobId.slice(0, 8)}…</code></p>}
         </CardContent>
       </Card>

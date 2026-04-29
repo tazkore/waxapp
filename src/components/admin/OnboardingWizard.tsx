@@ -6,7 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Sparkles, Upload, Image as ImageIcon, Check, Globe, Palette, KeyRound, Rocket } from "lucide-react";
+
+const DISMISS_KEY = "wax_onboarding_dismissed";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -22,6 +25,7 @@ const OnboardingWizard = ({ open, onClose, onJumpToImporter }: Props) => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [data, setData] = useState<any>({});
+  const [dontShowAgain, setDontShowAgain] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -227,9 +231,28 @@ const OnboardingWizard = ({ open, onClose, onJumpToImporter }: Props) => {
           </Tabs>
         )}
 
-        <div className="flex justify-between gap-2 pt-4 border-t border-border">
-          <Button variant="ghost" onClick={onClose} disabled={saving}>Cerrar</Button>
+        <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-border">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="dont-show"
+              checked={dontShowAgain}
+              onCheckedChange={(v) => setDontShowAgain(!!v)}
+            />
+            <Label htmlFor="dont-show" className="text-xs text-muted-foreground cursor-pointer">
+              No volver a mostrar al iniciar
+            </Label>
+          </div>
           <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                if (dontShowAgain) localStorage.setItem(DISMISS_KEY, "1");
+                onClose();
+              }}
+              disabled={saving}
+            >
+              Cerrar
+            </Button>
             {tab !== "import" && (
               <Button
                 variant="outline"
@@ -241,7 +264,13 @@ const OnboardingWizard = ({ open, onClose, onJumpToImporter }: Props) => {
                 Siguiente
               </Button>
             )}
-            <Button onClick={finish} disabled={saving}>
+            <Button
+              onClick={async () => {
+                if (dontShowAgain) localStorage.setItem(DISMISS_KEY, "1");
+                await finish();
+              }}
+              disabled={saving}
+            >
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Finalizar setup
             </Button>

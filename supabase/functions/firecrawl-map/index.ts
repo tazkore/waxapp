@@ -1,19 +1,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { providerMap, type Provider } from "../_shared/scrape-providers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const FIRECRAWL_BASE = "https://api.firecrawl.dev";
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
-    if (!FIRECRAWL_API_KEY) throw new Error("FIRECRAWL_API_KEY missing");
-
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const auth = req.headers.get("Authorization") ?? "";
@@ -28,7 +24,7 @@ Deno.serve(async (req) => {
     const isSuper = roles?.some((r: any) => r.role === "super_admin");
     if (!isSuper) return new Response(JSON.stringify({ error: "Forbidden: super_admin required" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const { url, search, limit = 50 } = await req.json();
+    const { url, limit = 50, provider = "firecrawl" } = await req.json();
     if (!url) throw new Error("url required");
 
     const { data: job, error: jerr } = await admin
@@ -38,27 +34,20 @@ Deno.serve(async (req) => {
       .single();
     if (jerr) throw jerr;
 
-    const fcRes = await fetch(`${FIRECRAWL_BASE}/v2/map`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ url, search, limit, includeSubdomains: false }),
-    });
-    const data = await fcRes.json();
-    if (!fcRes.ok) {
-      await admin.from("import_jobs").update({ status: "failed", error: JSON.stringify(data) }).eq("id", job.id);
-      throw new Error(`Firecrawl map failed [${fcRes.status}]: ${JSON.stringify(data)}`);
+    let links: string[] = [];
+    try {
+      links = await providerMap(provider as Provider, url, limit);
+    } catch (err) {
+      await admin.from("import_jobs").update({ status: "failed", error: String(err) }).eq("id", job.id);
+      throw err;
     }
 
-    const links: string[] = data.links || data.data?.links || [];
     await admin
       .from("import_jobs")
       .update({ status: "pending", urls_found: links.length, discovered_urls: links })
       .eq("id", job.id);
 
-    return new Response(JSON.stringify({ job_id: job.id, links }), {
+    return new Response(JSON.stringify({ job_id: job.id, links, provider }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

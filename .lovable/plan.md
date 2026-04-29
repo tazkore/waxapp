@@ -1,102 +1,134 @@
-## Resumen
+## Objetivo
 
-Mejorar el flujo Remix de sub-tiendas para que cada cambio quede en **borrador con historial de versiones** (no se publica al instante), permita **revertir a la plantilla original**, **mejore con IA** la copia (textos, hero, tagline) tomando como base el sitio importado, y **descargue las imágenes** (logo, favicon, OG, hero) a Storage para no depender de la web original que será eliminada.
+1. **Wizard de Onboarding**: añadir checkbox "No volver a mostrar en inicio" para descartar permanentemente.
+2. **Sección "Dominios"**: nueva sección admin separada de Marcas, donde un dominio (ej. `cannesh.com`, `neshika.com`) es una entidad propia que se puede vincular a una marca y a una sub-tienda.
+3. **Scraping aplicable a dominio + marca**: el importador puede dirigirse a un dominio registrado y crear/actualizar la marca y la sub-tienda asociada.
+4. **Multi-proveedor de scraping**: además de Firecrawl, ofrecer **Jina AI Reader** y **ScrapingBee** como alternativas seleccionables.
+5. **Verificar conectores**: agregar un botón "Probar todos" en `EnvironmentConnectionsSection` que valide credenciales (Firecrawl, Resend, Clip, Lovable AI, Amazon, Jina, ScrapingBee).
 
-## Cambios de base de datos
+---
 
-**Nueva tabla `sub_store_versions`** (snapshots completos):
-- `id`, `sub_store_id` (FK), `version_number` (int autoincremental por tienda)
-- `label` (ej. "Inicial desde firecrawl", "Mejora IA", "Manual")
-- `source` enum: `original_template` | `ai_improved` | `manual_edit` | `imported`
-- `snapshot` jsonb (todo el estado: colores, fuentes, copy, urls de assets locales)
-- `created_by`, `created_at`, `is_published` bool, `notes` text
-- RLS: super_admin/admin gestionan; público no lee.
+## Cambios
 
-**Cambios en `sub_stores`**:
-- `draft_snapshot jsonb` — borrador en edición (no visible al público).
-- `published_version_id uuid` — FK a la versión actualmente publicada en `/s/:slug`.
-- `original_version_id uuid` — FK a la versión "plantilla original" (la primera del Remix, inmutable).
+### 1. Wizard – "No volver a mostrar"
 
-`SubStorePage.tsx` siempre renderiza la versión publicada (no el draft).
+**Archivo**: `src/components/admin/OnboardingWizard.tsx`
+- Añadir Checkbox en el footer: "No volver a mostrar al iniciar".
+- Al cerrar con la opción activa: guardar `localStorage.setItem('wax_onboarding_dismissed', '1')` **y** marcar `theme_settings.onboarding_completed = true` (sin requerir terminar todos los pasos).
 
-## Edge functions
+**Archivo**: `src/hooks/useOnboardingStatus.ts`
+- Antes del fetch, leer `localStorage.getItem('wax_onboarding_dismissed')`. Si está activo → `needsOnboarding = false`.
+- Exponer `resetDismiss()` para que el botón "Setup Inicial" del sidebar pueda reabrirlo manualmente.
 
-**Nueva `enhance-substore-copy`** (Lovable AI Gateway, Gemini 2.5 Flash):
-- Input: snapshot actual + `source_html_excerpt` (guardado en draft).
-- Tool-call `improve_copy` que devuelve: `tagline`, `hero_headline`, `hero_subtitle`, `description`, `seo_meta_title`, `seo_meta_description`, micro-copy de secciones.
-- Reglas: tono Dark Mode Tech, español MX, no inventar productos, mantener nombre de marca.
+### 2. Tabla `domains` y sección "Dominios"
 
-**Nueva `download-substore-assets`**:
-- Recibe `sub_store_id` + lista de URLs externas (logo, favicon, og, hero, gallery).
-- Descarga con `fetch`, valida content-type imagen, sube a bucket `media` en `sub-stores/{slug}/{tipo}-{hash}.{ext}`.
-- Devuelve URLs públicas y actualiza el draft. Maneja CORS / 404 con fallback al placeholder.
-
-**Modificar `firecrawl-import-theme`**:
-- Además de paleta/fuentes, devuelve `gallery_urls` (top 6 imágenes del hero/banners detectadas en el HTML) y guarda un `source_html_excerpt` (5–10 KB) en el draft para futuros enhancements IA.
-
-## UI: `RemixBrandDialog` rediseñado en pestañas
-
-```text
-┌─────────────────────────────────────────┐
-│ Remix: <marca>     [Borrador no publicado] │
-├─────────────────────────────────────────┤
-│ [Editor] [Mejorar con IA] [Historial]   │
-├─────────────────────────────────────────┤
-│ ...contenido según pestaña...           │
-├─────────────────────────────────────────┤
-│ [Restaurar original] [Guardar borrador] │
-│           [Publicar versión]            │
-└─────────────────────────────────────────┘
+**Migración nueva** `domains`:
+```sql
+create table public.domains (
+  id uuid primary key default gen_random_uuid(),
+  hostname text not null unique,        -- "cannesh.com"
+  display_name text,
+  brand_id uuid references public.brands(id) on delete set null,
+  sub_store_id uuid references public.sub_stores(id) on delete set null,
+  status text default 'pending',        -- pending | verified | active | offline
+  ssl_status text default 'pending',
+  is_primary boolean default false,
+  notes text,
+  last_scraped_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+alter table public.domains enable row level security;
+create policy "admins manage domains" on public.domains
+  for all to authenticated
+  using (public.has_role(auth.uid(),'admin') or public.has_role(auth.uid(),'super_admin'))
+  with check (public.has_role(auth.uid(),'admin') or public.has_role(auth.uid(),'super_admin'));
+create policy "anyone reads active domains" on public.domains
+  for select using (status = 'active');
 ```
+RLS estricto: solo admins escriben.
 
-**Pestaña Editor**: campos actuales (colores, fuentes, hero) escribiendo en `draft_snapshot`. Muestra preview en vivo y badge "Borrador con cambios sin publicar".
+**Componente nuevo** `src/components/admin/DomainsSection.tsx`:
+- Listado tipo cards: hostname, marca asociada, sub-tienda asociada, estado, último scrape.
+- CRUD con dialog (hostname, marca, sub-tienda, notas).
+- Botón **"Importar desde este dominio"** que abre el flujo de scraping pre-rellenando la URL y vinculando los resultados a la marca/sub-tienda.
+- Botón **"Configurar DNS"** que abre la guía oficial de Lovable (link, no DNS real).
 
-**Pestaña Mejorar con IA**:
-- Botón "Mejorar copy con IA" → llama `enhance-substore-copy`, muestra diff lado-a-lado (antes/después por campo) con checkboxes para aceptar campo por campo.
-- Botón "Importar imágenes a almacenamiento" → llama `download-substore-assets`, muestra grid con miniaturas y permite elegir cuáles aplicar (logo / favicon / og / hero).
-- Aviso: "Recomendado antes de eliminar la web original".
+**Sidebar**: añadir entrada `{ title: 'Dominios', icon: Globe, key: 'domains', adminOnly: true }` antes de "Marcas".
+**Admin.tsx**: importar `DomainsSection` y registrar `case 'domains'`.
 
-**Pestaña Historial**:
-- Lista vertical de `sub_store_versions` (más reciente arriba), con badges: `Original` / `IA` / `Manual` / `Publicada`.
-- Cada fila: fecha, autor, label, acciones: `Ver preview`, `Restaurar como borrador`, `Publicar esta versión`.
-- La versión `original_version_id` siempre tiene botón destacado **"Volver a plantilla original"**.
+### 3. Marcas independientes del scraping
 
-**Acciones del footer**:
-- `Guardar borrador`: actualiza `draft_snapshot` (no crea versión).
-- `Publicar versión`: crea nuevo registro en `sub_store_versions` con el draft, lo marca `is_published=true`, actualiza `sub_stores.published_version_id`, copia campos al row de `sub_stores` para compatibilidad con `SubStorePage`.
-- `Restaurar original`: copia `snapshot` de `original_version_id` al `draft_snapshot` (no publica hasta confirmar).
+- En `BrandsSection` simplificar el Remix: queda solo como "duplicar tema". El scraping se mueve al flujo Dominios → Importar.
+- `RemixBrandDialog` recibe opcionalmente un `domainId` para asociar la sub-tienda creada al dominio.
 
-## Flujo end-to-end
+### 4. Scraping multi-proveedor
 
-1. Usuario abre Remix de "Cannesh" → si no existe sub-tienda, importa con Firecrawl + AI; al crear se guarda **versión #1 `original_template`** + se publica esa misma versión.
-2. Usuario edita colores → queda en `draft_snapshot`. La URL pública sigue mostrando la #1.
-3. Usuario presiona **"Mejorar con IA"** → revisa diffs, acepta los que quiera → draft actualizado.
-4. Usuario presiona **"Importar imágenes"** → assets quedan en bucket `media`; URLs externas reemplazadas en draft.
-5. Usuario presiona **"Publicar"** → se crea versión #2, se marca como publicada, sitio público actualizado.
-6. En cualquier momento puede ir a Historial → **"Volver a plantilla original"** para regresar a la #1.
+**Selector de proveedor** en `SiteImporterSection.tsx` y `ThemeImporterSection.tsx`:
+```
+[Firecrawl ▼] [Jina Reader] [ScrapingBee]
+```
+El componente envía `provider` en el body de la edge function.
+
+**Edge functions** (modificar):
+- `firecrawl-map`, `firecrawl-scrape-products`, `firecrawl-import-branding`, `firecrawl-import-theme`
+- Añadir parámetro `provider: 'firecrawl' | 'jina' | 'scrapingbee'` (default firecrawl).
+- Implementar fetcher unificado:
+  - **Jina**: `GET https://r.jina.ai/{url}` con header `Authorization: Bearer ${JINA_API_KEY}` (opcional, funciona sin key con rate limit).
+  - **ScrapingBee**: `GET https://app.scrapingbee.com/api/v1/?api_key=${SCRAPINGBEE_API_KEY}&url={url}&render_js=true`.
+- Para **map** sin Firecrawl: usar el HTML scrapeado y extraer `<a href>` con un regex/cheerio-like (regex simple `/href=["']([^"']+)["']/g`) y filtrar mismo dominio.
+- Para **branding/theme**: extraer `og:`, `theme-color`, `<link rel=icon>`, fuentes Google Fonts del HTML; luego pasar a Lovable AI Gateway (Gemini 2.5 Flash) para inferir colores HSL y tagline (ya existente).
+
+**Secrets nuevos**: pedir al usuario `JINA_API_KEY` (opcional) y `SCRAPINGBEE_API_KEY` con `add_secret` solo si elige esos proveedores. Mostrar aviso en la UI antes de invocar.
+
+### 5. Verificar conectores
+
+**`EnvironmentConnectionsSection.tsx`**: agregar botón "Probar todos los conectores" que invoca una nueva edge function `check-connectors` y muestra una tabla con: Firecrawl, Resend, Clip, Lovable AI, Amazon SP-API, Jina, ScrapingBee → estado (✓/✗) + latencia + mensaje.
+
+**Edge function nueva** `supabase/functions/check-connectors/index.ts`:
+- Por cada proveedor: lee el secret correspondiente, hace una llamada ligera (ej. Firecrawl `/v2/credit/usage`, Resend `/domains`, ScrapingBee `/usage`, Jina `r.jina.ai/https://example.com`).
+- Devuelve `[{name, ok, latency_ms, error?}]`.
+
+---
 
 ## Detalles técnicos clave
 
-- **Idempotencia descarga assets**: hash SHA-1 de la URL como nombre de archivo para evitar duplicados en re-imports.
-- **Tamaño límite por imagen**: 5 MB; descartar si excede o si content-type ≠ image/*.
-- **Snapshot completo**: incluye TODOS los campos editables + `assets_map` (url externa → url interna) para auditoría.
-- **`SubStorePage.tsx`**: lee `published_version_id` y aplica el snapshot publicado (sin tocar draft).
-- **Migración compatible**: se mantienen las columnas planas existentes (color_primary, etc.) sincronizadas con la versión publicada para no romper consultas existentes.
-- **Trigger SQL** `sync_published_version_to_sub_store`: cuando se publica una versión, copia los campos planos del snapshot a `sub_stores`.
+```text
+┌────────────────────┐         ┌──────────────────┐
+│  DomainsSection    │ ──────▶ │  domains table    │
+│  (CRUD + Importar) │         │  brand_id, sub_id │
+└────────┬───────────┘         └──────────────────┘
+         │ "Importar"
+         ▼
+┌─────────────────────────────────────────────────┐
+│  SiteImporter (provider: firecrawl|jina|bee)    │
+│  ─▶ edge fn ─▶ provider API ─▶ HTML/links      │
+│            ─▶ Lovable AI (Gemini) ─▶ branding  │
+└─────────────────────────────────────────────────┘
+```
 
-## Archivos a crear / modificar
+## Archivos afectados
 
-**Nuevos**:
-- `supabase/migrations/<timestamp>_sub_store_versions.sql`
-- `supabase/functions/enhance-substore-copy/index.ts`
-- `supabase/functions/download-substore-assets/index.ts`
-- `src/components/admin/remix/VersionHistoryTab.tsx`
-- `src/components/admin/remix/AiEnhanceTab.tsx`
-- `src/components/admin/remix/RemixEditorTab.tsx`
-- `src/components/admin/remix/DiffField.tsx` (helper UI antes/después)
+| Tipo | Ruta |
+|---|---|
+| nuevo | `supabase/migrations/<ts>_domains.sql` |
+| nuevo | `src/components/admin/DomainsSection.tsx` |
+| nuevo | `supabase/functions/check-connectors/index.ts` |
+| editar | `src/components/admin/OnboardingWizard.tsx` (checkbox no mostrar) |
+| editar | `src/hooks/useOnboardingStatus.ts` (localStorage) |
+| editar | `src/components/admin/AdminSidebar.tsx` (item Dominios) |
+| editar | `src/pages/Admin.tsx` (case `domains`) |
+| editar | `src/components/admin/SiteImporterSection.tsx` (selector proveedor + domainId) |
+| editar | `src/components/admin/ThemeImporterSection.tsx` (selector proveedor) |
+| editar | `src/components/admin/EnvironmentConnectionsSection.tsx` (botón probar todos) |
+| editar | `src/components/admin/RemixBrandDialog.tsx` (acepta `domainId`) |
+| editar | `supabase/functions/firecrawl-map/index.ts` (multi-provider) |
+| editar | `supabase/functions/firecrawl-scrape-products/index.ts` (multi-provider) |
+| editar | `supabase/functions/firecrawl-import-branding/index.ts` (multi-provider) |
+| editar | `supabase/functions/firecrawl-import-theme/index.ts` (multi-provider) |
 
-**Modificar**:
-- `src/components/admin/RemixBrandDialog.tsx` → contenedor con tabs + lógica de draft/publicar/restaurar.
-- `supabase/functions/firecrawl-import-theme/index.ts` → añadir `gallery_urls` y `source_html_excerpt`.
-- `src/pages/SubStorePage.tsx` → leer versión publicada vs columnas planas.
-- `src/integrations/supabase/types.ts` → autogenerado tras la migración.
+## Notas
+
+- **No** se cambia el nombre de las funciones `firecrawl-*` para no romper invocaciones; internamente despachan al proveedor elegido.
+- Los secrets `JINA_API_KEY` y `SCRAPINGBEE_API_KEY` se pedirán solo cuando el usuario elija esos proveedores por primera vez (con `add_secret`).
+- La sección Dominios **no** maneja DNS real (eso vive en Project Settings → Domains de Lovable); solo registra y vincula con marcas/sub-tiendas para el scraping.

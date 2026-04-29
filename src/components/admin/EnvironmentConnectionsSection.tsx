@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Network, Plus, Pencil, Trash2, ShieldAlert, PlugZap, Loader2, Lock } from "lucide-react";
+import { Network, Plus, Pencil, Trash2, ShieldAlert, PlugZap, Loader2, Lock, CheckCircle2, XCircle } from "lucide-react";
 
 type EnvConnection = {
   id: string;
@@ -44,6 +44,22 @@ const EnvironmentConnectionsSection = () => {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<EnvConnection> | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
+  const [allChecks, setAllChecks] = useState<Array<{ name: string; ok: boolean; latency_ms: number; error?: string; configured: boolean }> | null>(null);
+  const [checkingAll, setCheckingAll] = useState(false);
+
+  const runAllChecks = async () => {
+    setCheckingAll(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("check-connectors", { body: {} });
+      if (error) throw error;
+      setAllChecks(data?.checks ?? []);
+      toast.success("Verificación completada");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Error al verificar");
+    } finally {
+      setCheckingAll(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -203,6 +219,48 @@ const EnvironmentConnectionsSection = () => {
             <strong>API & Conexiones</strong> o el panel de secrets del backend.
           </div>
         </CardContent>
+      </Card>
+
+      <Card className="border-primary/20">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <PlugZap className="h-5 w-5 text-primary" /> Verificar conectores
+              </CardTitle>
+              <CardDescription>
+                Prueba todos los proveedores configurados (Firecrawl, Resend, Clip, Lovable AI, Amazon, Jina, ScrapingBee).
+              </CardDescription>
+            </div>
+            <Button onClick={runAllChecks} disabled={checkingAll}>
+              {checkingAll ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PlugZap className="h-4 w-4 mr-2" />}
+              Probar todos
+            </Button>
+          </div>
+        </CardHeader>
+        {allChecks && (
+          <CardContent>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {allChecks.map((c) => (
+                <div key={c.name} className="flex items-center justify-between gap-2 p-3 rounded border border-border bg-muted/30">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {c.ok ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-destructive shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{c.name}</p>
+                      {!c.configured && <p className="text-[10px] text-muted-foreground">No configurado</p>}
+                      {c.error && <p className="text-[10px] text-destructive truncate">{c.error}</p>}
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] shrink-0">{c.latency_ms}ms</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       {loading ? (

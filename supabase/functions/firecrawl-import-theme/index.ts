@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { providerScrape, type Provider } from "../_shared/scrape-providers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,34 +36,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { url } = await req.json();
+    const { url, provider = "firecrawl" } = await req.json();
     if (!url || typeof url !== "string") {
       return new Response(JSON.stringify({ error: "url required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!FIRECRAWL_API_KEY || !LOVABLE_API_KEY) throw new Error("Missing API keys");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
 
-    // 1. Scrape page (markdown + html)
-    const fcResp = await fetch("https://api.firecrawl.dev/v1/scrape", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ url, formats: ["markdown", "html"], onlyMainContent: false }),
-    });
-    if (!fcResp.ok) {
-      const t = await fcResp.text();
-      console.error("firecrawl err", fcResp.status, t);
-      return new Response(JSON.stringify({ error: "Scraping falló" }), {
+    // 1. Scrape page using selected provider
+    let scraped;
+    try {
+      scraped = await providerScrape(provider as Provider, url);
+    } catch (e) {
+      console.error("scrape err", e);
+      return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Scraping falló" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const fcJson = await fcResp.json();
-    const html: string = fcJson?.data?.html ?? "";
-    const md: string = fcJson?.data?.markdown ?? "";
-    const meta = fcJson?.data?.metadata ?? {};
+    const html: string = scraped.html ?? "";
+    const md: string = scraped.markdown ?? "";
+    const meta: any = scraped.metadata ?? {};
 
     // Snapshot HTML to extract obvious assets
     const snippet = (html || md).slice(0, 30000);

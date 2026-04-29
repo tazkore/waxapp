@@ -1,4 +1,4 @@
-import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound, Network, UserCog, Shield, Sparkles, Wand2, Eye } from 'lucide-react';
+import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound, Network, UserCog, Shield, Sparkles, Wand2, Eye, Globe } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -19,7 +19,8 @@ const allNavItems = [
   { title: 'Marketing', icon: Tag, key: 'marketing' },
   { title: 'Pagos', icon: CreditCard, key: 'payments' },
   { title: 'Multimedia', icon: ImageIcon, key: 'media' },
-  { title: 'Marcas', icon: Bookmark, key: 'brands' },
+ { title: 'Dominios', icon: Globe, key: 'domains', adminOnly: true },
+ { title: 'Marcas', icon: Bookmark, key: 'brands' },
   { title: 'Banners Home', icon: Megaphone, key: 'banners' },
   { title: 'Blog', icon: Newspaper, key: 'blog' },
   { title: 'Centro de Operaciones', icon: ClipboardList, key: 'operations' },

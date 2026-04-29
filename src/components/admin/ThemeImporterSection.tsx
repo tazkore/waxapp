@@ -3,15 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Wand2, Check, Globe, Palette } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+type Provider = "firecrawl" | "jina" | "scrapingbee";
 
 const ThemeImporterSection = () => {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [theme, setTheme] = useState<any>(null);
+  const [provider, setProvider] = useState<Provider>("firecrawl");
 
   const analyze = async () => {
     if (!url.trim()) { toast.error("Ingresa una URL"); return; }
@@ -19,7 +23,7 @@ const ThemeImporterSection = () => {
     setTheme(null);
     try {
       const { data, error } = await supabase.functions.invoke("firecrawl-import-theme", {
-        body: { url: url.trim() },
+        body: { url: url.trim(), provider },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -100,7 +104,15 @@ const ThemeImporterSection = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Select value={provider} onValueChange={(v) => setProvider(v as Provider)} disabled={loading}>
+              <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="firecrawl">Firecrawl</SelectItem>
+                <SelectItem value="jina">Jina Reader</SelectItem>
+                <SelectItem value="scrapingbee">ScrapingBee</SelectItem>
+              </SelectContent>
+            </Select>
             <Input
               placeholder="https://miempresa.com"
               value={url}
@@ -112,7 +124,7 @@ const ThemeImporterSection = () => {
               Analizar
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">Tarda ~10-20s. Usa Firecrawl + Lovable AI.</p>
+          <p className="text-xs text-muted-foreground">Tarda ~10-20s. Combina el proveedor de scraping con Lovable AI.</p>
         </CardContent>
       </Card>
 
