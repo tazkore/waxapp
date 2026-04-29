@@ -75,6 +75,7 @@ const Admin = () => {
       case 'payments': return <PaymentsSection />;
       case 'media': return <MediaSection />;
       case 'brands': return <BrandsSection />;
+      case 'domains': return isAdmin ? <DomainsSection /> : <OverviewSection onNavigate={setActive} />;
       case 'banners': return <BannersSection />;
       case 'blog': return <BlogSection />;
       case 'operations': return <OperationsSection />;
