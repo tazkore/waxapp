@@ -255,6 +255,11 @@ const StaffSection = () => {
                                 <SelectItem value="none">Sin Rol (Cliente)</SelectItem>
                               </SelectContent>
                             </Select>
+                            {isSuperAdmin && u.role && u.role !== 'super_admin' && (
+                              <Button size="sm" variant="outline" onClick={() => openPermissions(u)} className="gap-1">
+                                <Key className="h-3 w-3" /> Permisos
+                              </Button>
+                            )}
                             {savingId === u.id && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
                           </div>
                         </TableCell>
@@ -299,6 +304,40 @@ const StaffSection = () => {
             <Button variant="outline" onClick={() => setOpenCreate(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={creating} className="gap-2">
               {creating && <Loader2 className="h-4 w-4 animate-spin" />} Crear
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!permsUser} onOpenChange={(o) => !o && setPermsUser(null)}>
+        <DialogContent className="bg-card border-border max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <Key className="h-4 w-4 text-primary" /> Permisos de {permsUser?.email}
+            </DialogTitle>
+            <DialogDescription>
+              Selecciona las funciones que este usuario puede usar. El super admin siempre tiene acceso total.
+            </DialogDescription>
+          </DialogHeader>
+          {permsLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+          ) : (
+            <div className="grid grid-cols-1 gap-2 max-h-[50vh] overflow-y-auto py-2">
+              {ALL_PERMISSIONS.map(p => (
+                <label key={p.key} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer border border-border">
+                  <Checkbox checked={permsSelected.includes(p.key)} onCheckedChange={() => togglePerm(p.key)} />
+                  <div className="flex-1">
+                    <p className="text-sm text-foreground">{p.label}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{p.key}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPermsUser(null)}>Cancelar</Button>
+            <Button onClick={savePermissions} disabled={permsSaving} className="gap-2">
+              {permsSaving && <Loader2 className="h-4 w-4 animate-spin" />} Guardar permisos
             </Button>
           </DialogFooter>
         </DialogContent>
