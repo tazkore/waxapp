@@ -70,7 +70,9 @@ export async function providerMap(
     });
     const j = await r.json();
     if (!r.ok) throw new Error(`Firecrawl map [${r.status}]: ${JSON.stringify(j)}`);
-    return j.links || j.data?.links || [];
+    const raw = j.links || j.data?.links || [];
+    // Firecrawl v2 returns array of { url, title, description } objects; older returned strings.
+    return raw.map((x: any) => (typeof x === "string" ? x : x?.url)).filter(Boolean);
   }
 
   // For Jina / ScrapingBee: scrape root + extract <a href> with same hostname
