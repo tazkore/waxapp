@@ -34,6 +34,7 @@ import AccessAuditSection from '@/components/admin/AccessAuditSection';
 import OnboardingWizard from '@/components/admin/OnboardingWizard';
 import SiteImporterSection from '@/components/admin/SiteImporterSection';
 import ImportedProductsPreviewSection from '@/components/admin/ImportedProductsPreviewSection';
+import ThemeImporterSection from '@/components/admin/ThemeImporterSection';
 import { useOnboardingStatus } from '@/hooks/useOnboardingStatus';
 import { useEffect } from 'react';
 
@@ -89,6 +90,7 @@ const Admin = () => {
       case 'setup': return isAdmin ? <div className="text-center py-12"><Button onClick={() => setWizardOpen(true)}>Abrir Setup Inicial</Button></div> : <OverviewSection onNavigate={setActive} />;
       case 'importer': return isAdmin ? <SiteImporterSection /> : <OverviewSection onNavigate={setActive} />;
       case 'imported-preview': return isAdmin ? <ImportedProductsPreviewSection /> : <OverviewSection onNavigate={setActive} />;
+      case 'theme-importer': return isAdmin ? <ThemeImporterSection /> : <OverviewSection onNavigate={setActive} />;
       case 'settings': return isAdmin ? <SettingsSection /> : <OverviewSection onNavigate={setActive} />;
       default: return <OverviewSection onNavigate={setActive} />;
     }

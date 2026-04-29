@@ -32,6 +32,7 @@ const allNavItems = [
     { title: 'Setup Inicial', icon: Sparkles, key: 'setup', adminOnly: true },
     { title: 'Importar Sitio', icon: Wand2, key: 'importer', adminOnly: true },
     { title: 'Previsualizar Importados', icon: Eye, key: 'imported-preview', adminOnly: true },
+    { title: 'Importar Tema (IA)', icon: Palette, key: 'theme-importer', adminOnly: true },
     { title: 'Staff & Usuarios', icon: UserCog, key: 'staff', adminOnly: true },
     { title: 'API & Conexiones', icon: KeyRound, key: 'api-keys', adminOnly: true },
     { title: 'Conexiones de Entorno', icon: Network, key: 'env-connections', adminOnly: true },
