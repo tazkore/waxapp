@@ -30,11 +30,17 @@ Deno.serve(async (req) => {
     }
     const userId = userData.user.id;
 
-    // Verify role
+    // Verify role/permission: super_admin always passes, otherwise admin/moderator OR has blog.generate_ai permission
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const rolesList = (roles ?? []).map((r: any) => r.role);
-    if (!rolesList.includes("admin") && !rolesList.includes("moderator") && !rolesList.includes("super_admin")) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
+    const isSuperAdmin = rolesList.includes("super_admin");
+    let allowed = isSuperAdmin || rolesList.includes("admin") || rolesList.includes("moderator");
+    if (!allowed) {
+      const { data: perm } = await supabase.from("user_permissions").select("permission_key").eq("user_id", userId).eq("permission_key", "blog.generate_ai").maybeSingle();
+      allowed = !!perm;
+    }
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: "No tienes permiso para generar contenido con IA. Pide al super admin que te asigne 'blog.generate_ai'." }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
