@@ -35,6 +35,7 @@ const SiteImporterSection = () => {
   const [products, setProducts] = useState<ExtractedProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const [branding, setBranding] = useState<any>(null);
+  const [provider, setProvider] = useState<Provider>("firecrawl");
   const { toast } = useToast();
 
   const fail = (e: any, ctx: string) => {
