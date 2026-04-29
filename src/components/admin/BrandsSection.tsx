@@ -7,9 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Loader2, Tag } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Tag, GitBranch, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import ImageField from './ImageField';
+import RemixBrandDialog from './RemixBrandDialog';
 
 interface Brand {
   id: string;
@@ -34,6 +35,22 @@ const BrandsSection = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
+  const [remixOpen, setRemixOpen] = useState(false);
+  const [remixBrand, setRemixBrand] = useState<Brand | null>(null);
+  const [subStores, setSubStores] = useState<Record<string, { id: string; slug: string; name: string }[]>>({});
+
+  const loadSubStores = async () => {
+    const { data } = await (supabase as any).from('sub_stores').select('id,slug,name,brand_id');
+    const grouped: Record<string, any[]> = {};
+    (data ?? []).forEach((s: any) => {
+      if (!s.brand_id) return;
+      grouped[s.brand_id] = grouped[s.brand_id] || [];
+      grouped[s.brand_id].push(s);
+    });
+    setSubStores(grouped);
+  };
+
+  useEffect(() => { loadSubStores(); }, []);
 
   const load = async () => {
     setLoading(true);
@@ -121,7 +138,20 @@ const BrandsSection = () => {
                   {b.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{b.description}</p>}
                 </div>
               </div>
+              {subStores[b.id]?.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-border space-y-1">
+                  <p className="text-[10px] uppercase text-muted-foreground font-semibold">Sub-tiendas remixadas</p>
+                  {subStores[b.id].map((s) => (
+                    <a key={s.id} href={`/s/${s.slug}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">
+                      <ExternalLink className="h-3 w-3" /> /s/{s.slug}
+                    </a>
+                  ))}
+                </div>
+              )}
               <div className="flex justify-end gap-1 mt-3 pt-3 border-t border-border">
+                <Button size="sm" variant="outline" onClick={() => { setRemixBrand(b); setRemixOpen(true); }} className="h-8 gap-1 text-xs">
+                  <GitBranch className="h-3 w-3" /> Remix
+                </Button>
                 <Button size="sm" variant="ghost" onClick={() => openEdit(b)} className="h-8 gap-1 text-xs"><Pencil className="h-3 w-3" /> Editar</Button>
                 <Button size="sm" variant="ghost" onClick={() => remove(b.id)} className="h-8 gap-1 text-xs text-destructive hover:text-destructive"><Trash2 className="h-3 w-3" /></Button>
               </div>
@@ -175,6 +205,13 @@ const BrandsSection = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <RemixBrandDialog
+        open={remixOpen}
+        onClose={() => setRemixOpen(false)}
+        brand={remixBrand}
+        onCreated={loadSubStores}
+      />
     </div>
   );
 };

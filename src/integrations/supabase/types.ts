@@ -1375,6 +1375,7 @@ export type Database = {
           sku: string | null
           slug: string | null
           stock: number
+          sub_store_id: string | null
           updated_at: string
           warehouse_id: string | null
         }
@@ -1394,6 +1395,7 @@ export type Database = {
           sku?: string | null
           slug?: string | null
           stock?: number
+          sub_store_id?: string | null
           updated_at?: string
           warehouse_id?: string | null
         }
@@ -1413,10 +1415,18 @@ export type Database = {
           sku?: string | null
           slug?: string | null
           stock?: number
+          sub_store_id?: string | null
           updated_at?: string
           warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "products_sub_store_id_fkey"
+            columns: ["sub_store_id"]
+            isOneToOne: false
+            referencedRelation: "sub_stores"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_warehouse_id_fkey"
             columns: ["warehouse_id"]
@@ -1691,6 +1701,95 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      sub_stores: {
+        Row: {
+          brand_id: string | null
+          color_accent: string | null
+          color_background: string | null
+          color_foreground: string | null
+          color_primary: string | null
+          color_secondary: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          favicon_url: string | null
+          font_body: string | null
+          font_heading: string | null
+          hero_headline: string | null
+          hero_image_url: string | null
+          hero_subtitle: string | null
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+          og_image_url: string | null
+          slug: string
+          source_template: string | null
+          tagline: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id?: string | null
+          color_accent?: string | null
+          color_background?: string | null
+          color_foreground?: string | null
+          color_primary?: string | null
+          color_secondary?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          favicon_url?: string | null
+          font_body?: string | null
+          font_heading?: string | null
+          hero_headline?: string | null
+          hero_image_url?: string | null
+          hero_subtitle?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name: string
+          og_image_url?: string | null
+          slug: string
+          source_template?: string | null
+          tagline?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string | null
+          color_accent?: string | null
+          color_background?: string | null
+          color_foreground?: string | null
+          color_primary?: string | null
+          color_secondary?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          favicon_url?: string | null
+          font_body?: string | null
+          font_heading?: string | null
+          hero_headline?: string | null
+          hero_image_url?: string | null
+          hero_subtitle?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          og_image_url?: string | null
+          slug?: string
+          source_template?: string | null
+          tagline?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_stores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppliers: {
         Row: {
