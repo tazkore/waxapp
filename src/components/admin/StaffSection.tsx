@@ -36,6 +36,49 @@ const StaffSection = () => {
   const [role, setRole] = useState('moderator');
   const [creating, setCreating] = useState(false);
 
+  const [permsUser, setPermsUser] = useState<ManagedUser | null>(null);
+  const [permsSelected, setPermsSelected] = useState<string[]>([]);
+  const [permsLoading, setPermsLoading] = useState(false);
+  const [permsSaving, setPermsSaving] = useState(false);
+
+  const openPermissions = async (u: ManagedUser) => {
+    setPermsUser(u);
+    setPermsLoading(true);
+    setPermsSelected([]);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await supabase.functions.invoke('manage-users', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+      body: { action: 'list_permissions', user_id: u.id },
+    });
+    if (!res.error && !res.data?.error) {
+      setPermsSelected(res.data?.permissions ?? []);
+    }
+    setPermsLoading(false);
+  };
+
+  const togglePerm = (key: string) => {
+    setPermsSelected(prev => prev.includes(key) ? prev.filter(p => p !== key) : [...prev, key]);
+  };
+
+  const savePermissions = async () => {
+    if (!permsUser) return;
+    setPermsSaving(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await supabase.functions.invoke('manage-users', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+      body: { action: 'set_permissions', user_id: permsUser.id, permissions: permsSelected },
+    });
+    if (res.error || res.data?.error) {
+      toast({ title: 'Error', description: res.data?.error || 'No se pudieron guardar permisos.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Permisos actualizados', description: permsUser.email });
+      setPermsUser(null);
+    }
+    setPermsSaving(false);
+  };
+
   const fetchUsers = async () => {
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
