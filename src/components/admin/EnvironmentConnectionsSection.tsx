@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Network, Plus, Pencil, Trash2, ShieldAlert, PlugZap, Loader2, Lock } from "lucide-react";
+import { Network, Plus, Pencil, Trash2, ShieldAlert, PlugZap, Loader2, Lock, CheckCircle2, XCircle } from "lucide-react";
 
 type EnvConnection = {
   id: string;
