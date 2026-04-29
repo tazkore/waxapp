@@ -5,15 +5,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const GATEWAY = "https://connector-gateway.lovable.dev/firecrawl";
+const FIRECRAWL_BASE = "https://api.firecrawl.dev";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
     if (!FIRECRAWL_API_KEY) throw new Error("FIRECRAWL_API_KEY missing");
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -40,11 +38,10 @@ Deno.serve(async (req) => {
       .single();
     if (jerr) throw jerr;
 
-    const fcRes = await fetch(`${GATEWAY}/v2/map`, {
+    const fcRes = await fetch(`${FIRECRAWL_BASE}/v2/map`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "X-Connection-Api-Key": FIRECRAWL_API_KEY,
+        Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ url, search, limit, includeSubdomains: false }),
