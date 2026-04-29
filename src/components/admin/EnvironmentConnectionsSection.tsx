@@ -221,6 +221,48 @@ const EnvironmentConnectionsSection = () => {
         </CardContent>
       </Card>
 
+      <Card className="border-primary/20">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <PlugZap className="h-5 w-5 text-primary" /> Verificar conectores
+              </CardTitle>
+              <CardDescription>
+                Prueba todos los proveedores configurados (Firecrawl, Resend, Clip, Lovable AI, Amazon, Jina, ScrapingBee).
+              </CardDescription>
+            </div>
+            <Button onClick={runAllChecks} disabled={checkingAll}>
+              {checkingAll ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PlugZap className="h-4 w-4 mr-2" />}
+              Probar todos
+            </Button>
+          </div>
+        </CardHeader>
+        {allChecks && (
+          <CardContent>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {allChecks.map((c) => (
+                <div key={c.name} className="flex items-center justify-between gap-2 p-3 rounded border border-border bg-muted/30">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {c.ok ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-destructive shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{c.name}</p>
+                      {!c.configured && <p className="text-[10px] text-muted-foreground">No configurado</p>}
+                      {c.error && <p className="text-[10px] text-destructive truncate">{c.error}</p>}
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] shrink-0">{c.latency_ms}ms</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       {loading ? (
         <div className="flex items-center justify-center p-12">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
