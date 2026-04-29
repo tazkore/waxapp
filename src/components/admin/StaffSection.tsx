@@ -40,20 +40,33 @@ const StaffSection = () => {
   const [permsSelected, setPermsSelected] = useState<string[]>([]);
   const [permsLoading, setPermsLoading] = useState(false);
   const [permsSaving, setPermsSaving] = useState(false);
+  const [allSubStores, setAllSubStores] = useState<{ id: string; name: string; slug: string }[]>([]);
+  const [storeAssignments, setStoreAssignments] = useState<Record<string, string>>({}); // storeId -> role
 
   const openPermissions = async (u: ManagedUser) => {
     setPermsUser(u);
     setPermsLoading(true);
     setPermsSelected([]);
+    setStoreAssignments({});
     const { data: { session } } = await supabase.auth.getSession();
-    const res = await supabase.functions.invoke('manage-users', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${session?.access_token}` },
-      body: { action: 'list_permissions', user_id: u.id },
-    });
-    if (!res.error && !res.data?.error) {
-      setPermsSelected(res.data?.permissions ?? []);
-    }
+    const [permsRes, subsRes, assignRes] = await Promise.all([
+      supabase.functions.invoke('manage-users', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: { action: 'list_permissions', user_id: u.id },
+      }),
+      supabase.from('sub_stores').select('id,name,slug').eq('is_active', true).order('name'),
+      supabase.functions.invoke('manage-users', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: { action: 'list_substore_access', user_id: u.id },
+      }),
+    ]);
+    if (!permsRes.error && !permsRes.data?.error) setPermsSelected(permsRes.data?.permissions ?? []);
+    setAllSubStores(subsRes.data ?? []);
+    const map: Record<string, string> = {};
+    (assignRes.data?.assignments ?? []).forEach((a: any) => { map[a.sub_store_id] = a.role; });
+    setStoreAssignments(map);
     setPermsLoading(false);
   };
 
@@ -65,15 +78,23 @@ const StaffSection = () => {
     if (!permsUser) return;
     setPermsSaving(true);
     const { data: { session } } = await supabase.auth.getSession();
-    const res = await supabase.functions.invoke('manage-users', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${session?.access_token}` },
-      body: { action: 'set_permissions', user_id: permsUser.id, permissions: permsSelected },
-    });
-    if (res.error || res.data?.error) {
-      toast({ title: 'Error', description: res.data?.error || 'No se pudieron guardar permisos.', variant: 'destructive' });
+    const assignments = Object.entries(storeAssignments).map(([sub_store_id, role]) => ({ sub_store_id, role }));
+    const [permsRes, storesRes] = await Promise.all([
+      supabase.functions.invoke('manage-users', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: { action: 'set_permissions', user_id: permsUser.id, permissions: permsSelected },
+      }),
+      supabase.functions.invoke('manage-users', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: { action: 'set_substore_access', user_id: permsUser.id, assignments },
+      }),
+    ]);
+    if (permsRes.error || permsRes.data?.error || storesRes.error || storesRes.data?.error) {
+      toast({ title: 'Error', description: permsRes.data?.error || storesRes.data?.error || 'No se pudieron guardar.', variant: 'destructive' });
     } else {
-      toast({ title: 'Permisos actualizados', description: permsUser.email });
+      toast({ title: 'Permisos y tiendas actualizados', description: permsUser.email });
       setPermsUser(null);
     }
     setPermsSaving(false);
