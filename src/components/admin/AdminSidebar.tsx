@@ -1,4 +1,4 @@
-import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound, Network, UserCog, Shield, Sparkles, Wand2 } from 'lucide-react';
+import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound, Network, UserCog, Shield, Sparkles, Wand2, Eye } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -31,6 +31,7 @@ const allNavItems = [
   { title: 'Integraciones', icon: Puzzle, key: 'integrations', adminOnly: true },
     { title: 'Setup Inicial', icon: Sparkles, key: 'setup', adminOnly: true },
     { title: 'Importar Sitio', icon: Wand2, key: 'importer', adminOnly: true },
+    { title: 'Previsualizar Importados', icon: Eye, key: 'imported-preview', adminOnly: true },
     { title: 'Staff & Usuarios', icon: UserCog, key: 'staff', adminOnly: true },
     { title: 'API & Conexiones', icon: KeyRound, key: 'api-keys', adminOnly: true },
     { title: 'Conexiones de Entorno', icon: Network, key: 'env-connections', adminOnly: true },
