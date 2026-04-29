@@ -69,7 +69,7 @@ const SiteImporterSection = () => {
   const fetchBranding = async () => {
     setBusy("branding");
     try {
-      const { data, error } = await supabase.functions.invoke("firecrawl-import-branding", { body: { url } });
+      const { data, error } = await supabase.functions.invoke("firecrawl-import-branding", { body: { url, provider } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setBranding(data.branding);
