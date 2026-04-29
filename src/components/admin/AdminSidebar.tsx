@@ -1,13 +1,20 @@
-import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound, Network, UserCog, Shield, Sparkles, Wand2, Eye, Globe } from 'lucide-react';
+import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound, Network, UserCog, Shield, Sparkles, Wand2, Eye, Globe, Store, ChevronDown } from 'lucide-react';
+import { useState } from 'react';
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
+import { useAccessibleSubStores } from '@/hooks/useAccessibleSubStores';
+import Copyright from '@/components/Copyright';
 
 const allNavItems = [
   { title: 'Vista General', icon: BarChart3, key: 'overview' },
