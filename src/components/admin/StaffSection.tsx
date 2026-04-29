@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Shield, ShieldCheck, ShieldOff, UserCog, UserPlus, Crown, Search, Trash2 } from 'lucide-react';
+import { Loader2, Shield, ShieldCheck, ShieldOff, UserCog, UserPlus, Crown, Search, Key } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
+import { ALL_PERMISSIONS } from '@/hooks/usePermissions';
 
 interface ManagedUser {
   id: string;
