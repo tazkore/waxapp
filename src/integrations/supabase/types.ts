@@ -931,6 +931,8 @@ export type Database = {
           is_custom: boolean
           is_installed: boolean
           name: string
+          schema_history: Json
+          schema_version: number
           slug: string
           updated_at: string
           validation: Json
@@ -949,6 +951,8 @@ export type Database = {
           is_custom?: boolean
           is_installed?: boolean
           name: string
+          schema_history?: Json
+          schema_version?: number
           slug: string
           updated_at?: string
           validation?: Json
@@ -967,6 +971,8 @@ export type Database = {
           is_custom?: boolean
           is_installed?: boolean
           name?: string
+          schema_history?: Json
+          schema_version?: number
           slug?: string
           updated_at?: string
           validation?: Json

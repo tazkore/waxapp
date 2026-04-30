@@ -10,18 +10,35 @@ interface Payload {
   credentials: Record<string, string>;
 }
 
+interface TestResult {
+  ok: boolean;
+  message: string;
+  status?: number;
+  latency_ms?: number;
+  field_errors?: Record<string, string>;
+  details?: string;
+}
+
+interface SchemaField {
+  key: string;
+  label?: string;
+  required?: boolean;
+  pattern?: string;
+  pattern_message?: string;
+}
+
 type Validation =
   | { kind: 'none' }
   | { kind: 'regex'; field: string; pattern: string; message?: string }
   | {
       kind: 'http';
       method?: 'GET' | 'POST';
-      url: string; // puede contener {field_key}
+      url: string;
       headers?: Record<string, string>;
       auth?:
         | { type: 'bearer'; field: string }
         | { type: 'basic'; user_field: string; password_field: string }
-        | { type: 'token'; field: string; prefix?: string } // ej "Token token="
+        | { type: 'token'; field: string; prefix?: string }
         | { type: 'header'; header_name: string; field: string; prefix?: string };
       ok_status?: number[];
     };
@@ -30,21 +47,21 @@ function interpolate(s: string, c: Record<string, string>) {
   return s.replace(/\{(\w+)\}/g, (_, k) => c[k] ?? '');
 }
 
-async function runValidation(
-  v: Validation,
-  c: Record<string, string>,
-): Promise<{ ok: boolean; message: string }> {
+function trimDetails(s: string, max = 500) {
+  if (!s) return '';
+  return s.length > max ? s.slice(0, max) + '…' : s;
+}
+
+async function runValidation(v: Validation, c: Record<string, string>): Promise<TestResult> {
   try {
     if (!v || v.kind === 'none') {
-      const empty = Object.entries(c).filter(([, val]) => !val || !String(val).trim());
-      if (empty.length) return { ok: false, message: `Campos vacíos: ${empty.map(([k]) => k).join(', ')}` };
       return { ok: true, message: 'Credenciales guardadas (sin verificación remota disponible).' };
     }
     if (v.kind === 'regex') {
       const val = c[v.field] || '';
-      return new RegExp(v.pattern).test(val)
-        ? { ok: true, message: 'Formato válido.' }
-        : { ok: false, message: v.message || 'Formato inválido.' };
+      if (new RegExp(v.pattern).test(val)) return { ok: true, message: 'Formato válido.' };
+      const msg = v.message || 'Formato inválido.';
+      return { ok: false, message: msg, field_errors: { [v.field]: msg } };
     }
     if (v.kind === 'http') {
       const url = interpolate(v.url, c);
@@ -58,45 +75,74 @@ async function runValidation(
         else if (v.auth.type === 'header')
           headers[v.auth.header_name] = `${v.auth.prefix ?? ''}${c[v.auth.field] || ''}`;
       }
+      const t0 = Date.now();
       const r = await fetch(url, { method: v.method || 'GET', headers });
+      const latency_ms = Date.now() - t0;
+      const body = await r.text().catch(() => '');
       const ok = (v.ok_status || [200, 201, 204]).includes(r.status);
+      // Intentar mapear field_errors desde body JSON
+      let field_errors: Record<string, string> | undefined;
+      if (!ok && body) {
+        try {
+          const j = JSON.parse(body);
+          if (j && typeof j === 'object' && j.errors && typeof j.errors === 'object') {
+            field_errors = {};
+            for (const [k, msg] of Object.entries(j.errors)) {
+              field_errors[k] = Array.isArray(msg) ? String(msg[0]) : String(msg);
+            }
+          }
+        } catch { /* body no-JSON, ignorar */ }
+      }
       return ok
-        ? { ok: true, message: `Conectado correctamente (HTTP ${r.status}).` }
-        : { ok: false, message: `El proveedor respondió HTTP ${r.status}.` };
+        ? { ok: true, message: `Conectado correctamente (HTTP ${r.status}).`, status: r.status, latency_ms, details: trimDetails(body) }
+        : { ok: false, message: `El proveedor respondió HTTP ${r.status}.`, status: r.status, latency_ms, details: trimDetails(body), field_errors };
     }
     return { ok: false, message: 'Tipo de validación desconocido.' };
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : 'Error de red.' };
+    return { ok: false, message: e instanceof Error ? e.message : 'Error de red.', details: String(e) };
   }
 }
 
-// Validaciones hardcoded para apps clásicas (compatibilidad).
-async function legacyTest(slug: string, c: Record<string, string>): Promise<{ ok: boolean; message: string } | null> {
+async function legacyTest(slug: string, c: Record<string, string>): Promise<TestResult | null> {
   switch (slug) {
     case 'skydropx': {
-      if (!c.api_key) return { ok: false, message: 'Falta API Key' };
+      if (!c.api_key) return { ok: false, message: 'Falta API Key', field_errors: { api_key: 'Requerido' } };
+      const t0 = Date.now();
       const r = await fetch('https://api.skydropx.com/v1/account', {
         headers: { Authorization: `Token token=${c.api_key}` },
       });
+      const body = await r.text().catch(() => '');
+      const latency_ms = Date.now() - t0;
       return r.ok
-        ? { ok: true, message: 'Skydropx conectado correctamente.' }
-        : { ok: false, message: `Skydropx rechazó la API Key (HTTP ${r.status}).` };
+        ? { ok: true, message: 'Skydropx conectado correctamente.', status: r.status, latency_ms }
+        : { ok: false, message: `Skydropx rechazó la API Key (HTTP ${r.status}).`, status: r.status, latency_ms, details: trimDetails(body), field_errors: { api_key: 'Inválida' } };
     }
     case 'whatsapp_api': {
-      if (!c.phone_number_id || !c.access_token) return { ok: false, message: 'Faltan campos.' };
+      const fe: Record<string, string> = {};
+      if (!c.phone_number_id) fe.phone_number_id = 'Requerido';
+      if (!c.access_token) fe.access_token = 'Requerido';
+      if (Object.keys(fe).length) return { ok: false, message: 'Faltan campos.', field_errors: fe };
+      const t0 = Date.now();
       const r = await fetch(`https://graph.facebook.com/v18.0/${c.phone_number_id}`, {
         headers: { Authorization: `Bearer ${c.access_token}` },
       });
+      const body = await r.text().catch(() => '');
+      const latency_ms = Date.now() - t0;
       return r.ok
-        ? { ok: true, message: 'WhatsApp Business API verificada.' }
-        : { ok: false, message: `WhatsApp rechazó las credenciales (HTTP ${r.status}).` };
+        ? { ok: true, message: 'WhatsApp Business API verificada.', status: r.status, latency_ms }
+        : { ok: false, message: `WhatsApp rechazó las credenciales (HTTP ${r.status}).`, status: r.status, latency_ms, details: trimDetails(body) };
     }
     case 'klaviyo': {
-      if (!c.api_key) return { ok: false, message: 'Falta API Key' };
+      if (!c.api_key) return { ok: false, message: 'Falta API Key', field_errors: { api_key: 'Requerido' } };
+      const t0 = Date.now();
       const r = await fetch('https://a.klaviyo.com/api/accounts/', {
         headers: { Authorization: `Klaviyo-API-Key ${c.api_key}`, revision: '2024-10-15' },
       });
-      return r.ok ? { ok: true, message: 'Klaviyo conectado.' } : { ok: false, message: `Klaviyo HTTP ${r.status}` };
+      const body = await r.text().catch(() => '');
+      const latency_ms = Date.now() - t0;
+      return r.ok
+        ? { ok: true, message: 'Klaviyo conectado.', status: r.status, latency_ms }
+        : { ok: false, message: `Klaviyo HTTP ${r.status}`, status: r.status, latency_ms, details: trimDetails(body) };
     }
     default:
       return null;
@@ -105,39 +151,74 @@ async function legacyTest(slug: string, c: Record<string, string>): Promise<{ ok
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-  try {
-    const body = (await req.json()) as Payload;
-    if (!body?.slug) {
-      return new Response(JSON.stringify({ ok: false, message: 'slug requerido' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    const c = body.credentials || {};
+  const json = (data: unknown, status = 200) =>
+    new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    // 1. Cargar la fila para leer `validation` y `credential_schema`
-    const supabase = createClient(
+  try {
+    // 1. Auth gate: requerir JWT y rol admin/super_admin
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return json({ ok: false, message: 'No autorizado.' }, 401);
+    }
+    const supaUser = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claims, error: cErr } = await supaUser.auth.getClaims(token);
+    if (cErr || !claims?.claims?.sub) return json({ ok: false, message: 'Token inválido.' }, 401);
+    const userId = claims.claims.sub;
+
+    // Verificar rol
+    const supaService = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
-    const { data: row } = await supabase
+    const { data: roles } = await supaService
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId);
+    const allowed = (roles || []).some((r: { role: string }) => r.role === 'admin' || r.role === 'super_admin');
+    if (!allowed) return json({ ok: false, message: 'Permisos insuficientes.' }, 403);
+
+    // 2. Validar payload
+    const body = (await req.json().catch(() => null)) as Payload | null;
+    if (!body?.slug) return json({ ok: false, message: 'slug requerido' }, 400);
+    const c = body.credentials || {};
+
+    // 3. Cargar definición de la app
+    const { data: row } = await supaService
       .from('integrations')
       .select('credential_schema, validation')
       .eq('slug', body.slug)
       .maybeSingle();
 
-    // 2. Validar campos requeridos del schema
-    const schema = (row?.credential_schema as Array<{ key: string; required?: boolean; label?: string }>) || [];
-    const missing = schema.filter((f) => f.required !== false && !c[f.key]?.toString().trim());
-    if (missing.length) {
-      return new Response(
-        JSON.stringify({ ok: false, message: `Faltan campos: ${missing.map((m) => m.label || m.key).join(', ')}` }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+    // 4. Validar campos requeridos + patterns del schema
+    const schema = (row?.credential_schema as SchemaField[]) || [];
+    const field_errors: Record<string, string> = {};
+    for (const f of schema) {
+      const val = (c[f.key] || '').toString().trim();
+      if (f.required !== false && !val) {
+        field_errors[f.key] = `${f.label || f.key} es requerido`;
+        continue;
+      }
+      if (val && f.pattern) {
+        try {
+          if (!new RegExp(f.pattern).test(val)) {
+            field_errors[f.key] = f.pattern_message || 'Formato inválido';
+          }
+        } catch {
+          field_errors[f.key] = 'Pattern del schema inválido';
+        }
+      }
+    }
+    if (Object.keys(field_errors).length) {
+      return json({ ok: false, message: 'Hay errores en los campos.', field_errors }, 400);
     }
 
-    // 3. Si hay validation en DB, usarla. Si no, fallback legacy. Si nada, validación genérica.
-    let result: { ok: boolean; message: string };
+    // 5. Ejecutar validación
+    let result: TestResult;
     const v = row?.validation as Validation | undefined;
     if (v && (v.kind === 'http' || v.kind === 'regex')) {
       result = await runValidation(v, c);
@@ -146,13 +227,8 @@ Deno.serve(async (req) => {
       result = legacy ?? (await runValidation({ kind: 'none' }, c));
     }
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return json(result);
   } catch (e) {
-    return new Response(
-      JSON.stringify({ ok: false, message: e instanceof Error ? e.message : 'Error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return json({ ok: false, message: e instanceof Error ? e.message : 'Error', details: String(e) }, 500);
   }
 });

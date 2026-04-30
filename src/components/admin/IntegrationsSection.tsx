@@ -20,6 +20,7 @@ import {
   MessageCircle,
   Search,
   Download,
+  Upload,
   Trash2,
   ExternalLink,
   Settings2,
@@ -42,7 +43,9 @@ import { useToast } from '@/hooks/use-toast';
 import AppStoreCard from './integrations/AppStoreCard';
 import ConnectAppDialog from './integrations/ConnectAppDialog';
 import AddCustomAppDialog from './integrations/AddCustomAppDialog';
+import ImportAppDialog from './integrations/ImportAppDialog';
 import { DISPLAY_CATEGORIES } from '@/lib/integrationsCatalog';
+import { downloadAppJson } from '@/lib/appPortability';
 
 interface Integration {
   id: string;
@@ -114,6 +117,7 @@ const IntegrationsSection = () => {
   const [newConfigKey, setNewConfigKey] = useState('');
   const [newConfigValue, setNewConfigValue] = useState('');
   const [showAddCustom, setShowAddCustom] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const { toast } = useToast();
 
   const fetchIntegrations = async () => {
@@ -342,6 +346,14 @@ const IntegrationsSection = () => {
             />
           </div>
           <Button
+            onClick={() => setShowImport(true)}
+            variant="outline"
+            className="gap-1.5 shrink-0"
+            size="sm"
+          >
+            <Upload className="h-4 w-4" /> Importar
+          </Button>
+          <Button
             onClick={() => setShowAddCustom(true)}
             className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
             size="sm"
@@ -375,6 +387,7 @@ const IntegrationsSection = () => {
                   app={app}
                   onConnect={() => handleConnectClick(app)}
                   onConfigure={() => openDetail(app)}
+                  onExport={app.is_custom ? () => downloadAppJson(app) : undefined}
                 />
               ))}
             </div>
@@ -393,6 +406,12 @@ const IntegrationsSection = () => {
         open={showAddCustom}
         onOpenChange={setShowAddCustom}
         onCreated={() => fetchIntegrations()}
+      />
+
+      <ImportAppDialog
+        open={showImport}
+        onOpenChange={setShowImport}
+        onImported={() => fetchIntegrations()}
       />
 
       {/* Detail Modal */}
