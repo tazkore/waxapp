@@ -15,6 +15,8 @@ interface AppLite {
   description: string | null;
   api_docs_url: string | null;
   config: Record<string, unknown>;
+  credential_schema?: unknown;
+  validation?: unknown;
 }
 
 interface Props {
