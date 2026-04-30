@@ -1,10 +1,23 @@
 import { useState, useEffect } from 'react';
-import { ShoppingCart, Menu, X, User, Shield, Search } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, Shield, Search, ChevronDown, HelpCircle } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCartStore } from '@/store/cartStore';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 import GlobalSearch from './GlobalSearch';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+const FAQ_QUICK_LINKS = [
+  { label: 'Legalidad', href: '/#faq-legal' },
+  { label: 'Empaque y envío', href: '/#faq-envio' },
+  { label: 'Dosis sugerida', href: '/#faq-dosis' },
+  { label: 'Full Spectrum', href: '/#faq-fullspectrum' },
+];
 
 const FALLBACK_LINKS = [
   { label: 'Tienda', href: '/#tienda' },
