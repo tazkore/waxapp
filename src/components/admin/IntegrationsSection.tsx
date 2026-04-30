@@ -408,6 +408,12 @@ const IntegrationsSection = () => {
         onCreated={() => fetchIntegrations()}
       />
 
+      <ImportAppDialog
+        open={showImport}
+        onOpenChange={setShowImport}
+        onImported={() => fetchIntegrations()}
+      />
+
       {/* Detail Modal */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-w-lg">
