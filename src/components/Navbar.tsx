@@ -92,18 +92,40 @@ const Navbar = () => {
           WAXAPP<span className="text-primary">.</span>
         </a>
 
-        <div className="hidden gap-8 md:flex">
-          {navLinks.map((l, idx) => (
-            <a
-              key={`${l.href}-${idx}`}
-              href={l.href}
-              target={l.openInNewTab ? '_blank' : undefined}
-              rel={l.openInNewTab ? 'noreferrer' : undefined}
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {l.label}
-            </a>
-          ))}
+        <div className="hidden gap-6 md:flex items-center">
+          {navLinks
+            .filter((l) => !l.href.includes('#faq') && l.label.toLowerCase() !== 'faq')
+            .map((l, idx) => (
+              <a
+                key={`${l.href}-${idx}`}
+                href={l.href}
+                target={l.openInNewTab ? '_blank' : undefined}
+                rel={l.openInNewTab ? 'noreferrer' : undefined}
+                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {l.label}
+              </a>
+            ))}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground outline-none">
+              <HelpCircle className="h-3.5 w-3.5" />
+              FAQ
+              <ChevronDown className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-card border-border w-56">
+              <DropdownMenuItem asChild>
+                <a href="/#faq" className="cursor-pointer">Ver todas las preguntas</a>
+              </DropdownMenuItem>
+              {FAQ_QUICK_LINKS.map((q) => (
+                <DropdownMenuItem key={q.href} asChild>
+                  <a href={q.href} className="cursor-pointer text-muted-foreground hover:text-primary">
+                    → {q.label}
+                  </a>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="flex items-center gap-2">
