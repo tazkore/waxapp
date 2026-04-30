@@ -46,22 +46,6 @@ export function serializeApp(row: {
     },
   };
 }
-  return {
-    wax_app_version: 1,
-    exported_at: new Date().toISOString(),
-    app: {
-      name: row.name,
-      slug: row.slug,
-      description: row.description,
-      category: row.category,
-      api_docs_url: row.api_docs_url,
-      version: row.version,
-      schema_version: row.schema_version ?? 1,
-      credential_schema: row.credential_schema,
-      validation: row.validation,
-    },
-  };
-}
 
 export function downloadAppJson(row: Parameters<typeof serializeApp>[0]) {
   const payload = serializeApp(row);
