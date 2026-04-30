@@ -24,7 +24,6 @@ import {
   ExternalLink,
   Settings2,
   CheckCircle2,
-  Circle,
   Puzzle,
   Loader2,
   Key,
@@ -33,9 +32,16 @@ import {
   EyeOff,
   Save,
   X,
+  Truck,
+  FileText,
+  Headphones,
+  Plug,
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import AppStoreCard from './integrations/AppStoreCard';
+import ConnectAppDialog from './integrations/ConnectAppDialog';
+import { DISPLAY_CATEGORIES } from '@/lib/integrationsCatalog';
 
 interface Integration {
   id: string;
@@ -59,8 +65,12 @@ const categoryIcons: Record<string, React.ElementType> = {
   email: Mail,
   marketplace: ShoppingBag,
   analytics: BarChart3,
+  marketing: BarChart3,
   mensajeria: MessageCircle,
   messaging: MessageCircle,
+  envios: Truck,
+  facturacion: FileText,
+  soporte: Headphones,
   automation: Puzzle,
   other: Puzzle,
 };
@@ -71,8 +81,12 @@ const categoryLabels: Record<string, string> = {
   email: 'Email',
   marketplace: 'Marketplace',
   analytics: 'Analytics',
+  marketing: 'Marketing',
   mensajeria: 'Mensajería',
   messaging: 'Mensajería',
+  envios: 'Envíos',
+  facturacion: 'Facturación',
+  soporte: 'Soporte',
   automation: 'Automatización',
   other: 'Otro',
 };
@@ -83,6 +97,8 @@ const IntegrationsSection = () => {
   const [search, setSearch] = useState('');
   const [selectedApp, setSelectedApp] = useState<Integration | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [connectApp, setConnectApp] = useState<Integration | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string>('all');
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeyValue, setNewKeyValue] = useState('');
