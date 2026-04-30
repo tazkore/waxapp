@@ -293,65 +293,15 @@ const IntegrationsSection = () => {
       a.category.toLowerCase().includes(search.toLowerCase())
   );
 
-  const installed = filtered.filter((a) => a.is_installed);
-  const available = filtered.filter((a) => !a.is_installed);
+  const KNOWN_CATS = new Set(['envios', 'marketing', 'facturacion', 'soporte', 'pagos', 'payments', 'analytics']);
+  const normalizeCat = (c: string) => (KNOWN_CATS.has(c) ? (c === 'payments' ? 'pagos' : c === 'analytics' ? 'marketing' : c) : 'other');
 
-  const AppCard = ({ app }: { app: Integration }) => {
-    const Icon = categoryIcons[app.category] || Puzzle;
-    return (
-      <Card
-        className="cursor-pointer hover:border-primary/40 transition-colors group"
-        onClick={() => openDetail(app)}
-      >
-        <CardContent className="p-5">
-          <div className="flex items-start gap-4">
-            <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center shrink-0">
-              {app.icon_url ? (
-                <img src={app.icon_url} alt={app.name} className="h-7 w-7 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-              ) : (
-                <Icon className="h-6 w-6 text-muted-foreground" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-semibold text-sm text-foreground truncate">{app.name}</h3>
-                {app.is_active && (
-                  <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{app.description}</p>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[10px] capitalize">
-                  {categoryLabels[app.category] || app.category}
-                </Badge>
-                <span className="text-[10px] text-muted-foreground">v{app.version}</span>
-              </div>
-            </div>
-          </div>
-          <div className="mt-4 flex justify-end">
-            {app.is_installed ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-xs gap-1 text-destructive hover:text-destructive"
-                onClick={(e) => { e.stopPropagation(); toggleInstall(app); }}
-              >
-                <Trash2 className="h-3 w-3" /> Desinstalar
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                className="text-xs gap-1"
-                onClick={(e) => { e.stopPropagation(); toggleInstall(app); }}
-              >
-                <Download className="h-3 w-3" /> Instalar
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
+  const byCategory = (cat: string) =>
+    cat === 'all' ? filtered : filtered.filter((a) => normalizeCat(a.category) === cat);
+
+  const countFor = (cat: string) => byCategory(cat).length;
+
+  const handleConnectClick = (app: Integration) => setConnectApp(app);
 
   if (loading) {
     return (
@@ -361,62 +311,69 @@ const IntegrationsSection = () => {
     );
   }
 
+  const visibleApps = byCategory(activeCategory);
+  const activeCount = filtered.filter((a) => a.is_active).length;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Integraciones</h1>
-        <p className="text-muted-foreground text-sm">Gestiona las aplicaciones y APIs conectadas a tu tienda.</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Plug className="h-6 w-6 text-primary" />
+            Ecosistema de Apps
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Conecta herramientas externas a tu tienda. {activeCount} {activeCount === 1 ? 'app activa' : 'apps activas'}.
+          </p>
+        </div>
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar apps..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar integraciones..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
-      </div>
-
-      <Tabs defaultValue="installed">
-        <TabsList>
-          <TabsTrigger value="installed" className="gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Instaladas ({installed.length})
-          </TabsTrigger>
-          <TabsTrigger value="store" className="gap-1.5">
-            <ShoppingBag className="h-3.5 w-3.5" /> App Store ({available.length})
-          </TabsTrigger>
-          <TabsTrigger value="all" className="gap-1.5">
-            <Circle className="h-3.5 w-3.5" /> Todas ({filtered.length})
-          </TabsTrigger>
+      <Tabs value={activeCategory} onValueChange={setActiveCategory}>
+        <TabsList className="flex flex-wrap h-auto bg-muted/40">
+          {DISPLAY_CATEGORIES.map((cat) => (
+            <TabsTrigger key={cat.value} value={cat.value} className="text-xs gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              {cat.label} <span className="text-[10px] opacity-60">({countFor(cat.value)})</span>
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        <TabsContent value="installed" className="mt-4">
-          {installed.length === 0 ? (
-            <Card><CardContent className="py-12 text-center text-muted-foreground text-sm">No tienes integraciones instaladas aún.</CardContent></Card>
+        <TabsContent value={activeCategory} className="mt-5">
+          {visibleApps.length === 0 ? (
+            <Card className="bg-card border-border">
+              <CardContent className="py-12 text-center text-muted-foreground text-sm">
+                No hay apps en esta categoría todavía.
+              </CardContent>
+            </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {installed.map((app) => <AppCard key={app.id} app={app} />)}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {visibleApps.map((app) => (
+                <AppStoreCard
+                  key={app.id}
+                  app={app}
+                  onConnect={() => handleConnectClick(app)}
+                  onConfigure={() => openDetail(app)}
+                />
+              ))}
             </div>
           )}
-        </TabsContent>
-
-        <TabsContent value="store" className="mt-4">
-          {available.length === 0 ? (
-            <Card><CardContent className="py-12 text-center text-muted-foreground text-sm">No hay integraciones disponibles que coincidan con tu búsqueda.</CardContent></Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {available.map((app) => <AppCard key={app.id} app={app} />)}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="all" className="mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((app) => <AppCard key={app.id} app={app} />)}
-          </div>
         </TabsContent>
       </Tabs>
+
+      <ConnectAppDialog
+        app={connectApp}
+        open={!!connectApp}
+        onOpenChange={(v) => { if (!v) setConnectApp(null); }}
+        onConnected={() => fetchIntegrations()}
+      />
 
       {/* Detail Modal */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
