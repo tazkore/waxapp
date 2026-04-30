@@ -389,6 +389,12 @@ const IntegrationsSection = () => {
         onConnected={() => fetchIntegrations()}
       />
 
+      <AddCustomAppDialog
+        open={showAddCustom}
+        onOpenChange={setShowAddCustom}
+        onCreated={() => fetchIntegrations()}
+      />
+
       {/* Detail Modal */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-w-lg">
