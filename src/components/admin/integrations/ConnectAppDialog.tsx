@@ -32,7 +32,7 @@ const ConnectAppDialog = ({ app, open, onOpenChange, onConnected }: Props) => {
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const { toast } = useToast();
 
-  const catalog = app ? getCatalog(app.slug) : { fields: [] };
+  const catalog = app ? getCatalog(app.slug, app.credential_schema) : { fields: [] };
 
   useEffect(() => {
     if (app && open) {
