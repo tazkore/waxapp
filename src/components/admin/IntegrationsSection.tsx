@@ -20,6 +20,7 @@ import {
   MessageCircle,
   Search,
   Download,
+  Upload,
   Trash2,
   ExternalLink,
   Settings2,
@@ -42,7 +43,9 @@ import { useToast } from '@/hooks/use-toast';
 import AppStoreCard from './integrations/AppStoreCard';
 import ConnectAppDialog from './integrations/ConnectAppDialog';
 import AddCustomAppDialog from './integrations/AddCustomAppDialog';
+import ImportAppDialog from './integrations/ImportAppDialog';
 import { DISPLAY_CATEGORIES } from '@/lib/integrationsCatalog';
+import { downloadAppJson } from '@/lib/appPortability';
 
 interface Integration {
   id: string;
@@ -114,6 +117,7 @@ const IntegrationsSection = () => {
   const [newConfigKey, setNewConfigKey] = useState('');
   const [newConfigValue, setNewConfigValue] = useState('');
   const [showAddCustom, setShowAddCustom] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const { toast } = useToast();
 
   const fetchIntegrations = async () => {
