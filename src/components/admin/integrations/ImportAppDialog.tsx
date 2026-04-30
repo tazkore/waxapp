@@ -31,8 +31,8 @@ const ImportAppDialog = ({ open, onOpenChange, onImported }: Props) => {
     setError(null);
     const text = await file.text();
     const res = parseAppFile(text);
-    if (!res.ok) {
-      setError(res.ok === false ? res.error : 'Error al parsear.');
+    if (res.ok === false) {
+      setError(res.error);
       setParsed(null);
       return;
     }
