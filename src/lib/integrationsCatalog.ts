@@ -1,5 +1,6 @@
-// Catálogo de campos requeridos por slug para el modal "Conectar [App]".
-// Si un slug no aparece aquí, el modal usa un único campo `api_key`.
+// Catálogo de campos requeridos.
+// El schema vive en la columna `integrations.credential_schema` (jsonb).
+// Si una app no tiene schema definido en DB, se usa el fallback estático aquí.
 
 export interface CatalogField {
   key: string;
@@ -7,66 +8,25 @@ export interface CatalogField {
   type?: 'text' | 'password';
   placeholder?: string;
   helper?: string;
+  required?: boolean;
 }
 
 export interface CatalogEntry {
   fields: CatalogField[];
-  docsLabel?: string;
 }
 
-export const integrationsCatalog: Record<string, CatalogEntry> = {
-  skydropx: {
-    fields: [{ key: 'api_key', label: 'API Key', type: 'password', placeholder: 'sk_live_...' }],
-  },
-  t1envios: {
-    fields: [{ key: 'api_key', label: 'API Key', type: 'password' }],
-  },
-  ml_envios: {
-    fields: [{ key: 'access_token', label: 'Access Token', type: 'password' }],
-  },
-  facturama: {
-    fields: [
-      { key: 'api_user', label: 'Usuario API' },
-      { key: 'api_password', label: 'Contraseña API', type: 'password' },
-    ],
-  },
-  factura_com: {
-    fields: [
-      { key: 'api_key', label: 'API Key', type: 'password' },
-      { key: 'secret_key', label: 'Secret Key', type: 'password' },
-    ],
-  },
-  meta_pixel: {
-    fields: [{ key: 'pixel_id', label: 'Pixel ID', placeholder: '1234567890123456', helper: 'Solo números (15-16 dígitos).' }],
-  },
-  google_ads: {
-    fields: [
-      { key: 'conversion_id', label: 'Conversion ID', placeholder: 'AW-123456789' },
-      { key: 'label', label: 'Conversion Label' },
-    ],
-  },
-  tiktok_pixel: {
-    fields: [{ key: 'pixel_id', label: 'Pixel ID' }],
-  },
-  klaviyo: {
-    fields: [{ key: 'api_key', label: 'Private API Key', type: 'password', placeholder: 'pk_...' }],
-  },
-  whatsapp_api: {
-    fields: [
-      { key: 'phone_number_id', label: 'Phone Number ID' },
-      { key: 'access_token', label: 'Access Token', type: 'password' },
-    ],
-  },
-  zendesk: {
-    fields: [
-      { key: 'subdomain', label: 'Subdominio', placeholder: 'tutienda' },
-      { key: 'api_token', label: 'API Token', type: 'password' },
-    ],
-  },
-  crisp: {
-    fields: [{ key: 'website_id', label: 'Website ID' }],
-  },
+// Fallback estático mínimo (solo si la fila en DB no trae credential_schema)
+const fallback: Record<string, CatalogEntry> = {
+  skydropx: { fields: [{ key: 'api_key', label: 'API Key', type: 'password', required: true }] },
+  meta_pixel: { fields: [{ key: 'pixel_id', label: 'Pixel ID', type: 'text', required: true }] },
 };
+
+export function getCatalog(slug: string, schema?: unknown): CatalogEntry {
+  if (Array.isArray(schema) && schema.length > 0) {
+    return { fields: schema as CatalogField[] };
+  }
+  return fallback[slug] ?? { fields: [{ key: 'api_key', label: 'API Key', type: 'password', required: true }] };
+}
 
 export const DISPLAY_CATEGORIES: Array<{ value: string; label: string }> = [
   { value: 'all', label: 'Todas' },
@@ -77,7 +37,3 @@ export const DISPLAY_CATEGORIES: Array<{ value: string; label: string }> = [
   { value: 'pagos', label: 'Pagos' },
   { value: 'other', label: 'Otros' },
 ];
-
-export function getCatalog(slug: string): CatalogEntry {
-  return integrationsCatalog[slug] ?? { fields: [{ key: 'api_key', label: 'API Key', type: 'password' }] };
-}
