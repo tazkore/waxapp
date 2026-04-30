@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useIntegrationActive } from '@/hooks/useInstalledIntegrations';
+import { Lock } from 'lucide-react';
 import { Loader2, Eye, Search, Clock, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -413,12 +415,7 @@ const OrdersSection = () => {
                     <Input value={editTracking} onChange={e => setEditTracking(e.target.value)} className="bg-muted border-border" placeholder="SKD-00000" />
                   </div>
                 </div>
-                {selectedOrder && (
-                  <GenerateLabelButton
-                    orderId={selectedOrder.id}
-                    onCreated={(tn) => setEditTracking(tn)}
-                  />
-                )}
+                {selectedOrder && <ShippingLabelGate orderId={selectedOrder.id} onCreated={(tn) => setEditTracking(tn)} />}
                 <div className="space-y-2">
                   <Label className="text-foreground">Dirección de envío</Label>
                   <Textarea value={editAddress} onChange={e => setEditAddress(e.target.value)} className="bg-muted border-border resize-none" rows={2} />
