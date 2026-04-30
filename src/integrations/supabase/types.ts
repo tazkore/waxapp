@@ -923,14 +923,17 @@ export type Database = {
           category: string
           config: Json
           created_at: string
+          credential_schema: Json
           description: string | null
           icon_url: string | null
           id: string
           is_active: boolean
+          is_custom: boolean
           is_installed: boolean
           name: string
           slug: string
           updated_at: string
+          validation: Json
           version: string | null
         }
         Insert: {
@@ -938,14 +941,17 @@ export type Database = {
           category?: string
           config?: Json
           created_at?: string
+          credential_schema?: Json
           description?: string | null
           icon_url?: string | null
           id?: string
           is_active?: boolean
+          is_custom?: boolean
           is_installed?: boolean
           name: string
           slug: string
           updated_at?: string
+          validation?: Json
           version?: string | null
         }
         Update: {
@@ -953,14 +959,17 @@ export type Database = {
           category?: string
           config?: Json
           created_at?: string
+          credential_schema?: Json
           description?: string | null
           icon_url?: string | null
           id?: string
           is_active?: boolean
+          is_custom?: boolean
           is_installed?: boolean
           name?: string
           slug?: string
           updated_at?: string
+          validation?: Json
           version?: string | null
         }
         Relationships: []
