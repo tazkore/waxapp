@@ -41,6 +41,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import AppStoreCard from './integrations/AppStoreCard';
 import ConnectAppDialog from './integrations/ConnectAppDialog';
+import AddCustomAppDialog from './integrations/AddCustomAppDialog';
 import { DISPLAY_CATEGORIES } from '@/lib/integrationsCatalog';
 
 interface Integration {
