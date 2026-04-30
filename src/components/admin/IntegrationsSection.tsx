@@ -346,6 +346,14 @@ const IntegrationsSection = () => {
             />
           </div>
           <Button
+            onClick={() => setShowImport(true)}
+            variant="outline"
+            className="gap-1.5 shrink-0"
+            size="sm"
+          >
+            <Upload className="h-4 w-4" /> Importar
+          </Button>
+          <Button
             onClick={() => setShowAddCustom(true)}
             className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
             size="sm"
@@ -379,6 +387,7 @@ const IntegrationsSection = () => {
                   app={app}
                   onConnect={() => handleConnectClick(app)}
                   onConfigure={() => openDetail(app)}
+                  onExport={app.is_custom ? () => downloadAppJson(app) : undefined}
                 />
               ))}
             </div>
