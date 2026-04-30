@@ -113,6 +113,7 @@ const IntegrationsSection = () => {
   const [showAddConfig, setShowAddConfig] = useState(false);
   const [newConfigKey, setNewConfigKey] = useState('');
   const [newConfigValue, setNewConfigValue] = useState('');
+  const [showAddCustom, setShowAddCustom] = useState(false);
   const { toast } = useToast();
 
   const fetchIntegrations = async () => {
