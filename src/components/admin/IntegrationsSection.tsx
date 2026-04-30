@@ -41,6 +41,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import AppStoreCard from './integrations/AppStoreCard';
 import ConnectAppDialog from './integrations/ConnectAppDialog';
+import AddCustomAppDialog from './integrations/AddCustomAppDialog';
 import { DISPLAY_CATEGORIES } from '@/lib/integrationsCatalog';
 
 interface Integration {
@@ -57,6 +58,9 @@ interface Integration {
   version: string | null;
   created_at: string;
   updated_at: string;
+  credential_schema?: unknown;
+  validation?: unknown;
+  is_custom?: boolean;
 }
 
 const categoryIcons: Record<string, React.ElementType> = {
@@ -109,6 +113,7 @@ const IntegrationsSection = () => {
   const [showAddConfig, setShowAddConfig] = useState(false);
   const [newConfigKey, setNewConfigKey] = useState('');
   const [newConfigValue, setNewConfigValue] = useState('');
+  const [showAddCustom, setShowAddCustom] = useState(false);
   const { toast } = useToast();
 
   const fetchIntegrations = async () => {
@@ -326,14 +331,23 @@ const IntegrationsSection = () => {
             Conecta herramientas externas a tu tienda. {activeCount} {activeCount === 1 ? 'app activa' : 'apps activas'}.
           </p>
         </div>
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar apps..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar apps..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button
+            onClick={() => setShowAddCustom(true)}
+            className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
+            size="sm"
+          >
+            <Plus className="h-4 w-4" /> Añadir App
+          </Button>
         </div>
       </div>
 
@@ -373,6 +387,12 @@ const IntegrationsSection = () => {
         open={!!connectApp}
         onOpenChange={(v) => { if (!v) setConnectApp(null); }}
         onConnected={() => fetchIntegrations()}
+      />
+
+      <AddCustomAppDialog
+        open={showAddCustom}
+        onOpenChange={setShowAddCustom}
+        onCreated={() => fetchIntegrations()}
       />
 
       {/* Detail Modal */}

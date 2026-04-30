@@ -15,6 +15,8 @@ interface AppLite {
   description: string | null;
   api_docs_url: string | null;
   config: Record<string, unknown>;
+  credential_schema?: unknown;
+  validation?: unknown;
 }
 
 interface Props {
@@ -30,7 +32,7 @@ const ConnectAppDialog = ({ app, open, onOpenChange, onConnected }: Props) => {
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const { toast } = useToast();
 
-  const catalog = app ? getCatalog(app.slug) : { fields: [] };
+  const catalog = app ? getCatalog(app.slug, app.credential_schema) : { fields: [] };
 
   useEffect(() => {
     if (app && open) {
