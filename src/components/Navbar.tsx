@@ -177,16 +177,41 @@ const Navbar = () => {
             className="overflow-hidden border-t border-border md:hidden"
           >
             <div className="flex flex-col gap-1 px-4 py-3">
-              {navLinks.map((l) => (
+              {navLinks
+                .filter((l) => !l.href.includes('#faq') && l.label.toLowerCase() !== 'faq')
+                .map((l) => (
+                  <a
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    {l.label}
+                  </a>
+                ))}
+
+              <div className="mt-2 border-t border-border pt-2">
+                <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  FAQ
+                </p>
                 <a
-                  key={l.href}
-                  href={l.href}
+                  href="/#faq"
                   onClick={() => setMobileOpen(false)}
-                  className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
-                  {l.label}
+                  <HelpCircle className="h-4 w-4" /> Ver todas
                 </a>
-              ))}
+                {FAQ_QUICK_LINKS.map((q) => (
+                  <a
+                    key={q.href}
+                    href={q.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="block rounded-lg px-6 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    → {q.label}
+                  </a>
+                ))}
+              </div>
               {!session && (
                 <>
                   <a href="/cliente" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
