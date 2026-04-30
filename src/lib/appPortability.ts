@@ -22,14 +22,30 @@ export interface PortableAppFile {
 export function serializeApp(row: {
   name: string;
   slug: string;
-  description: string | null;
+  description?: string | null;
   category: string;
-  api_docs_url: string | null;
-  version: string | null;
+  api_docs_url?: string | null;
+  version?: string | null;
   schema_version?: number;
-  credential_schema: unknown;
-  validation: unknown;
+  credential_schema?: unknown;
+  validation?: unknown;
 }): PortableAppFile {
+  return {
+    wax_app_version: 1,
+    exported_at: new Date().toISOString(),
+    app: {
+      name: row.name,
+      slug: row.slug,
+      description: row.description ?? null,
+      category: row.category,
+      api_docs_url: row.api_docs_url ?? null,
+      version: row.version ?? '1.0.0',
+      schema_version: row.schema_version ?? 1,
+      credential_schema: row.credential_schema ?? [],
+      validation: row.validation ?? { kind: 'none' },
+    },
+  };
+}
   return {
     wax_app_version: 1,
     exported_at: new Date().toISOString(),
