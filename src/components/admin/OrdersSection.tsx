@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useIntegrationActive } from '@/hooks/useInstalledIntegrations';
+import { Lock } from 'lucide-react';
 import { Loader2, Eye, Search, Clock, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -413,12 +415,7 @@ const OrdersSection = () => {
                     <Input value={editTracking} onChange={e => setEditTracking(e.target.value)} className="bg-muted border-border" placeholder="SKD-00000" />
                   </div>
                 </div>
-                {selectedOrder && (
-                  <GenerateLabelButton
-                    orderId={selectedOrder.id}
-                    onCreated={(tn) => setEditTracking(tn)}
-                  />
-                )}
+                {selectedOrder && <ShippingLabelGate orderId={selectedOrder.id} onCreated={(tn) => setEditTracking(tn)} />}
                 <div className="space-y-2">
                   <Label className="text-foreground">Dirección de envío</Label>
                   <Textarea value={editAddress} onChange={e => setEditAddress(e.target.value)} className="bg-muted border-border resize-none" rows={2} />
@@ -506,6 +503,23 @@ const OrdersSection = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+};
+
+const ShippingLabelGate = ({ orderId, onCreated }: { orderId: string; onCreated: (tn: string) => void }) => {
+  const skydropxActive = useIntegrationActive('skydropx');
+  const t1Active = useIntegrationActive('t1envios');
+  if (skydropxActive || t1Active) {
+    return <GenerateLabelButton orderId={orderId} onCreated={onCreated} />;
+  }
+  return (
+    <div className="flex items-center gap-2 p-3 rounded-md border border-dashed border-border bg-muted/30 text-xs text-muted-foreground">
+      <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+      <span>
+        Activa <strong className="text-foreground">Skydropx</strong> o <strong className="text-foreground">T1 Envíos</strong> en{' '}
+        <span className="text-primary">Integraciones</span> para generar guías de envío.
+      </span>
     </div>
   );
 };
