@@ -58,6 +58,9 @@ interface Integration {
   version: string | null;
   created_at: string;
   updated_at: string;
+  credential_schema?: unknown;
+  validation?: unknown;
+  is_custom?: boolean;
 }
 
 const categoryIcons: Record<string, React.ElementType> = {
