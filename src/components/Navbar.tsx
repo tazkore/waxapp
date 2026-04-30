@@ -1,10 +1,23 @@
 import { useState, useEffect } from 'react';
-import { ShoppingCart, Menu, X, User, Shield, Search } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, Shield, Search, ChevronDown, HelpCircle } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCartStore } from '@/store/cartStore';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 import GlobalSearch from './GlobalSearch';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+const FAQ_QUICK_LINKS = [
+  { label: 'Legalidad', href: '/#faq-legal' },
+  { label: 'Empaque y envío', href: '/#faq-envio' },
+  { label: 'Dosis sugerida', href: '/#faq-dosis' },
+  { label: 'Full Spectrum', href: '/#faq-fullspectrum' },
+];
 
 const FALLBACK_LINKS = [
   { label: 'Tienda', href: '/#tienda' },
@@ -79,18 +92,40 @@ const Navbar = () => {
           WAXAPP<span className="text-primary">.</span>
         </a>
 
-        <div className="hidden gap-8 md:flex">
-          {navLinks.map((l, idx) => (
-            <a
-              key={`${l.href}-${idx}`}
-              href={l.href}
-              target={l.openInNewTab ? '_blank' : undefined}
-              rel={l.openInNewTab ? 'noreferrer' : undefined}
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {l.label}
-            </a>
-          ))}
+        <div className="hidden gap-6 md:flex items-center">
+          {navLinks
+            .filter((l) => !l.href.includes('#faq') && l.label.toLowerCase() !== 'faq')
+            .map((l, idx) => (
+              <a
+                key={`${l.href}-${idx}`}
+                href={l.href}
+                target={l.openInNewTab ? '_blank' : undefined}
+                rel={l.openInNewTab ? 'noreferrer' : undefined}
+                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {l.label}
+              </a>
+            ))}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground outline-none">
+              <HelpCircle className="h-3.5 w-3.5" />
+              FAQ
+              <ChevronDown className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-card border-border w-56">
+              <DropdownMenuItem asChild>
+                <a href="/#faq" className="cursor-pointer">Ver todas las preguntas</a>
+              </DropdownMenuItem>
+              {FAQ_QUICK_LINKS.map((q) => (
+                <DropdownMenuItem key={q.href} asChild>
+                  <a href={q.href} className="cursor-pointer text-muted-foreground hover:text-primary">
+                    → {q.label}
+                  </a>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="flex items-center gap-2">
@@ -142,16 +177,41 @@ const Navbar = () => {
             className="overflow-hidden border-t border-border md:hidden"
           >
             <div className="flex flex-col gap-1 px-4 py-3">
-              {navLinks.map((l) => (
+              {navLinks
+                .filter((l) => !l.href.includes('#faq') && l.label.toLowerCase() !== 'faq')
+                .map((l) => (
+                  <a
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    {l.label}
+                  </a>
+                ))}
+
+              <div className="mt-2 border-t border-border pt-2">
+                <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  FAQ
+                </p>
                 <a
-                  key={l.href}
-                  href={l.href}
+                  href="/#faq"
                   onClick={() => setMobileOpen(false)}
-                  className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
-                  {l.label}
+                  <HelpCircle className="h-4 w-4" /> Ver todas
                 </a>
-              ))}
+                {FAQ_QUICK_LINKS.map((q) => (
+                  <a
+                    key={q.href}
+                    href={q.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="block rounded-lg px-6 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    → {q.label}
+                  </a>
+                ))}
+              </div>
               {!session && (
                 <>
                   <a href="/cliente" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">

@@ -9,6 +9,7 @@ import CartDrawer from '@/components/CartDrawer';
 import Footer from '@/components/Footer';
 import NanoTechSection from '@/components/NanoTechSection';
 import FAQSection from '@/components/FAQSection';
+import LegalSection from '@/components/LegalSection';
 import WelcomeBanner from '@/components/WelcomeBanner';
 import ChatbotWidget from '@/components/ChatbotWidget';
 import BrandShowcase from '@/components/BrandShowcase';
@@ -39,6 +40,7 @@ const Index = () => {
         <LaboratoriosSection />
         <NeshikaFeatured />
         <NanoTechSection />
+        <LegalSection />
         <FAQSection />
         <Footer />
         <ChatbotWidget />
