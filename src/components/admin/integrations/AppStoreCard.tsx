@@ -1,7 +1,8 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Truck, FileText, Headphones, CreditCard, Mail, ShoppingBag, BarChart3, MessageCircle, Puzzle, Download, Settings2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Truck, FileText, Headphones, CreditCard, Mail, ShoppingBag, BarChart3, MessageCircle, Puzzle, Download, Settings2, MoreVertical, FileJson } from 'lucide-react';
 
 const ICONS: Record<string, React.ElementType> = {
   envios: Truck,
@@ -34,16 +35,17 @@ interface Props {
   app: AppCardData;
   onConnect: () => void;
   onConfigure: () => void;
+  onExport?: () => void;
 }
 
-const AppStoreCard = ({ app, onConnect, onConfigure }: Props) => {
+const AppStoreCard = ({ app, onConnect, onConfigure, onExport }: Props) => {
   const Icon = ICONS[app.category] || Puzzle;
   const status = app.is_active ? 'active' : app.is_installed ? 'inactive' : 'disconnected';
 
   return (
     <Card className="bg-card border-border hover:border-primary/40 transition-all group relative overflow-hidden">
-      {/* status badge top-right */}
-      <div className="absolute top-3 right-3">
+      {/* status badge + menu top-right */}
+      <div className="absolute top-3 right-3 flex items-center gap-1">
         {status === 'active' && (
           <Badge className="bg-primary/15 text-primary border-primary/30 gap-1.5 font-medium">
             <span className="h-2 w-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_hsl(var(--primary))]" />
@@ -55,6 +57,20 @@ const AppStoreCard = ({ app, onConnect, onConfigure }: Props) => {
         )}
         {status === 'disconnected' && (
           <Badge variant="outline" className="text-muted-foreground border-border">Desconectado</Badge>
+        )}
+        {onExport && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-6 w-6">
+                <MoreVertical className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onExport} className="text-xs gap-2">
+                <FileJson className="h-3.5 w-3.5" /> Exportar JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
