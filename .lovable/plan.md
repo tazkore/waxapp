@@ -1,154 +1,118 @@
-## Objetivo
+## Hub de Integraciones (App Store) — Plan de implementación
 
-Convertir el flujo "Importar Sitio" en un creador de **sub-tiendas completas por marca**, con:
-1. Asignación de productos/páginas/branding a una sub-tienda al final del importer.
-2. Nueva sección lateral **Tiendas** con submenú por sub-tienda y mini-panel admin acotado a esa marca.
-3. Dominios temporales automáticos (`/s/{slug}` + subdominio `{slug}.waxapp.mx`) cuando el dominio externo no está verificado.
-4. Asignación de **staff por tienda** desde Staff & Permisos.
-5. Copyright `© WAXAPP.MX` global en todas las tiendas/sub-tiendas.
+El proyecto ya tiene una sección `Integraciones` (`IntegrationsSection.tsx`) respaldada por la tabla `integrations` con install/active, modal de API keys, búsqueda y tabs por estado. La vamos a transformar en un verdadero **App Store estilo Tiendanube/Shopify**, con tabs por categoría funcional, tarjetas más visuales, modal de "Conectar" tipo wizard y gating condicional en el resto del panel.
 
-Solo el **super_admin** ve y administra todas las tiendas. Los admins/moderadores asignados solo ven la(s) suya(s).
+### 1. Catálogo curado de apps
 
----
+Insertar (vía migration con `ON CONFLICT (slug) DO NOTHING`) las apps faltantes en `public.integrations`:
 
-## 1. Importer → Crear sub-tienda al finalizar
+| Slug | Nombre | Categoría | Campos requeridos |
+|---|---|---|---|
+| skydropx | Skydropx | envios | api_key |
+| t1envios | T1 Envíos | envios | api_key |
+| ml_envios | Mercado Envíos | envios | access_token |
+| facturama | Facturama CFDI 4.0 | facturacion | api_user, api_password |
+| factura_com | Factura.com | facturacion | api_key, secret_key |
+| meta_pixel | Meta Pixel | marketing | pixel_id |
+| google_ads | Google Ads Conversion | marketing | conversion_id, label |
+| tiktok_pixel | TikTok Pixel | marketing | pixel_id |
+| klaviyo | Klaviyo | marketing | api_key |
+| whatsapp_api | WhatsApp Business API | soporte | phone_number_id, access_token |
+| zendesk | Zendesk | soporte | subdomain, api_token |
+| crisp | Crisp Chat | soporte | website_id |
 
-En `SiteImporterSection.tsx`, tras el paso 3 (productos importados) añadir paso 4 "Crear tienda":
-- Input: nombre tienda, slug (auto), marca asociada (select de `brands` o "crear nueva").
-- Botón **"Crear sub-tienda con todo lo importado"** que:
-  - Crea/usa `brands` row.
-  - Crea `sub_stores` row aplicando el `branding` extraído (colores, fuentes, logo, hero).
-  - Hace `UPDATE products SET sub_store_id = X, brand_id = Y WHERE id IN (importados)` usando ids retornados por `import-products`.
-  - Inserta filas en `domains` (estado `pending` para el dominio externo + `active` para el slug temporal).
-  - Redirige a la nueva sección `Tiendas → {slug}`.
+Se agregan dos categorías nuevas (`envios`, `facturacion`, `soporte`) al mapa `categoryLabels`/`categoryIcons` con iconos Lucide (`Truck`, `FileText`, `Headphones`).
 
-Modificar edge function `import-products` para devolver los IDs creados (ya devuelve `imported`, sumar `product_ids: []`).
+### 2. Rediseño de `IntegrationsSection.tsx` — vista App Store
 
----
+- Reemplazar los tabs actuales (Instaladas / Store / Todas) por **tabs por categoría**: `Todas · Envíos · Marketing · Facturación · Servicio al Cliente · Pagos · Otros` con contadores.
+- Mantener búsqueda arriba.
+- **Tarjetas (`AppCard`)** con look Dark Mode Tech:
+  - Fondo `bg-[#1A1A1A]` / `border-border`, hover `border-primary/40`.
+  - Icono 48×48 a la izquierda con halo `shadow-[0_0_20px_rgba(0,230,118,0.15)]` cuando `is_active`.
+  - Nombre + descripción en 2 líneas.
+  - **Badge de estado** en esquina:
+    - Activo → punto verde `#00E676` con `animate-pulse` + texto "Activo".
+    - Instalada pero inactiva → "Inactivo" gris.
+    - No instalada → "Desconectado" outline.
+  - Botón principal contextual: `Instalar` (no instalada) / `Configurar` (instalada).
+- Grid responsivo `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`.
 
-## 2. Sección lateral "Tiendas" con submenú
+### 3. Modal "Conectar [App]" — wizard de credenciales
 
-`AdminSidebar.tsx`: añadir item **Tiendas** (ícono `Store`) con submenú colapsable que lista todas las `sub_stores` accesibles al usuario actual.
+Nuevo componente `ConnectAppDialog.tsx` (sustituye al modal actual cuando la app aún no tiene credenciales; el modal existente queda para gestión avanzada).
 
-- Super admin → ve todas.
-- Admin/moderador → solo las que tiene asignadas en la nueva tabla `sub_store_staff`.
+Layout limpio:
+- Header: icono + "Conectar Skydropx".
+- Subtítulo: "Pega aquí tus credenciales de producción para habilitar la sincronización".
+- Inputs dinámicos según `requiredFields` definidos por slug (catalogo en `src/lib/integrationsCatalog.ts`).
+- Link "¿Dónde encuentro estas claves?" → `api_docs_url`.
+- Botones:
+  - `Cancelar` (ghost).
+  - `Probar Conexión y Guardar` — primary verde `#00E676`, hover `bg-primary/90 shadow-[0_0_20px_rgba(0,230,118,0.4)]`.
+- Flujo del botón:
+  1. Llama a Edge Function `test-integration-connection` (nueva) con `{ slug, credentials }`.
+  2. Si OK → guarda `config.api_keys`, `is_installed=true`, `is_active=true`, toast verde.
+  3. Si falla → muestra error inline en rojo, no guarda.
 
-Cada item del submenú navega a `Admin?store={subStoreId}` que renderiza un nuevo componente **`SubStoreAdminPanel`** que reusa los componentes existentes (`InventorySection`, `OrdersSection`, `BlogSection`, `ThemeSection`, `BrandsSection`, `BannersSection`, `MediaSection`, `MarketingSection`) pero con un contexto `SubStoreContext` que filtra todas las queries por `sub_store_id`.
+### 4. Edge function `test-integration-connection`
 
-Mini-sidebar interna del panel de tienda con tabs:
-```
-Vista general · Inventario · Pedidos · Marketing · Blog · Tema · Multimedia · Banners · Dominios
-```
+Endpoint único que enruta por `slug`:
+- `skydropx` → `GET https://api.skydropx.com/v1/account` con `Authorization: Token token=...`.
+- `facturama` → `GET https://api.factura.com/v4/clients` con basic auth.
+- `meta_pixel` → solo valida formato `^\d{15,16}$`.
+- `whatsapp_api` → `GET https://graph.facebook.com/v18.0/{phone_number_id}` con bearer.
+- Default → valida que los campos requeridos no estén vacíos.
 
-Las secciones reciben prop opcional `subStoreId` y al estar presente:
-- Filtran `*.eq('sub_store_id', subStoreId)`.
-- Las inserciones añaden ese campo automáticamente.
-- Ocultan controles globales (Setup, Integraciones, API Keys, Staff global).
+Devuelve `{ ok: boolean, message: string }`.
 
----
+### 5. Hook global `useInstalledIntegrations`
 
-## 3. Tabla nueva: `sub_store_staff`
+Nuevo `src/hooks/useInstalledIntegrations.ts`:
 
-Migración:
-```sql
-CREATE TABLE public.sub_store_staff (
-  id uuid PK default gen_random_uuid(),
-  sub_store_id uuid REFERENCES sub_stores(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL,
-  role text NOT NULL DEFAULT 'admin', -- 'admin' | 'moderator'
-  created_at timestamptz default now(),
-  UNIQUE(sub_store_id, user_id)
-);
--- RLS: super_admin manage all; users see own rows
-```
-
-Función helper:
-```sql
-CREATE FUNCTION public.has_substore_access(_uid uuid, _store uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER AS $$
-  SELECT has_role(_uid,'super_admin')
-    OR EXISTS(SELECT 1 FROM sub_store_staff WHERE user_id=_uid AND sub_store_id=_store);
-$$;
-```
-
-Hook nuevo `useSubStoreAccess(subStoreId)` que la consulta vía RPC.
-
----
-
-## 4. Dominios temporales automáticos
-
-En `DomainsSection.tsx` y al crear sub-tienda:
-- Siempre se crea un registro `domains` con `hostname = '{slug}.preview.waxapp.mx'`, `status='active'`, `is_primary=false`.
-- Si el usuario añade un hostname externo y SSL no se ha verificado tras X minutos, mostrar banner "Usando dirección temporal: `{slug}.preview.waxapp.mx`" con botón copiar.
-- La función `check-connectors` se extiende con un check `verifyDomain(hostname)` que hace HEAD y compara con DNS esperado; el resultado se guarda en `domains.status`.
-
-Nota: para que el subdominio funcione realmente requiere wildcard DNS en Lovable. Mientras tanto se usa la ruta `/s/{slug}` ya existente como fallback temporal. Mostrar en UI ambas opciones.
-
----
-
-## 5. Staff & Permisos: asignación por tienda
-
-`StaffSection.tsx`:
-- En el diálogo "Permisos" añadir tab **"Tiendas"** con lista de sub-tiendas y checkbox + selector de rol (admin/moderator) por cada una.
-- Guardar vía edge function `manage-users` action `set_substore_access` que upsertea/elimina filas en `sub_store_staff`.
-- En tabla principal añadir columna **"Tiendas"** mostrando badges con los slugs asignados (o "Todas" si super_admin).
-- Botón "Crear Staff" añade selector "Tienda asignada (opcional)" para creación rápida.
-
-Editar `supabase/functions/manage-users/index.ts` para soportar:
-- `action: 'list_substore_access', user_id`
-- `action: 'set_substore_access', user_id, assignments: [{sub_store_id, role}]`
-
----
-
-## 6. Copyright global
-
-Crear componente `<Copyright />` que renderiza:
-```
-© WAXAPP.MX 2026 · Hecho con ciencia.
+```ts
+export function useIntegrationActive(slug: string): boolean
+export function useInstalledIntegrations(): { bySlug: Record<string, Integration>, loading }
 ```
 
-Insertarlo en:
-- `Footer.tsx` (ya existe año, normalizar texto).
-- `SubStorePage.tsx` (reemplaza el footer actual "Sub-tienda remixada").
-- `Admin.tsx` (línea pequeña en el bottom del main).
-- `ClientDashboard.tsx`, `Checkout.tsx`, etc. (si tienen footer propio).
+Carga una vez desde `integrations` y se suscribe a cambios. Permite gating condicional en cualquier componente.
 
----
+### 6. Gating condicional en el panel
 
-## Detalles técnicos
+Aplicar el hook donde corresponda:
 
-### Archivos a crear
-- `src/contexts/SubStoreContext.tsx` — provee `subStoreId` actual y filtros.
-- `src/components/admin/SubStoreAdminPanel.tsx` — wrapper con sub-sidebar interno.
-- `src/components/admin/StoresMenuGroup.tsx` — submenú colapsable en sidebar.
-- `src/components/Copyright.tsx`.
-- `src/hooks/useAccessibleSubStores.ts` — devuelve sub-tiendas a las que el user accede.
-- Migración: `sub_store_staff` + función `has_substore_access` + RLS update en sub_stores.
+- **`OrdersSection.tsx`** (línea ~417): el `<GenerateLabelButton>` solo se renderiza si `useIntegrationActive('skydropx') || useIntegrationActive('t1envios')`. Si ninguno está activo, mostrar tooltip "Instala Skydropx en Integraciones para generar guías" con link al hub.
+- **`OverviewSection`**: mostrar tarjetas de "Marketing" (Meta Pixel events) solo si `meta_pixel` activo.
+- **Checkout / `index.html`**: inyectar el snippet de Meta Pixel solo si está activo (lectura desde tabla en `App.tsx` con efecto montado).
+- **`OrdersSection`** factura PDF button → solo si `facturama` o `factura_com` activos.
+- **`ChatbotWidget`** → si `crisp` activo, montar el script de Crisp en su lugar.
 
-### Archivos a editar
-- `src/components/admin/AdminSidebar.tsx` — añadir grupo "Tiendas".
-- `src/components/admin/SiteImporterSection.tsx` — paso 4 "Crear sub-tienda".
-- `src/components/admin/StaffSection.tsx` — tab "Tiendas" en permisos.
-- `src/components/admin/DomainsSection.tsx` — banner dirección temporal + auto-creación.
-- `src/components/Footer.tsx`, `src/pages/SubStorePage.tsx` — copyright unificado.
-- `src/pages/Admin.tsx` — manejo de `?store=` y render de `SubStoreAdminPanel`.
-- `supabase/functions/manage-users/index.ts` — acciones substore.
-- `supabase/functions/import-products/index.ts` — devolver `product_ids`.
+### 7. Marca y estética
 
-### RLS y seguridad
-- `sub_store_staff`: solo super_admin INSERT/UPDATE/DELETE. SELECT por super_admin o `user_id = auth.uid()`.
-- `sub_stores` UPDATE: añadir condición OR `has_substore_access(auth.uid(), id)` para que admins de tienda editen su tema/branding.
-- `products` UPDATE/INSERT: dejar como está (admin global). Para edits dentro de una sub-tienda, se valida server-side filtrando por `sub_store_id`.
+- Mantener fondo `#0A0A0A`, acentos `#00E676`, tipografía Space Grotesk para títulos / Inter para cuerpo (ya en proyecto).
+- Punto verde activo: `<span className="h-2 w-2 rounded-full bg-[#00E676] animate-pulse shadow-[0_0_8px_#00E676]" />`.
+- Botones primary con `transition-shadow hover:shadow-[0_0_20px_rgba(0,230,118,0.4)]`.
 
-### Notas
-- No se requieren nuevos secrets.
-- El subdominio real `{slug}.waxapp.mx` necesita wildcard DNS configurado por el owner del dominio; mientras, `/s/{slug}` es la ruta funcional y se muestra como dirección temporal canónica.
-- Sin Realtime en estas tablas (regla del proyecto).
+### Archivos a crear / editar
 
----
+**Nuevos**
+- `src/components/admin/integrations/ConnectAppDialog.tsx`
+- `src/components/admin/integrations/AppStoreCard.tsx`
+- `src/lib/integrationsCatalog.ts` — slug → { requiredFields, displayCategory, ctaLabel }
+- `src/hooks/useInstalledIntegrations.ts`
+- `supabase/functions/test-integration-connection/index.ts`
+- Migration: insert de las nuevas filas en `integrations` (idempotente)
 
-## Resultado esperado
+**Editados**
+- `src/components/admin/IntegrationsSection.tsx` — tabs por categoría, nuevo AppCard, abre `ConnectAppDialog` cuando no hay credenciales.
+- `src/components/admin/OrdersSection.tsx` — gating del botón `Generar Guía`.
+- `src/App.tsx` — montaje condicional de Meta Pixel / Crisp.
+- `src/components/admin/AdminSidebar.tsx` — el item "Integraciones" ya existe, solo verificamos icono `Plug` y que esté visible para todos los roles admin.
 
-- Super admin termina de importar un sitio → un click crea sub-tienda con productos, branding, dominio temporal y entrada en sidebar.
-- Asigna un admin a esa tienda desde Staff → ese admin solo ve "Tiendas → {esa}" con panel restringido.
-- Cada vista pública/admin muestra `© WAXAPP.MX`.
+### Detalles técnicos
+
+- No tocar `src/integrations/supabase/types.ts` (auto-gen).
+- La tabla `integrations` ya existe; solo INSERT idempotentes por `slug`.
+- Las credenciales se almacenan en `integrations.config.api_keys` (patrón ya en uso). Para apps sensibles (Skydropx, WhatsApp), recomendar al usuario en el modal usar la sección "API & Conexiones" (super_admin) si quiere guardarlas como secrets de Edge Functions; por ahora se persisten en DB con RLS de admin.
+- El edge function corre con `verify_jwt = true` (default) y usa `service_role` solo para leer `integrations`.
+- Footer global con `<Copyright />` (`© WAXAPP.MX`) ya existe — se reutiliza, no se duplica.
