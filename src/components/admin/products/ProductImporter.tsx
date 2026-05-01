@@ -274,30 +274,20 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
   };
 
   const validateRow = (it: any, idx: number): { row?: any; errors: string[] } => {
-    const errors: string[] = [];
-    const name = typeof it?.name === "string" ? it.name.trim() : "";
-    if (!name) errors.push("nombre vacío");
-    if (name.length > 200) errors.push("nombre > 200 chars");
-
-    const priceNum = Number(it?.price);
-    const price = Number.isFinite(priceNum) && priceNum >= 0 ? priceNum : 0;
-    if (it?.price != null && !Number.isFinite(priceNum)) errors.push(`precio inválido (${it.price})`);
-
-    const compareNum = it?.compare_at_price != null ? Number(it.compare_at_price) : null;
-    if (compareNum != null && !Number.isFinite(compareNum)) errors.push("compare_at_price inválido");
-
+    const v = validateProductRow(it);
+    if (!v.canImport) {
+      return { errors: v.errors.map((e) => e.message) };
+    }
+    const name = String(it.name).trim();
+    const priceNum = Number(it?.price) || 0;
+    const compareNum = it?.compare_at_price != null && it.compare_at_price !== "" ? Number(it.compare_at_price) : null;
     const img = Array.isArray(it?.images) ? it.images[0] : it?.image_url;
     const gallery: string[] = Array.isArray(it?.images)
       ? it.images.filter((u: any) => typeof u === "string" && isHttpUrl(u))
       : [];
-    if (img && !isHttpUrl(img)) errors.push("image_url no es http(s)");
-    const canonical = it?.source_url || it?.canonical_url || null;
-    if (canonical && !isHttpUrl(canonical)) errors.push("canonical_url inválida");
-
-    if (errors.length) return { errors };
-
     const description = it?.description ? String(it.description).slice(0, 4000) : null;
     const attributes = it?.attributes && typeof it.attributes === "object" ? it.attributes : {};
+    const canonical = it?.source_url || it?.canonical_url || null;
     return {
       errors: [],
       row: {
@@ -305,13 +295,13 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         slug: slugify(name) || `producto-${Date.now()}-${idx}`,
         description,
         short_description: it?.short_description || (description ? description.slice(0, 160) : null),
-        price,
+        price: priceNum,
         stock: 0,
         sku: it?.sku ? String(it.sku).slice(0, 60) : null,
         category: it?.category ? String(it.category).slice(0, 100) : null,
         brand_name: it?.brand ? String(it.brand).slice(0, 100) : null,
         gtin: it?.gtin ? String(it.gtin).slice(0, 60) : null,
-        compare_at_price: compareNum ?? null,
+        compare_at_price: compareNum != null && Number.isFinite(compareNum) ? compareNum : null,
         image_url: img && isHttpUrl(img) ? img : null,
         gallery_urls: gallery,
         meta_title: it?.meta_title || name.slice(0, 60),
@@ -320,7 +310,7 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         meta_keywords: Array.isArray(it?.meta_keywords) ? it.meta_keywords : [],
         tags: Array.isArray(it?.tags) ? it.tags : [],
         attributes,
-        canonical_url: canonical,
+        canonical_url: canonical && isHttpUrl(canonical) ? canonical : null,
         is_active: false,
       },
     };
