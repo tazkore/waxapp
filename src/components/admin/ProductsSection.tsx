@@ -11,6 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Search, Pencil, Globe, Wand2, CheckCircle2, AlertCircle, Sparkles, Trash2 } from "lucide-react";
+import { CsvImporter } from "./products/CsvImporter";
+import { ProductImporter } from "./products/ProductImporter";
+import { ImportJobsHistory } from "./products/ImportJobsHistory";
 
 type Product = {
   id: string;
