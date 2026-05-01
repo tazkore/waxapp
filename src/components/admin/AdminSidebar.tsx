@@ -1,4 +1,4 @@
-import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound, Network, UserCog, Shield, Sparkles, Wand2, Eye, Globe, Store, ChevronDown } from 'lucide-react';
+import { BarChart3, Package, Truck, Users, Settings, Tag, Puzzle, ClipboardList, Rocket, ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon, Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound, Network, UserCog, Shield, Sparkles, Wand2, Eye, Globe, Store, ChevronDown, Boxes } from 'lucide-react';
 import { useState } from 'react';
 import {
   Sidebar,
@@ -18,6 +18,7 @@ import Copyright from '@/components/Copyright';
 
 const allNavItems = [
   { title: 'Vista General', icon: BarChart3, key: 'overview' },
+  { title: 'Productos & SEO', icon: Boxes, key: 'products' },
   { title: 'Inventario', icon: Package, key: 'inventory' },
   { title: 'Pedidos y Envíos', icon: Truck, key: 'orders' },
   { title: 'Almacenes', icon: Warehouse, key: 'warehouses' },

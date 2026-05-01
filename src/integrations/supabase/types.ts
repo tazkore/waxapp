@@ -1436,63 +1436,117 @@ export type Database = {
       products: {
         Row: {
           brand_id: string | null
+          brand_name: string | null
+          canonical_url: string | null
           category: string | null
           compare_at_price: number | null
           created_at: string
           description: string | null
+          dimensions: Json
           featured_order: number
+          focus_keyword: string | null
+          gallery_urls: string[]
+          gtin: string | null
           id: string
           image_url: string | null
           is_active: boolean
           is_featured: boolean
+          long_description_html: string | null
+          meta_description: string | null
+          meta_keywords: string[]
+          meta_title: string | null
+          mpn: string | null
           name: string
+          nofollow: boolean
+          noindex: boolean
+          og_image_url: string | null
           price: number
+          schema_type: string
+          short_description: string | null
           sku: string | null
           slug: string | null
           stock: number
           sub_store_id: string | null
+          tags: string[]
           updated_at: string
           warehouse_id: string | null
+          weight_grams: number | null
         }
         Insert: {
           brand_id?: string | null
+          brand_name?: string | null
+          canonical_url?: string | null
           category?: string | null
           compare_at_price?: number | null
           created_at?: string
           description?: string | null
+          dimensions?: Json
           featured_order?: number
+          focus_keyword?: string | null
+          gallery_urls?: string[]
+          gtin?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
           is_featured?: boolean
+          long_description_html?: string | null
+          meta_description?: string | null
+          meta_keywords?: string[]
+          meta_title?: string | null
+          mpn?: string | null
           name: string
+          nofollow?: boolean
+          noindex?: boolean
+          og_image_url?: string | null
           price?: number
+          schema_type?: string
+          short_description?: string | null
           sku?: string | null
           slug?: string | null
           stock?: number
           sub_store_id?: string | null
+          tags?: string[]
           updated_at?: string
           warehouse_id?: string | null
+          weight_grams?: number | null
         }
         Update: {
           brand_id?: string | null
+          brand_name?: string | null
+          canonical_url?: string | null
           category?: string | null
           compare_at_price?: number | null
           created_at?: string
           description?: string | null
+          dimensions?: Json
           featured_order?: number
+          focus_keyword?: string | null
+          gallery_urls?: string[]
+          gtin?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
           is_featured?: boolean
+          long_description_html?: string | null
+          meta_description?: string | null
+          meta_keywords?: string[]
+          meta_title?: string | null
+          mpn?: string | null
           name?: string
+          nofollow?: boolean
+          noindex?: boolean
+          og_image_url?: string | null
           price?: number
+          schema_type?: string
+          short_description?: string | null
           sku?: string | null
           slug?: string | null
           stock?: number
           sub_store_id?: string | null
+          tags?: string[]
           updated_at?: string
           warehouse_id?: string | null
+          weight_grams?: number | null
         }
         Relationships: [
           {

@@ -9,6 +9,7 @@ import { useUserRole } from '@/hooks/useUserRole';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import OverviewSection from '@/components/admin/OverviewSection';
 import InventorySection from '@/components/admin/InventorySection';
+import ProductsSection from '@/components/admin/ProductsSection';
 import OrdersSection from '@/components/admin/OrdersSection';
 import ClientsSection from '@/components/admin/ClientsSection';
 import MarketingSection from '@/components/admin/MarketingSection';
@@ -69,6 +70,7 @@ const Admin = () => {
   const renderSection = () => {
     switch (active) {
       case 'overview': return <OverviewSection onNavigate={setActive} />;
+      case 'products': return <ProductsSection />;
       case 'inventory': return <InventorySection isAdmin={isAdmin} />;
       case 'orders': return <OrdersSection />;
       case 'warehouses': return <WarehousesSection />;
