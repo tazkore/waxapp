@@ -13,6 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Search, Pencil, Globe, Wand2, CheckCircle2, AlertCircle, Sparkles, Trash2 } from "lucide-react";
 import CsvImporter from "./products/CsvImporter";
 import ImportJobsHistory from "./products/ImportJobsHistory";
+import AdvancedMetadataEditor, { type AdvancedMetadata } from "./products/AdvancedMetadataEditor";
+import VariantMetadataEditor from "./products/VariantMetadataEditor";
 
 type Product = {
   id: string;
