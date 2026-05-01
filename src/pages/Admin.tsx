@@ -70,6 +70,7 @@ const Admin = () => {
   const renderSection = () => {
     switch (active) {
       case 'overview': return <OverviewSection onNavigate={setActive} />;
+      case 'products': return <ProductsSection />;
       case 'inventory': return <InventorySection isAdmin={isAdmin} />;
       case 'orders': return <OrdersSection />;
       case 'warehouses': return <WarehousesSection />;
