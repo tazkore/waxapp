@@ -14,6 +14,7 @@ import AutoImagePicker from "./AutoImagePicker";
 import ProductPreviewCard from "./ProductPreviewCard";
 import { aggregateValidation, validateProductRow } from "@/lib/validateProductRow";
 import { norm, type CatalogEntry } from "@/lib/categoryBrandSuggester";
+import { normalizeSeoMetadata } from "@/lib/normalizeSeoMetadata";
 import {
   Loader2,
   Globe,
@@ -23,6 +24,7 @@ import {
   Eye,
   Sparkles,
   ShieldAlert,
+  FileText,
 } from "lucide-react";
 
 type Provider =
