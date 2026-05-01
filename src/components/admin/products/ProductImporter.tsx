@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import RlsErrorPanel from "./RlsErrorPanel";
 import AutoImagePicker from "./AutoImagePicker";
 import ProductPreviewCard from "./ProductPreviewCard";
 import { aggregateValidation, validateProductRow } from "@/lib/validateProductRow";
+import { norm, type CatalogEntry } from "@/lib/categoryBrandSuggester";
 import {
   Loader2,
   Globe,
