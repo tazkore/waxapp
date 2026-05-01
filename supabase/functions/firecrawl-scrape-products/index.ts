@@ -68,7 +68,17 @@ const isHttpUrl = (s: unknown): s is string => {
   }
 };
 
-const VALID_PROVIDERS: Provider[] = ["firecrawl", "jina", "scrapingbee", "readability"];
+const VALID_PROVIDERS: Provider[] = [
+  "firecrawl",
+  "jina",
+  "scrapingbee",
+  "readability",
+  "browserless",
+  "scraperapi",
+  "scrapfly",
+  "diffbot",
+  "zenrows",
+];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
