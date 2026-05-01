@@ -88,6 +88,7 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
   const [previewProducts, setPreviewProducts] = useState<any[] | null>(null);
   const [rlsError, setRlsError] = useState<string | null>(null);
   const [autoImgBusy, setAutoImgBusy] = useState(false);
+  const [aiBatchBusy, setAiBatchBusy] = useState(false);
   const currentJobId = useRef<string | null>(null);
 
   const map = async () => {
