@@ -18,6 +18,7 @@ import Copyright from '@/components/Copyright';
 
 const allNavItems = [
   { title: 'Vista General', icon: BarChart3, key: 'overview' },
+  { title: 'Productos & SEO', icon: Boxes, key: 'products' },
   { title: 'Inventario', icon: Package, key: 'inventory' },
   { title: 'Pedidos y Envíos', icon: Truck, key: 'orders' },
   { title: 'Almacenes', icon: Warehouse, key: 'warehouses' },
