@@ -163,29 +163,81 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     }
   };
 
+  const validateRow = (it: any, idx: number): { row?: any; errors: string[] } => {
+    const errors: string[] = [];
+    const name = typeof it?.name === "string" ? it.name.trim() : "";
+    if (!name) errors.push("nombre vacío");
+    if (name.length > 200) errors.push("nombre > 200 chars");
+
+    const priceNum = Number(it?.price);
+    const price = Number.isFinite(priceNum) && priceNum >= 0 ? priceNum : 0;
+    if (it?.price != null && !Number.isFinite(priceNum)) errors.push(`precio inválido (${it.price})`);
+
+    const compareNum = it?.compare_at_price != null ? Number(it.compare_at_price) : null;
+    if (compareNum != null && !Number.isFinite(compareNum)) errors.push("compare_at_price inválido");
+
+    const img = Array.isArray(it?.images) ? it.images[0] : it?.image_url;
+    const gallery: string[] = Array.isArray(it?.images)
+      ? it.images.filter((u: any) => typeof u === "string" && isHttpUrl(u))
+      : [];
+    if (img && !isHttpUrl(img)) errors.push("image_url no es http(s)");
+    const canonical = it?.source_url || it?.canonical_url || null;
+    if (canonical && !isHttpUrl(canonical)) errors.push("canonical_url inválida");
+
+    if (errors.length) return { errors };
+
+    const description = it?.description ? String(it.description).slice(0, 4000) : null;
+    return {
+      errors: [],
+      row: {
+        name: name.slice(0, 200),
+        slug: slugify(name) || `producto-${Date.now()}-${idx}`,
+        description,
+        short_description: description ? description.slice(0, 160) : null,
+        price,
+        stock: 0,
+        sku: it?.sku ? String(it.sku).slice(0, 60) : null,
+        category: it?.category ? String(it.category).slice(0, 100) : null,
+        brand_name: it?.brand ? String(it.brand).slice(0, 100) : null,
+        gtin: it?.gtin ? String(it.gtin).slice(0, 60) : null,
+        compare_at_price: compareNum ?? null,
+        image_url: img && isHttpUrl(img) ? img : null,
+        gallery_urls: gallery,
+        meta_title: name.slice(0, 60),
+        meta_description: description ? description.slice(0, 160) : null,
+        focus_keyword: name.split(" ").slice(0, 3).join(" "),
+        canonical_url: canonical,
+        is_active: false,
+      },
+    };
+  };
+
   const importProducts = async () => {
-    const items = Array.from(selectedP).map((i) => products[i]).filter(Boolean);
+    const items = Array.from(selectedP).map((i) => ({ it: products[i], i })).filter((x) => x.it);
     if (!items.length) return;
     setBusy("import");
     try {
-      const rows = items.map((it: any) => ({
-        name: it.name || "Producto sin nombre",
-        slug: slugify(it.name || `producto-${Date.now()}`),
-        description: it.description || null,
-        short_description: it.description ? String(it.description).slice(0, 160) : null,
-        price: Number(it.price) || 0,
-        sku: it.sku || null,
-        category: it.category || null,
-        brand_name: it.brand || null,
-        gtin: it.gtin || null,
-        image_url: Array.isArray(it.images) ? it.images[0] : it.image_url || null,
-        gallery_urls: Array.isArray(it.images) ? it.images : [],
-        meta_title: (it.name || "").slice(0, 60),
-        meta_description: it.description ? String(it.description).slice(0, 160) : null,
-        focus_keyword: (it.name || "").split(" ").slice(0, 3).join(" "),
-        canonical_url: it.source_url || null,
-        is_active: false,
-      }));
+      const rows: any[] = [];
+      const invalid: Array<{ idx: number; name: string; errors: string[] }> = [];
+      for (const { it, i } of items) {
+        const { row, errors } = validateRow(it, i);
+        if (row) rows.push(row);
+        else invalid.push({ idx: i + 1, name: it?.name || `#${i + 1}`, errors });
+      }
+
+      if (invalid.length) {
+        const sample = invalid.slice(0, 3).map((v) => `• ${v.name}: ${v.errors.join(", ")}`).join("\n");
+        toast({
+          title: `${invalid.length} producto(s) inválidos omitidos`,
+          description: sample + (invalid.length > 3 ? `\n…+${invalid.length - 3} más` : ""),
+          variant: invalid.length === items.length ? "destructive" : "default",
+        });
+      }
+      if (!rows.length) {
+        setBusy(null);
+        return;
+      }
+
       const { error } = await supabase.from("products").insert(rows);
       if (error) throw error;
       toast({ title: "Importados", description: `${rows.length} productos creados como borradores` });
