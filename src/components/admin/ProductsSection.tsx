@@ -437,12 +437,18 @@ const ProductEditor = ({ product, onClose, onSaved }: { product: Product; onClos
       compatibility: p.compatibility || [],
       warranty_months: p.warranty_months != null ? Number(p.warranty_months) : null,
     };
-    const { error } = p.id
-      ? await supabase.from("products").update(payload).eq("id", p.id)
-      : await supabase.from("products").insert(payload);
+    const result = p.id
+      ? await supabase.from("products").update(payload).eq("id", p.id).select().single()
+      : await supabase.from("products").insert(payload).select().single();
     setSaving(false);
-    if (error) {
-      toast({ title: "Error al guardar", description: error.message, variant: "destructive" });
+    if (result.error) {
+      toast({ title: "Error al guardar", description: result.error.message, variant: "destructive" });
+      return;
+    }
+    if (result.data && !p.id) {
+      // Mantener el editor abierto con el id ya asignado para que se puedan agregar variantes
+      setP((prev) => ({ ...prev, ...(result.data as any) }));
+      toast({ title: "Producto creado", description: "Ahora puedes agregar variantes y metadatos avanzados." });
       return;
     }
     toast({ title: "Producto guardado" });
