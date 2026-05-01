@@ -612,6 +612,16 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
                 Auto-buscar imágenes
               </Button>
               <Button
+                onClick={autoFillWithAi}
+                disabled={aiBatchBusy || busy !== null || selectedP.size === 0}
+                size="sm"
+                variant="outline"
+                className="gap-2"
+              >
+                {aiBatchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Completar con IA
+              </Button>
+              <Button
                 onClick={importProducts}
                 disabled={busy !== null || selectedP.size === 0 || !canImport}
                 size="sm"
