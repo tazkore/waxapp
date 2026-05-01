@@ -2,9 +2,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 // Progress not used directly — visual bar uses inline divs for color flexibility
-import { AlertCircle, ImageOff, Sparkles, ImageIcon, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, ImageOff, Sparkles, ImageIcon, CheckCircle2, Loader2, Lightbulb, X, Tag, Building2 } from "lucide-react";
 import { validateProductRow, type FieldIssue } from "@/lib/validateProductRow";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { suggestCategoryAndBrand, hasSuggestion, type CatalogEntry } from "@/lib/categoryBrandSuggester";
+import { useMemo, useState } from "react";
 
 interface Props {
   item: any;
@@ -14,8 +16,13 @@ interface Props {
   onAutoImage?: () => void;
   onAutoFillAi?: () => void;
   onPickImage?: () => void;
+  /** Apply a partial update to this row (e.g. {category, brand}) */
+  onApplyPatch?: (patch: Record<string, any>) => void;
   imageBusy?: boolean;
   aiBusy?: boolean;
+  /** Catalogs for suggestion fuzzy-match */
+  brandCatalog?: CatalogEntry[];
+  categoryCatalog?: CatalogEntry[];
 }
 
 const colorForScore = (n: number) =>
@@ -61,8 +68,11 @@ const ProductPreviewCard = ({
   onAutoImage,
   onAutoFillAi,
   onPickImage,
+  onApplyPatch,
   imageBusy,
   aiBusy,
+  brandCatalog,
+  categoryCatalog,
 }: Props) => {
   const validation = validateProductRow(it);
   const img = Array.isArray(it.images) ? it.images[0] : it.image_url;
@@ -70,6 +80,35 @@ const ProductPreviewCard = ({
   const allIssues = [...validation.errors, ...validation.warnings];
   const needsImage = allIssues.some((i) => i.field === "image_url");
   const needsAi = allIssues.some((i) => i.action === "ai");
+
+  const [dismissed, setDismissed] = useState(false);
+  const suggestion = useMemo(
+    () =>
+      suggestCategoryAndBrand(
+        {
+          name: it.name,
+          gtin: it.gtin,
+          description: it.description,
+          source_url: it.source_url,
+          current_category: it.category,
+          current_brand: it.brand || it.brand_name,
+        },
+        { brands: brandCatalog, categories: categoryCatalog }
+      ),
+    [it.name, it.gtin, it.description, it.source_url, it.category, it.brand, it.brand_name, brandCatalog, categoryCatalog]
+  );
+  const showSuggestion = !dismissed && onApplyPatch && hasSuggestion(suggestion);
+
+  const applySuggestion = () => {
+    if (!onApplyPatch) return;
+    const patch: Record<string, any> = {};
+    if (suggestion.category) patch.category = suggestion.category;
+    if (suggestion.brand) {
+      patch.brand = suggestion.brand;
+      patch.brand_name = suggestion.brand;
+    }
+    onApplyPatch(patch);
+  };
 
   return (
     <div
@@ -144,6 +183,72 @@ const ProductPreviewCard = ({
             <Badge variant="outline" className="text-[10px]">+{allIssues.length - 6}</Badge>
           )}
         </div>
+
+        {/* Category / Brand suggestion */}
+        {showSuggestion && (
+          <div className="flex items-start gap-2 p-2 rounded-md border border-primary/30 bg-primary/5">
+            <Lightbulb className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <p className="text-[11px] text-foreground/80 leading-snug">
+                Sugerencia automática:
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {suggestion.category && (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="text-[10px] gap-1 border-primary/40 text-primary cursor-help">
+                          <Tag className="h-2.5 w-2.5" /> {suggestion.category}
+                          <span className="opacity-60 ml-0.5">
+                            {Math.round(suggestion.category_confidence * 100)}%
+                          </span>
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs max-w-[260px]">
+                        {suggestion.category_reason || "Categoría sugerida"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                {suggestion.brand && (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="text-[10px] gap-1 border-primary/40 text-primary cursor-help">
+                          <Building2 className="h-2.5 w-2.5" /> {suggestion.brand}
+                          <span className="opacity-60 ml-0.5">
+                            {Math.round(suggestion.brand_confidence * 100)}%
+                          </span>
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs max-w-[260px]">
+                        {suggestion.brand_reason || "Marca sugerida"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              <div className="flex gap-1.5 pt-0.5">
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={applySuggestion}
+                  className="h-6 text-[10px] px-2 gap-1"
+                >
+                  <CheckCircle2 className="h-2.5 w-2.5" /> Aplicar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setDismissed(true)}
+                  className="h-6 text-[10px] px-2 gap-1 text-muted-foreground"
+                >
+                  <X className="h-2.5 w-2.5" /> Descartar
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick actions */}
         {(onAutoImage || onAutoFillAi || onPickImage) && (needsImage || needsAi) && (

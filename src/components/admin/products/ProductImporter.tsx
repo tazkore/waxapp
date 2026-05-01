@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import RlsErrorPanel from "./RlsErrorPanel";
 import AutoImagePicker from "./AutoImagePicker";
 import ProductPreviewCard from "./ProductPreviewCard";
 import { aggregateValidation, validateProductRow } from "@/lib/validateProductRow";
+import { norm, type CatalogEntry } from "@/lib/categoryBrandSuggester";
 import {
   Loader2,
   Globe,
@@ -94,6 +95,46 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
   const [rowImageBusy, setRowImageBusy] = useState<Set<number>>(new Set());
   const [rowAiBusy, setRowAiBusy] = useState<Set<number>>(new Set());
   const currentJobId = useRef<string | null>(null);
+  const [brandCatalog, setBrandCatalog] = useState<CatalogEntry[]>([]);
+  const [categoryCatalog, setCategoryCatalog] = useState<CatalogEntry[]>([]);
+
+  // Load existing brands and distinct categories once for fuzzy suggestions
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [{ data: brandRows }, { data: prodRows }] = await Promise.all([
+        supabase.from("brands").select("name").eq("is_active", true).limit(500),
+        supabase.from("products").select("category").not("category", "is", null).limit(1000),
+      ]);
+      if (!alive) return;
+      const brands: CatalogEntry[] = (brandRows || [])
+        .map((r: any) => r.name)
+        .filter((n: any): n is string => typeof n === "string" && n.trim().length > 0)
+        .map((n: string) => ({ label: n, match: norm(n) }));
+      const seen = new Set<string>();
+      const cats: CatalogEntry[] = [];
+      for (const r of prodRows || []) {
+        const c = (r as any).category;
+        if (typeof c !== "string") continue;
+        const k = norm(c);
+        if (!k || seen.has(k)) continue;
+        seen.add(k);
+        cats.push({ label: c, match: k });
+      }
+      setBrandCatalog(brands);
+      setCategoryCatalog(cats);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  /** Patch a single row in `products` (used by per-row suggestions) */
+  const applyRowPatch = (i: number, patch: Record<string, any>) => {
+    setProducts((curr) => {
+      const copy = [...curr];
+      if (copy[i]) copy[i] = { ...copy[i], ...patch };
+      return copy;
+    });
+  };
 
   const setRowBusy = (which: "img" | "ai", i: number, busy: boolean) => {
     const setter = which === "img" ? setRowImageBusy : setRowAiBusy;
@@ -843,6 +884,9 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
                     }}
                     onAutoImage={() => autoImageRow(i)}
                     onAutoFillAi={() => autoFillAiRow(i)}
+                    onApplyPatch={(patch) => applyRowPatch(i, patch)}
+                    brandCatalog={brandCatalog}
+                    categoryCatalog={categoryCatalog}
                     imageBusy={rowImageBusy.has(i)}
                     aiBusy={rowAiBusy.has(i)}
                   />
