@@ -302,7 +302,73 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     toast({ title: `Auto-imagen completada`, description: `${filled}/${missing.length} encontradas` });
   };
 
-  const importProducts = async () => {
+  const autoFillWithAi = async () => {
+    const indices = Array.from(selectedP);
+    if (!indices.length) {
+      toast({ title: "Selecciona productos primero", variant: "destructive" });
+      return;
+    }
+    setAiBatchBusy(true);
+    let filled = 0;
+    const queue = [...indices];
+    const workers = Array.from({ length: 3 }, async () => {
+      while (queue.length) {
+        const i = queue.shift();
+        if (i == null) break;
+        const it = products[i];
+        if (!it) continue;
+        try {
+          const { data, error } = await supabase.functions.invoke("product-autofill", {
+            body: {
+              product: {
+                name: it.name,
+                description: it.description,
+                category: it.category,
+                brand_name: it.brand,
+                price: it.price,
+                sku: it.sku,
+                gtin: it.gtin,
+                canonical_url: it.source_url,
+              },
+              only_missing: true,
+            },
+          });
+          if (!error && data?.proposal) {
+            setProducts((curr) => {
+              const copy = [...curr];
+              if (copy[i]) {
+                const p = data.proposal;
+                copy[i] = {
+                  ...copy[i],
+                  description: copy[i].description || p.description,
+                  short_description: copy[i].short_description || p.short_description,
+                  category: copy[i].category || p.category,
+                  meta_title: copy[i].meta_title || p.meta_title,
+                  meta_description: copy[i].meta_description || p.meta_description,
+                  focus_keyword: copy[i].focus_keyword || p.focus_keyword,
+                  meta_keywords: p.meta_keywords || copy[i].meta_keywords,
+                  tags: p.tags || copy[i].tags,
+                  attributes: { ...(copy[i].attributes || {}), ...(p.attributes || {}) },
+                };
+              }
+              return copy;
+            });
+            filled++;
+          }
+        } catch (e) {
+          console.error("autofill err", e);
+        }
+      }
+    });
+    await Promise.all(workers);
+    setAiBatchBusy(false);
+    toast({
+      title: "IA completada",
+      description: `${filled}/${indices.length} productos enriquecidos`,
+    });
+  };
+
+
     setRlsError(null);
 
     if (!canImport) {
