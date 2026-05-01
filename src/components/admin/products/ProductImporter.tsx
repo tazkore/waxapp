@@ -884,6 +884,9 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
                     }}
                     onAutoImage={() => autoImageRow(i)}
                     onAutoFillAi={() => autoFillAiRow(i)}
+                    onApplyPatch={(patch) => applyRowPatch(i, patch)}
+                    brandCatalog={brandCatalog}
+                    categoryCatalog={categoryCatalog}
                     imageBusy={rowImageBusy.has(i)}
                     aiBusy={rowAiBusy.has(i)}
                   />
