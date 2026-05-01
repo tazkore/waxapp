@@ -503,7 +503,7 @@ const ProductEditor = ({ product, onClose, onSaved }: { product: Product; onClos
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             {p.id ? "Editar producto" : "Nuevo producto"}
