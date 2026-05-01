@@ -67,6 +67,61 @@ export async function providerScrape(
     return { html };
   }
 
+  if (provider === "browserless") {
+    const KEY = Deno.env.get("BROWSERLESS_API_KEY");
+    if (!KEY) throw new Error("BROWSERLESS_API_KEY missing — añade el secret para usar Browserless");
+    const r = await fetch(`https://chrome.browserless.io/content?token=${KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, gotoOptions: { waitUntil: "networkidle2" } }),
+    });
+    if (!r.ok) throw new Error(`Browserless scrape [${r.status}]`);
+    const html = await r.text();
+    return { html };
+  }
+
+  if (provider === "scraperapi") {
+    const KEY = Deno.env.get("SCRAPERAPI_KEY");
+    if (!KEY) throw new Error("SCRAPERAPI_KEY missing — añade el secret para usar ScraperAPI");
+    const u = `https://api.scraperapi.com?api_key=${KEY}&url=${encodeURIComponent(url)}&render=true`;
+    const r = await fetch(u);
+    if (!r.ok) throw new Error(`ScraperAPI scrape [${r.status}]`);
+    const html = await r.text();
+    return { html };
+  }
+
+  if (provider === "scrapfly") {
+    const KEY = Deno.env.get("SCRAPFLY_API_KEY");
+    if (!KEY) throw new Error("SCRAPFLY_API_KEY missing — añade el secret para usar Scrapfly");
+    const u = `https://api.scrapfly.io/scrape?key=${KEY}&url=${encodeURIComponent(url)}&render_js=true`;
+    const r = await fetch(u);
+    if (!r.ok) throw new Error(`Scrapfly scrape [${r.status}]`);
+    const j = await r.json();
+    const html = j?.result?.content;
+    return { html };
+  }
+
+  if (provider === "zenrows") {
+    const KEY = Deno.env.get("ZENROWS_API_KEY");
+    if (!KEY) throw new Error("ZENROWS_API_KEY missing — añade el secret para usar ZenRows");
+    const u = `https://api.zenrows.com/v1/?apikey=${KEY}&url=${encodeURIComponent(url)}&js_render=true`;
+    const r = await fetch(u);
+    if (!r.ok) throw new Error(`ZenRows scrape [${r.status}]`);
+    const html = await r.text();
+    return { html };
+  }
+
+  if (provider === "diffbot") {
+    const KEY = Deno.env.get("DIFFBOT_TOKEN");
+    if (!KEY) throw new Error("DIFFBOT_TOKEN missing — añade el secret para usar Diffbot");
+    // Diffbot Product API devuelve datos estructurados; los empaquetamos como metadata
+    const u = `https://api.diffbot.com/v3/product?token=${KEY}&url=${encodeURIComponent(url)}`;
+    const r = await fetch(u);
+    if (!r.ok) throw new Error(`Diffbot scrape [${r.status}]`);
+    const j = await r.json();
+    return { html: "", markdown: "", metadata: { diffbot: j } };
+  }
+
   if (provider === "readability") {
     // Free, no API key. Direct fetch + simple HTML→markdown extraction.
     const r = await fetch(url, { headers: COMMON_HEADERS, redirect: "follow" });
