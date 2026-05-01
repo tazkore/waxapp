@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { useCanImportProducts } from "@/hooks/useCanImportProducts";
+import { insertWithRetry, isRlsError } from "@/lib/insertWithRetry";
+import RlsErrorPanel from "./RlsErrorPanel";
+import AutoImagePicker from "./AutoImagePicker";
 import {
   Loader2,
   Globe,
@@ -14,6 +19,8 @@ import {
   AlertCircle,
   Eye,
   Sparkles,
+  ImageOff,
+  ShieldAlert,
 } from "lucide-react";
 
 type Provider = "firecrawl" | "jina" | "scrapingbee" | "readability";
@@ -55,6 +62,7 @@ interface Props {
 
 const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props) => {
   const { toast } = useToast();
+  const { canImport, role, loading: roleLoading, isSuperAdmin } = useCanImportProducts();
   const [url, setUrl] = useState("");
   const [provider, setProvider] = useState<Provider>("readability");
   const [useAi, setUseAi] = useState(true);
@@ -64,6 +72,9 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
   const [products, setProducts] = useState<any[]>([]);
   const [selectedP, setSelectedP] = useState<Set<number>>(new Set());
   const [previewProducts, setPreviewProducts] = useState<any[] | null>(null);
+  const [rlsError, setRlsError] = useState<string | null>(null);
+  const [autoImgBusy, setAutoImgBusy] = useState(false);
+  const currentJobId = useRef<string | null>(null);
 
   const map = async () => {
     if (!isHttpUrl(url.trim())) {
@@ -136,6 +147,8 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         .select()
         .single();
       if (jobErr) throw jobErr;
+      currentJobId.current = job.id;
+
 
       onJobsChanged?.();
 
@@ -212,7 +225,72 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     };
   };
 
+  const logFailureToJob = async (msg: string) => {
+    if (!currentJobId.current) return;
+    try {
+      await supabase
+        .from("import_jobs")
+        .update({ status: "failed", error: msg.slice(0, 2000) })
+        .eq("id", currentJobId.current);
+      onJobsChanged?.();
+    } catch (e) {
+      console.error("Could not log failure to job", e);
+    }
+  };
+
+  const autoFillImages = async () => {
+    const missing = products
+      .map((it: any, i: number) => ({ it, i }))
+      .filter((x) => !(Array.isArray(x.it.images) && x.it.images[0]) && x.it?.name);
+    if (!missing.length) {
+      toast({ title: "Todos los productos ya tienen imagen" });
+      return;
+    }
+    setAutoImgBusy(true);
+    let filled = 0;
+    // 3 concurrentes
+    const queue = [...missing];
+    const workers = Array.from({ length: 3 }, async () => {
+      while (queue.length) {
+        const next = queue.shift();
+        if (!next) break;
+        try {
+          const { data, error } = await supabase.functions.invoke("find-product-image", {
+            body: {
+              name: next.it.name,
+              brand: next.it.brand || "",
+              category: next.it.category || "",
+              gtin: next.it.gtin || "",
+              count: 1,
+            },
+          });
+          const img = data?.images?.[0];
+          if (!error && img) {
+            setProducts((curr) => {
+              const copy = [...curr];
+              if (copy[next.i]) copy[next.i] = { ...copy[next.i], images: [img] };
+              return copy;
+            });
+            filled++;
+          }
+        } catch (e) {
+          console.error("auto-image err", e);
+        }
+      }
+    });
+    await Promise.all(workers);
+    setAutoImgBusy(false);
+    toast({ title: `Auto-imagen completada`, description: `${filled}/${missing.length} encontradas` });
+  };
+
   const importProducts = async () => {
+    setRlsError(null);
+
+    if (!canImport) {
+      setRlsError(`Tu rol "${role || "ninguno"}" no puede insertar en la tabla products.`);
+      return;
+    }
+
     const items = Array.from(selectedP).map((i) => ({ it: products[i], i })).filter((x) => x.it);
     if (!items.length) return;
     setBusy("import");
@@ -238,18 +316,52 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         return;
       }
 
-      const { error } = await supabase.from("products").insert(rows);
-      if (error) throw error;
-      toast({ title: "Importados", description: `${rows.length} productos creados como borradores` });
+      const { error, attempts, retried } = await insertWithRetry("products", rows);
+      if (error) {
+        const msg = error.message || String(error);
+        if (isRlsError(error)) {
+          setRlsError(msg);
+          await logFailureToJob(`RLS denied (${attempts} attempts): ${msg}`);
+          toast({
+            title: "Sin permisos para importar",
+            description: "Revisa el panel de error abajo.",
+            variant: "destructive",
+          });
+        } else {
+          await logFailureToJob(`Insert failed after ${attempts} attempt(s): ${msg}`);
+          toast({
+            title: "Error al importar",
+            description: `${msg} (${attempts} intento${attempts > 1 ? "s" : ""})`,
+            variant: "destructive",
+          });
+        }
+        return;
+      }
+
+      if (currentJobId.current) {
+        await supabase
+          .from("import_jobs")
+          .update({ status: "completed", products_imported: rows.length })
+          .eq("id", currentJobId.current);
+        onJobsChanged?.();
+      }
+
+      toast({
+        title: "Importados",
+        description: `${rows.length} productos creados como borradores${retried ? ` (recuperado tras ${attempts} intentos)` : ""}`,
+      });
       setProducts([]);
       setSelectedP(new Set());
       setLinks([]);
       setSelected(new Set());
       setPreviewProducts(null);
+      currentJobId.current = null;
       onImported();
       onSwitchToCatalog();
     } catch (e: any) {
-      toast({ title: "Error al importar", description: e?.message || String(e), variant: "destructive" });
+      const msg = e?.message || String(e);
+      await logFailureToJob(`Unexpected: ${msg}`);
+      toast({ title: "Error al importar", description: msg, variant: "destructive" });
     } finally {
       setBusy(null);
     }
@@ -257,6 +369,17 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
 
   return (
     <div className="space-y-4">
+      {!roleLoading && !canImport && (
+        <Alert variant="destructive">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Permisos insuficientes</AlertTitle>
+          <AlertDescription className="text-sm">
+            Tu rol actual <strong className="font-mono">{role || "ninguno"}</strong> no puede insertar productos.
+            Puedes mapear y extraer, pero la importación final requiere rol{" "}
+            <strong>admin</strong>, <strong>super_admin</strong> o <strong>moderator</strong>.
+          </AlertDescription>
+        </Alert>
+      )}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
@@ -388,47 +511,91 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
 
       {products.length > 0 && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
             <CardTitle className="text-sm">
               {selectedP.size} de {products.length} productos a importar
             </CardTitle>
-            <Button
-              onClick={importProducts}
-              disabled={busy !== null || selectedP.size === 0}
-              size="sm"
-              className="gap-2"
-            >
-              {busy === "import" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              Importar al catálogo
-            </Button>
-          </CardHeader>
-          <CardContent className="max-h-96 overflow-auto space-y-2">
-            {products.map((it: any, i: number) => (
-              <label
-                key={i}
-                className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer"
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                onClick={autoFillImages}
+                disabled={autoImgBusy || busy !== null}
+                size="sm"
+                variant="outline"
+                className="gap-2"
               >
-                <Checkbox
-                  checked={selectedP.has(i)}
-                  onCheckedChange={(v) => {
-                    const n = new Set(selectedP);
-                    v ? n.add(i) : n.delete(i);
-                    setSelectedP(n);
-                  }}
-                />
-                {it.images?.[0] && (
-                  <img src={it.images[0]} alt="" className="h-10 w-10 rounded object-cover bg-muted" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{it.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    ${it.price ?? "?"} · {it.category || "Sin categoría"}
-                  </p>
+                {autoImgBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Auto-buscar imágenes
+              </Button>
+              <Button
+                onClick={importProducts}
+                disabled={busy !== null || selectedP.size === 0 || !canImport}
+                size="sm"
+                className="gap-2"
+              >
+                {busy === "import" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                Importar al catálogo
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="max-h-[28rem] overflow-auto space-y-2">
+            {products.map((it: any, i: number) => {
+              const img = Array.isArray(it.images) ? it.images[0] : it.image_url;
+              return (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 p-2 rounded hover:bg-muted/50"
+                >
+                  <Checkbox
+                    checked={selectedP.has(i)}
+                    onCheckedChange={(v) => {
+                      const n = new Set(selectedP);
+                      v ? n.add(i) : n.delete(i);
+                      setSelectedP(n);
+                    }}
+                  />
+                  {img ? (
+                    <img src={img} alt="" className="h-12 w-12 rounded object-cover bg-muted shrink-0" />
+                  ) : (
+                    <div className="h-12 w-12 rounded bg-muted flex items-center justify-center shrink-0">
+                      <ImageOff className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{it.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      ${it.price ?? "?"} · {it.category || "Sin categoría"}
+                      {it.brand ? ` · ${it.brand}` : ""}
+                    </p>
+                    {!img && (
+                      <Badge variant="outline" className="mt-1 text-[10px] border-amber-500/50 text-amber-500">
+                        Sin imagen
+                      </Badge>
+                    )}
+                  </div>
+                  <AutoImagePicker
+                    query={{ name: it.name, brand: it.brand, category: it.category, gtin: it.gtin }}
+                    current={img}
+                    onPick={(url) =>
+                      setProducts((curr) => {
+                        const copy = [...curr];
+                        if (copy[i]) copy[i] = { ...copy[i], images: [url, ...(copy[i].images || []).filter((u: string) => u !== url)] };
+                        return copy;
+                      })
+                    }
+                  />
                 </div>
-              </label>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
+      )}
+
+      {rlsError && (
+        <RlsErrorPanel
+          message={rlsError}
+          role={role}
+          isSuperAdmin={isSuperAdmin}
+        />
       )}
     </div>
   );
