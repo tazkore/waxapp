@@ -401,7 +401,16 @@ Deno.serve(async (req) => {
   const category = typeof body?.category === "string" ? body.category.trim().slice(0, 100) : "";
   const gtin = typeof body?.gtin === "string" ? body.gtin.replace(/\D/g, "").slice(0, 14) : "";
   const count = Math.min(Math.max(Number(body?.count) || 5, 1), 10);
-  const includeAi = body?.includeAi !== false; // default true as last resort
+  const includeAi = body?.includeAi !== false;
+  const validate = body?.validate !== false;
+  const validateOpts: ValidateOpts = {
+    minBytes: Math.max(0, Number(body?.minBytes) || DEFAULT_VALIDATE.minBytes),
+    maxBytes: Math.max(1024, Number(body?.maxBytes) || DEFAULT_VALIDATE.maxBytes),
+    allowedTypes: Array.isArray(body?.allowedTypes) && body.allowedTypes.length
+      ? body.allowedTypes.map((t: any) => String(t).toLowerCase())
+      : DEFAULT_VALIDATE.allowedTypes,
+    timeoutMs: DEFAULT_VALIDATE.timeoutMs,
+  };
   const customOrder: ProviderId[] | null = Array.isArray(body?.providers) && body.providers.length
     ? body.providers.filter((x: any) => typeof x === "string") as ProviderId[]
     : null;
@@ -411,20 +420,35 @@ Deno.serve(async (req) => {
   const ctx = { query, gtin, count };
 
   const order = customOrder ?? DEFAULT_ORDER;
-  const tried: { provider: ProviderId; found: number }[] = [];
+  const tried: Array<{ provider: ProviderId; found: number; valid?: number; rejected?: Rejected[] }> = [];
 
   for (const id of order) {
     const imgs = await runProvider(id, ctx);
-    tried.push({ provider: id, found: imgs.length });
-    if (imgs.length) {
-      return json({ images: imgs.slice(0, count), source: id, query, tried });
+    if (!imgs.length) {
+      tried.push({ provider: id, found: 0, valid: 0 });
+      continue;
     }
+    if (!validate) {
+      tried.push({ provider: id, found: imgs.length });
+      return json({ images: imgs.slice(0, count), source: id, query, validated: false, tried });
+    }
+    const { valid, rejected } = await validateImages(imgs, validateOpts);
+    tried.push({
+      provider: id,
+      found: imgs.length,
+      valid: valid.length,
+      ...(rejected.length ? { rejected: rejected.slice(0, 3) } : {}),
+    });
+    if (valid.length) {
+      return json({ images: valid.slice(0, count), source: id, query, validated: true, tried });
+    }
+    // 0 válidas → reintenta con siguiente proveedor
   }
 
   if (includeAi) {
     const ai = await runProvider("ai_generated", ctx);
-    tried.push({ provider: "ai_generated", found: ai.length });
-    if (ai.length) return json({ images: ai, source: "ai_generated", query, tried });
+    tried.push({ provider: "ai_generated", found: ai.length, valid: ai.length });
+    if (ai.length) return json({ images: ai, source: "ai_generated", query, validated: false, tried });
   }
 
   return json({ images: [], source: "none", query, tried });
