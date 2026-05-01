@@ -11,6 +11,8 @@ import { useCanImportProducts } from "@/hooks/useCanImportProducts";
 import { insertWithRetry, isRlsError } from "@/lib/insertWithRetry";
 import RlsErrorPanel from "./RlsErrorPanel";
 import AutoImagePicker from "./AutoImagePicker";
+import ProductPreviewCard from "./ProductPreviewCard";
+import { aggregateValidation, validateProductRow } from "@/lib/validateProductRow";
 import {
   Loader2,
   Globe,
