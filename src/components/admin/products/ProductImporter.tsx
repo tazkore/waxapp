@@ -214,13 +214,14 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     if (errors.length) return { errors };
 
     const description = it?.description ? String(it.description).slice(0, 4000) : null;
+    const attributes = it?.attributes && typeof it.attributes === "object" ? it.attributes : {};
     return {
       errors: [],
       row: {
         name: name.slice(0, 200),
         slug: slugify(name) || `producto-${Date.now()}-${idx}`,
         description,
-        short_description: description ? description.slice(0, 160) : null,
+        short_description: it?.short_description || (description ? description.slice(0, 160) : null),
         price,
         stock: 0,
         sku: it?.sku ? String(it.sku).slice(0, 60) : null,
@@ -230,9 +231,12 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         compare_at_price: compareNum ?? null,
         image_url: img && isHttpUrl(img) ? img : null,
         gallery_urls: gallery,
-        meta_title: name.slice(0, 60),
-        meta_description: description ? description.slice(0, 160) : null,
-        focus_keyword: name.split(" ").slice(0, 3).join(" "),
+        meta_title: it?.meta_title || name.slice(0, 60),
+        meta_description: it?.meta_description || (description ? description.slice(0, 160) : null),
+        focus_keyword: it?.focus_keyword || name.split(" ").slice(0, 3).join(" "),
+        meta_keywords: Array.isArray(it?.meta_keywords) ? it.meta_keywords : [],
+        tags: Array.isArray(it?.tags) ? it.tags : [],
+        attributes,
         canonical_url: canonical,
         is_active: false,
       },
