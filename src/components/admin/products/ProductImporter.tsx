@@ -23,13 +23,27 @@ import {
   ShieldAlert,
 } from "lucide-react";
 
-type Provider = "firecrawl" | "jina" | "scrapingbee" | "readability";
+type Provider =
+  | "firecrawl"
+  | "jina"
+  | "scrapingbee"
+  | "readability"
+  | "browserless"
+  | "scraperapi"
+  | "scrapfly"
+  | "diffbot"
+  | "zenrows";
 
-const PROVIDERS: Array<{ id: Provider; label: string; hint: string }> = [
-  { id: "readability", label: "Sin API (gratis)", hint: "Fetch directo + JSON-LD/OG" },
-  { id: "jina", label: "Jina Reader (gratis)", hint: "No requiere key" },
-  { id: "firecrawl", label: "Firecrawl", hint: "Más preciso, requiere key" },
-  { id: "scrapingbee", label: "ScrapingBee", hint: "JS rendering, requiere key" },
+const PROVIDERS: Array<{ id: Provider; label: string; hint: string; group: "free" | "key" }> = [
+  { id: "readability", label: "Sin API (gratis)", hint: "Fetch directo + JSON-LD/OG", group: "free" },
+  { id: "jina", label: "Jina Reader (gratis)", hint: "No requiere key", group: "free" },
+  { id: "diffbot", label: "Diffbot Product", hint: "Producto estructurado de alta calidad", group: "key" },
+  { id: "firecrawl", label: "Firecrawl", hint: "Más preciso, requiere key", group: "key" },
+  { id: "browserless", label: "Browserless", hint: "Chrome headless con JS", group: "key" },
+  { id: "scraperapi", label: "ScraperAPI", hint: "Render JS + proxy", group: "key" },
+  { id: "scrapfly", label: "Scrapfly", hint: "Render JS + anti-bot", group: "key" },
+  { id: "zenrows", label: "ZenRows", hint: "Render JS + bypass", group: "key" },
+  { id: "scrapingbee", label: "ScrapingBee", hint: "JS rendering, requiere key", group: "key" },
 ];
 
 const slugify = (s: string) =>
