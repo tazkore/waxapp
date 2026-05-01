@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { useCanImportProducts } from "@/hooks/useCanImportProducts";
+import { insertWithRetry, isRlsError } from "@/lib/insertWithRetry";
+import RlsErrorPanel from "./RlsErrorPanel";
+import AutoImagePicker from "./AutoImagePicker";
 import {
   Loader2,
   Globe,
@@ -14,6 +19,8 @@ import {
   AlertCircle,
   Eye,
   Sparkles,
+  ImageOff,
+  ShieldAlert,
 } from "lucide-react";
 
 type Provider = "firecrawl" | "jina" | "scrapingbee" | "readability";
