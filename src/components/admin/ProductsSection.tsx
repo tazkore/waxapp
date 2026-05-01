@@ -73,6 +73,7 @@ const ProductsSection = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Product | null>(null);
+  const [historyKey, setHistoryKey] = useState(0);
 
   const load = async () => {
     setLoading(true);
