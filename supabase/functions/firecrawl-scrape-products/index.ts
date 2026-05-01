@@ -164,8 +164,25 @@ Deno.serve(async (req) => {
 
       let parsed: any = null;
 
+      // 0) Diffbot fast-path: structured product data already extracted
+      const diffbot = (scrape.metadata as any)?.diffbot;
+      if (diffbot?.objects?.[0]?.type === "product") {
+        const o = diffbot.objects[0];
+        parsed = {
+          is_product_page: true,
+          name: o.title,
+          description: o.description || o.text,
+          price: typeof o.offerPrice === "string" ? Number(o.offerPrice.replace(/[^\d.]/g, "")) : o.offerPrice,
+          sku: o.sku,
+          gtin: o.gtin13 || o.gtin12,
+          brand: o.brand,
+          category: Array.isArray(o.breadcrumb) ? o.breadcrumb[o.breadcrumb.length - 1]?.name : undefined,
+          images: (o.images || []).map((im: any) => im?.url).filter(Boolean),
+        };
+      }
+
       // 1) Try non-AI structured extraction first (free + reliable when JSON-LD exists)
-      if (html) parsed = extractProductFromHtml(html, url);
+      if (!parsed && html) parsed = extractProductFromHtml(html, url);
 
       // 2) Fallback to AI if available and non-AI returned nothing useful
       if (!parsed && aiAvailable && (markdown || html)) {
