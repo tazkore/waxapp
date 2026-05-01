@@ -108,10 +108,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    await admin
-      .from("import_jobs")
-      .update({ products_extracted: products.length, extracted_products: products, status: "pending" })
-      .eq("id", job_id);
+    if (job_id) {
+      await admin
+        .from("import_jobs")
+        .update({ products_extracted: products.length, extracted_products: products, status: "pending" })
+        .eq("id", job_id);
+    }
 
     return new Response(JSON.stringify({ products }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
