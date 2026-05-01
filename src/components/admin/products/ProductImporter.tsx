@@ -90,6 +90,7 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
   const [rlsError, setRlsError] = useState<string | null>(null);
   const [autoImgBusy, setAutoImgBusy] = useState(false);
   const [aiBatchBusy, setAiBatchBusy] = useState(false);
+  const [aiBatchProgress, setAiBatchProgress] = useState({ done: 0, total: 0 });
   const [rowImageBusy, setRowImageBusy] = useState<Set<number>>(new Set());
   const [rowAiBusy, setRowAiBusy] = useState<Set<number>>(new Set());
   const currentJobId = useRef<string | null>(null);
@@ -373,14 +374,21 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     toast({ title: `Auto-imagen completada`, description: `${filled}/${missing.length} encontradas` });
   };
 
-  const autoFillWithAi = async () => {
-    const indices = Array.from(selectedP);
+  const autoFillWithAi = async (scope: "selected" | "all" = "selected") => {
+    const indices = scope === "all"
+      ? products.map((_, i) => i)
+      : Array.from(selectedP);
     if (!indices.length) {
-      toast({ title: "Selecciona productos primero", variant: "destructive" });
+      toast({
+        title: scope === "all" ? "No hay productos extraídos" : "Selecciona productos primero",
+        variant: "destructive",
+      });
       return;
     }
     setAiBatchBusy(true);
+    setAiBatchProgress({ done: 0, total: indices.length });
     let filled = 0;
+    let failed = 0;
     const queue = [...indices];
     const workers = Array.from({ length: 3 }, async () => {
       while (queue.length) {
@@ -394,6 +402,7 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
               product: {
                 name: it.name,
                 description: it.description,
+                short_description: it.short_description,
                 category: it.category,
                 brand_name: it.brand,
                 price: it.price,
@@ -413,29 +422,37 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
                   ...copy[i],
                   description: copy[i].description || p.description,
                   short_description: copy[i].short_description || p.short_description,
+                  long_description_html: copy[i].long_description_html || p.long_description_html,
                   category: copy[i].category || p.category,
                   meta_title: copy[i].meta_title || p.meta_title,
                   meta_description: copy[i].meta_description || p.meta_description,
                   focus_keyword: copy[i].focus_keyword || p.focus_keyword,
                   meta_keywords: p.meta_keywords || copy[i].meta_keywords,
                   tags: p.tags || copy[i].tags,
-                  attributes: { ...(copy[i].attributes || {}), ...(p.attributes || {}) },
+                  attributes: { ...(p.attributes || {}), ...(copy[i].attributes || {}) },
                 };
               }
               return copy;
             });
             filled++;
+          } else {
+            failed++;
+            if (data?.error) console.warn("autofill row failed", data.error);
           }
         } catch (e) {
+          failed++;
           console.error("autofill err", e);
+        } finally {
+          setAiBatchProgress((p) => ({ ...p, done: p.done + 1 }));
         }
       }
     });
     await Promise.all(workers);
     setAiBatchBusy(false);
     toast({
-      title: "IA completada",
-      description: `${filled}/${indices.length} productos enriquecidos`,
+      title: failed === indices.length ? "IA no disponible" : "Metadatos completados",
+      description: `${filled}/${indices.length} productos enriquecidos${failed ? ` · ${failed} fallaron` : ""}`,
+      variant: failed === indices.length ? "destructive" : "default",
     });
   };
 
@@ -708,14 +725,24 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
                     Auto-imágenes ({stats.missingImage})
                   </Button>
                   <Button
-                    onClick={autoFillWithAi}
+                    onClick={() => autoFillWithAi("all")}
+                    disabled={aiBatchBusy || busy !== null || products.length === 0}
+                    size="sm"
+                    className="gap-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:opacity-90 shadow-lg shadow-primary/20"
+                    title="Genera sabores, ingredientes, tipo de evaporador, atributos técnicos y SEO para TODOS los productos antes de guardar"
+                  >
+                    {aiBatchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                    Completar metadatos IA (todos)
+                  </Button>
+                  <Button
+                    onClick={() => autoFillWithAi("selected")}
                     disabled={aiBatchBusy || busy !== null || selectedP.size === 0}
                     size="sm"
                     variant="outline"
                     className="gap-2"
                   >
                     {aiBatchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    Completar IA en lote
+                    IA en seleccionados
                   </Button>
                   <Button
                     onClick={importProducts}
@@ -749,6 +776,29 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
                 </span>
               </div>
 
+              {/* Live AI batch progress */}
+              {aiBatchBusy && aiBatchProgress.total > 0 && (
+                <div className="space-y-1.5 p-3 rounded-lg border border-primary/30 bg-primary/5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-2 text-primary font-medium">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Generando metadatos con IA…
+                    </span>
+                    <span className="text-muted-foreground font-mono">
+                      {aiBatchProgress.done}/{aiBatchProgress.total}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-primary/70 transition-all"
+                      style={{ width: `${Math.round((aiBatchProgress.done / aiBatchProgress.total) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Sabores, ingredientes, tipo de evaporador, atributos técnicos y SEO.
+                  </p>
+                </div>
+              )}
               {stats.withErrors > 0 && (
                 <Alert variant="destructive" className="py-2">
                   <AlertCircle className="h-4 w-4" />
