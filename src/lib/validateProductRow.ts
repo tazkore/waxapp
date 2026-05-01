@@ -158,8 +158,30 @@ export function validateProductRow(it: any): ValidationResult {
   else if (attrCount > 0) score += WEIGHTS.attributes / 2;
   else warnings.push({ field: "attributes", message: "Sin atributos (sabores, ingredientes…)", severity: "warning", action: "ai" });
 
-  // -------- sku/gtin
-  if (it?.sku || it?.gtin || it?.mpn) score += WEIGHTS.sku_or_gtin;
+  // -------- sku/gtin/barcode
+  if (it?.sku || it?.gtin || it?.mpn || it?.barcode) score += WEIGHTS.sku_or_gtin;
+
+  // -------- advanced metadata (soft signals — informational only)
+  const hasFlavor = Array.isArray(it?.flavor_profile) && it.flavor_profile.length > 0;
+  const hasIngredients = Array.isArray(it?.ingredients) && it.ingredients.length > 0;
+  const hasWarnings = Array.isArray(it?.warnings) && it.warnings.length > 0;
+  const hasSpecs = Array.isArray(it?.specifications) && it.specifications.length > 0;
+  if (!hasWarnings && !it?.metadata_template) {
+    warnings.push({
+      field: "warnings",
+      message: "Sin advertencias regulatorias — aplica una plantilla",
+      severity: "warning",
+      action: "ai",
+    });
+  }
+  if (!hasFlavor && !hasIngredients && !hasSpecs) {
+    warnings.push({
+      field: "metadata",
+      message: "Sin sabores/ingredientes/ficha técnica — completa con IA",
+      severity: "warning",
+      action: "ai",
+    });
+  }
 
   const completeness = Math.min(100, Math.round(score));
   return {
