@@ -251,6 +251,125 @@ const DEFAULT_ORDER: ProviderId[] = [
   "duckduckgo",
 ];
 
+// ---------- Validation ----------
+
+type ValidateOpts = {
+  minBytes: number;
+  maxBytes: number;
+  allowedTypes: string[]; // ["jpeg","png",...]
+  timeoutMs: number;
+};
+
+type Rejected = { url: string; reason: string };
+
+const DEFAULT_VALIDATE: ValidateOpts = {
+  minBytes: 3072,
+  maxBytes: 10 * 1024 * 1024,
+  allowedTypes: ["jpeg", "jpg", "png", "webp", "gif", "avif"],
+  timeoutMs: 4000,
+};
+
+function withTimeout(ms: number): { signal: AbortSignal; cancel: () => void } {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  return { signal: ctrl.signal, cancel: () => clearTimeout(t) };
+}
+
+function checkHeaders(
+  headers: Headers,
+  status: number,
+  opts: ValidateOpts,
+): string | null {
+  if (status < 200 || status >= 300) return `http:${status}`;
+  const ct = (headers.get("content-type") || "").toLowerCase().split(";")[0].trim();
+  const m = ct.match(/^image\/([a-z0-9.+-]+)$/);
+  if (!m) return `content-type:${ct || "unknown"}`;
+  const subtype = m[1] === "jpg" ? "jpeg" : m[1];
+  if (!opts.allowedTypes.includes(subtype) && !opts.allowedTypes.includes(m[1])) {
+    return `content-type:${ct}`;
+  }
+  const cl = parseInt(headers.get("content-length") || "0", 10);
+  if (cl > 0) {
+    if (cl < opts.minBytes) return `too-small:${cl}`;
+    if (cl > opts.maxBytes) return `too-large:${cl}`;
+  }
+  return null;
+}
+
+async function validateImageUrl(url: string, opts: ValidateOpts): Promise<string | null> {
+  // Data URLs (AI generation) — accept images only
+  if (url.startsWith("data:image/")) return null;
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return "bad-url";
+  } catch {
+    return "bad-url";
+  }
+
+  // Try HEAD first
+  const head = withTimeout(opts.timeoutMs);
+  try {
+    const r = await fetch(url, {
+      method: "HEAD",
+      redirect: "follow",
+      signal: head.signal,
+      headers: { "User-Agent": UA, Accept: "image/*" },
+    });
+    head.cancel();
+    if (r.status !== 405 && r.status !== 501) {
+      const issue = checkHeaders(r.headers, r.status, opts);
+      if (issue && !issue.startsWith("too-small:0")) return issue;
+      // If content-length missing, fall through to GET range
+      if (r.headers.get("content-length")) return null;
+    }
+  } catch (e: any) {
+    head.cancel();
+    if (e?.name === "AbortError") return "timeout";
+    // Some hosts reject HEAD; fall back to GET
+  }
+
+  // Fallback: GET with Range to fetch only first bytes
+  const get = withTimeout(opts.timeoutMs);
+  try {
+    const r = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      signal: get.signal,
+      headers: { "User-Agent": UA, Accept: "image/*", Range: "bytes=0-2047" },
+    });
+    get.cancel();
+    const issue = checkHeaders(r.headers, r.status === 206 ? 200 : r.status, opts);
+    // Drain a small chunk to release connection (best-effort)
+    try { await r.body?.cancel(); } catch { /* noop */ }
+    if (issue) return issue;
+    return null;
+  } catch (e: any) {
+    get.cancel();
+    if (e?.name === "AbortError") return "timeout";
+    return "network";
+  }
+}
+
+async function validateImages(
+  urls: string[],
+  opts: ValidateOpts,
+): Promise<{ valid: string[]; rejected: Rejected[] }> {
+  if (!urls.length) return { valid: [], rejected: [] };
+  const results = await Promise.allSettled(urls.map((u) => validateImageUrl(u, opts)));
+  const valid: string[] = [];
+  const rejected: Rejected[] = [];
+  results.forEach((res, i) => {
+    const url = urls[i];
+    if (res.status === "fulfilled") {
+      if (res.value === null) valid.push(url);
+      else rejected.push({ url, reason: res.value });
+    } else {
+      rejected.push({ url, reason: "network" });
+    }
+  });
+  return { valid, rejected };
+}
+
 async function runProvider(id: ProviderId, ctx: { query: string; gtin: string; count: number }): Promise<string[]> {
   switch (id) {
     case "openfoodfacts": return fromOpenFoodFacts(ctx.gtin);
@@ -282,7 +401,16 @@ Deno.serve(async (req) => {
   const category = typeof body?.category === "string" ? body.category.trim().slice(0, 100) : "";
   const gtin = typeof body?.gtin === "string" ? body.gtin.replace(/\D/g, "").slice(0, 14) : "";
   const count = Math.min(Math.max(Number(body?.count) || 5, 1), 10);
-  const includeAi = body?.includeAi !== false; // default true as last resort
+  const includeAi = body?.includeAi !== false;
+  const validate = body?.validate !== false;
+  const validateOpts: ValidateOpts = {
+    minBytes: Math.max(0, Number(body?.minBytes) || DEFAULT_VALIDATE.minBytes),
+    maxBytes: Math.max(1024, Number(body?.maxBytes) || DEFAULT_VALIDATE.maxBytes),
+    allowedTypes: Array.isArray(body?.allowedTypes) && body.allowedTypes.length
+      ? body.allowedTypes.map((t: any) => String(t).toLowerCase())
+      : DEFAULT_VALIDATE.allowedTypes,
+    timeoutMs: DEFAULT_VALIDATE.timeoutMs,
+  };
   const customOrder: ProviderId[] | null = Array.isArray(body?.providers) && body.providers.length
     ? body.providers.filter((x: any) => typeof x === "string") as ProviderId[]
     : null;
@@ -292,21 +420,36 @@ Deno.serve(async (req) => {
   const ctx = { query, gtin, count };
 
   const order = customOrder ?? DEFAULT_ORDER;
-  const tried: { provider: ProviderId; found: number }[] = [];
+  const tried: Array<{ provider: ProviderId; found: number; valid?: number; rejected?: Rejected[] }> = [];
 
   for (const id of order) {
     const imgs = await runProvider(id, ctx);
-    tried.push({ provider: id, found: imgs.length });
-    if (imgs.length) {
-      return json({ images: imgs.slice(0, count), source: id, query, tried });
+    if (!imgs.length) {
+      tried.push({ provider: id, found: 0, valid: 0 });
+      continue;
     }
+    if (!validate) {
+      tried.push({ provider: id, found: imgs.length });
+      return json({ images: imgs.slice(0, count), source: id, query, validated: false, tried });
+    }
+    const { valid, rejected } = await validateImages(imgs, validateOpts);
+    tried.push({
+      provider: id,
+      found: imgs.length,
+      valid: valid.length,
+      ...(rejected.length ? { rejected: rejected.slice(0, 3) } : {}),
+    });
+    if (valid.length) {
+      return json({ images: valid.slice(0, count), source: id, query, validated: true, tried });
+    }
+    // 0 válidas → reintenta con siguiente proveedor
   }
 
   if (includeAi) {
     const ai = await runProvider("ai_generated", ctx);
-    tried.push({ provider: "ai_generated", found: ai.length });
-    if (ai.length) return json({ images: ai, source: "ai_generated", query, tried });
+    tried.push({ provider: "ai_generated", found: ai.length, valid: ai.length });
+    if (ai.length) return json({ images: ai, source: "ai_generated", query, validated: false, tried });
   }
 
-  return json({ images: [], source: "none", query, tried });
+  return json({ images: [], source: "none", query, validated: validate, tried });
 });
