@@ -9,6 +9,7 @@ import { useUserRole } from '@/hooks/useUserRole';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import OverviewSection from '@/components/admin/OverviewSection';
 import InventorySection from '@/components/admin/InventorySection';
+import ProductsSection from '@/components/admin/ProductsSection';
 import OrdersSection from '@/components/admin/OrdersSection';
 import ClientsSection from '@/components/admin/ClientsSection';
 import MarketingSection from '@/components/admin/MarketingSection';
