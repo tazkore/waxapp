@@ -91,7 +91,87 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
   const [rlsError, setRlsError] = useState<string | null>(null);
   const [autoImgBusy, setAutoImgBusy] = useState(false);
   const [aiBatchBusy, setAiBatchBusy] = useState(false);
+  const [rowImageBusy, setRowImageBusy] = useState<Set<number>>(new Set());
+  const [rowAiBusy, setRowAiBusy] = useState<Set<number>>(new Set());
   const currentJobId = useRef<string | null>(null);
+
+  const setRowBusy = (which: "img" | "ai", i: number, busy: boolean) => {
+    const setter = which === "img" ? setRowImageBusy : setRowAiBusy;
+    setter((prev) => {
+      const n = new Set(prev);
+      busy ? n.add(i) : n.delete(i);
+      return n;
+    });
+  };
+
+  const autoImageRow = async (i: number) => {
+    const it = products[i];
+    if (!it?.name) return;
+    setRowBusy("img", i, true);
+    try {
+      const { data, error } = await supabase.functions.invoke("find-product-image", {
+        body: { name: it.name, brand: it.brand, category: it.category, gtin: it.gtin, count: 1 },
+      });
+      const img = data?.images?.[0];
+      if (!error && img) {
+        setProducts((curr) => {
+          const copy = [...curr];
+          if (copy[i]) copy[i] = { ...copy[i], images: [img, ...(copy[i].images || []).filter((u: string) => u !== img)] };
+          return copy;
+        });
+        toast({ title: "Imagen encontrada" });
+      } else {
+        toast({ title: "Sin resultados", description: "Prueba con \"Elegir\" para ver opciones.", variant: "destructive" });
+      }
+    } catch (e: any) {
+      toast({ title: "Error", description: e?.message || String(e), variant: "destructive" });
+    } finally {
+      setRowBusy("img", i, false);
+    }
+  };
+
+  const autoFillAiRow = async (i: number) => {
+    const it = products[i];
+    if (!it?.name) return;
+    setRowBusy("ai", i, true);
+    try {
+      const { data, error } = await supabase.functions.invoke("product-autofill", {
+        body: {
+          product: {
+            name: it.name, description: it.description, category: it.category,
+            brand_name: it.brand, price: it.price, sku: it.sku, gtin: it.gtin,
+            canonical_url: it.source_url,
+          },
+          only_missing: true,
+        },
+      });
+      if (error || !data?.proposal) throw new Error(error?.message || "Sin propuesta");
+      const p = data.proposal;
+      setProducts((curr) => {
+        const copy = [...curr];
+        if (copy[i]) {
+          copy[i] = {
+            ...copy[i],
+            description: copy[i].description || p.description,
+            short_description: copy[i].short_description || p.short_description,
+            category: copy[i].category || p.category,
+            meta_title: copy[i].meta_title || p.meta_title,
+            meta_description: copy[i].meta_description || p.meta_description,
+            focus_keyword: copy[i].focus_keyword || p.focus_keyword,
+            meta_keywords: p.meta_keywords || copy[i].meta_keywords,
+            tags: p.tags || copy[i].tags,
+            attributes: { ...(copy[i].attributes || {}), ...(p.attributes || {}) },
+          };
+        }
+        return copy;
+      });
+      toast({ title: "Producto enriquecido con IA" });
+    } catch (e: any) {
+      toast({ title: "IA no disponible", description: e?.message || String(e), variant: "destructive" });
+    } finally {
+      setRowBusy("ai", i, false);
+    }
+  };
 
   const map = async () => {
     if (!isHttpUrl(url.trim())) {
