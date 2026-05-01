@@ -1,187 +1,101 @@
-## Reestructuración del panel admin + Configuración general
+# Plan — Importador robusto, SEO, canales y página de producto
 
-### 1. Sidebar por grupos colapsables
+Trabajo grande pero acotable a 7 entregables coordinados. Todo respeta el design system (Dark Tech, neon green) y los memos del proyecto.
 
-Reescribir `AdminSidebar.tsx` para mostrar **grupos** (cada uno con `SidebarGroupLabel` clicable + chevron, igual que el grupo "Tiendas") y mover cada sección a su grupo. Las claves (`key`) de las secciones existentes **no cambian** para no romper el switch en `Admin.tsx`.
+## 1. Edge function `firecrawl-scrape-products` reescrita
 
-Estructura propuesta:
+- Validación con Zod del body: `urls: string[] (1..30, URL válida)`, `job_id?: uuid`, `provider?: 'firecrawl'|'jina'|'scrapingbee'|'readability'`, `preview?: boolean`, `use_ai?: boolean (default true)`.
+- Errores estructurados: `{ error: { code, message, details } }` con códigos `INVALID_BODY`, `UNAUTHORIZED`, `FORBIDDEN`, `PROVIDER_FAIL`, `AI_FAIL`, `DB_FAIL`.
+- Logging detallado por URL (`console.log` con `job_id`, índice, status, dur ms).
+- Modo `preview=true`: limita a las primeras 2 URLs y NO actualiza `import_jobs`.
+- Soporte multi-proveedor usando `_shared/scrape-providers.ts` (firecrawl/jina/scrapingbee) + nuevo proveedor **`readability`** (fetch directo + parser HTML→texto en Deno, sin API key, gratis).
+- Extracción híbrida: si `use_ai=true` → IA Lovable; si no, regex/JSON-LD parser (Product schema en `<script type="application/ld+json">`, OpenGraph `og:title/price/image`).
+- Update granular de `import_jobs` (status: scraping → extracting → completed/failed) con `error` poblado en fallo.
+
+## 2. Nueva edge function `parse-product-csv`
+
+- Acepta `{ csv_text | rows[], mapping: { name, price, sku, image_url, description, category, gtin, brand_name } }`.
+- Valida con Zod, normaliza, devuelve `{ rows, errors[] }` para preview antes de insert.
+
+## 3. Tabla `import_jobs` — usos extendidos
+
+- Sin migración nueva; ya existe. Añadir índice si falta y usar columnas `source_type` (informal en `branding` JSONB).
+- UI nueva `ImportJobsHistory.tsx` (en ProductsSection tab "Historial"):
+  - Lista jobs (status badge, urls_found, products_extracted, error, fecha).
+  - Acciones: **Reintentar** (re-llama scrape con `urls=discovered_urls`), **Cancelar** (status='cancelled'), **Ver productos** (modal con `extracted_products`), **Eliminar**.
+
+## 4. ProductsSection — Importer rediseñado
+
+Tabs internos en ProductsSection: `Catálogo | Importar URL | Importar CSV | Historial`.
+
+**Importar URL** (`ProductImporter.tsx` reescrito):
+- Selector proveedor incluye **"Sin API (gratis)"** = `readability` y **"Jina (gratis sin key)"** ya soportado.
+- Validación cliente: URL válida obligatoria, mínimo 1 URL seleccionada.
+- Botón nuevo **"Vista previa (1-2 productos)"** → llama con `preview=true`, muestra resultado en card antes de extraer todo.
+- Botón **"Extraer seleccionados"** → crea `import_jobs` row, pasa `job_id`.
+- Mensajes de error parseados desde `{error:{code,message}}` con fallback genérico.
+
+**Importar CSV/Sheets**:
+- Drag-drop CSV o pegar URL pública de Google Sheets (CSV export).
+- Mapeo visual columnas → campos producto.
+- Preview tabla con validación (precio numérico, slug colisión, GTIN check).
+- Insert como borradores.
+
+## 5. Editor de producto — mejoras SEO
+
+- **Slug auto**: al cambiar nombre genera slug, comprueba colisión vía `select id from products where slug=?`, sufija `-2`, `-3`. Preview URL: `/{categoria}/{marca}/{slug}`.
+- **Schema/JSON-LD validator**: panel con preview JSON-LD generado, validación de campos requeridos por `schema_type` (Product: name, image, offers.price), badges errores/warnings y mock "rich result" estilo Google.
+- **Estado** flujo `draft | inactive | published`:
+  - Botón "Publicar" → `is_active=true`, `noindex=false`, `nofollow=false`, llama trigger sitemap refresh.
+  - Botón "Despublicar" → `is_active=false`, `noindex=true`.
+
+## 6. Página pública `/producto/:slug`
+
+Nueva ruta resolviendo por `slug` desde tabla `products` (no por id estático).
+- Galería con thumbnails (`gallery_urls` + `image_url`).
+- Descripción larga (`long_description_html` con DOMPurify).
+- Especificaciones técnicas (dimensions JSONB, weight_grams, GTIN, MPN, brand_name).
+- JSON-LD `Product` completo (offers, aggregateRating si existe, brand).
+- "Productos relacionados" por `category` o `brand_id` (8 cards).
+- Breadcrumb categoría > marca > producto.
+- Fallback al `ProductDetail` legacy si slug = id estático.
+
+## 7. SEO & Indexación
+
+- `generate-sitemap` actualizada para incluir `/producto/{slug}` (products activos), `/blog/{slug}` (published), categorías estáticas.
+- Nueva edge function `generate-robots-txt` retornando `robots.txt` con `Sitemap:` URL.
+- Botón en SeoSection "Regenerar sitemap" (sólo limpia cache UI, sitemap se sirve dinámico).
+
+## 8. ChannelsSection con test de conexión
+
+- Cards Web/Amazon/Mercado Libre muestran estado real:
+  - Web: siempre activo, link a tema.
+  - Amazon: lee `amazon_config.is_active`, `last_sync_at`, conteo `amazon_orders`. Botón "Probar conexión" llama `amazon-sync` con `mode=test`.
+  - Mercado Libre: si existe `integrations` con slug `mercadolibre`, mostrar estado; si no, CTA instalar.
+- Cada card muestra "Últimos pedidos importados" (3 más recientes).
+
+## Resumen técnico (componentes/archivos)
 
 ```text
-Principal
-  · Inicio              (overview)
-  · Estadísticas        (overview, mismo destino por ahora — placeholder hasta tener un módulo aparte)
+supabase/functions/
+  firecrawl-scrape-products/index.ts   (reescrito + Zod + readability + preview)
+  parse-product-csv/index.ts           (nueva)
+  generate-sitemap/index.ts            (extendida productos+blog)
+  generate-robots-txt/index.ts         (nueva)
+  _shared/scrape-providers.ts          (añadir provider 'readability')
 
-Gestión
-  · Pedidos             (orders)
-  · Envíos & Paqueterías (shipping)
-  · Clientes & CRM      (clients)
-  · Pagos               (payments)
-  · Pasarelas de Pago   (payment-gateways)   ← NUEVO link directo al tab gateways de PaymentsSection
-  · Compras & B2B       (purchasing)
-  · Centro de Operaciones (operations)
+src/components/admin/
+  ProductsSection.tsx                  (tabs + integra subcomponentes)
+  products/ProductImporter.tsx         (extraído + preview + validación)
+  products/CsvImporter.tsx             (nuevo)
+  products/ImportJobsHistory.tsx       (nuevo)
+  products/SchemaValidator.tsx         (nuevo)
+  products/SlugField.tsx               (nuevo, autogenerate + colisión)
+  ChannelsSection.tsx                  (rediseño con estado real + test)
 
-Catálogo
-  · Productos           (products)
-  · Inventario          (inventory)
-  · Almacenes           (warehouses)
-  · Marcas              (brands)
-  · Multimedia          (media)
-  · Banners Home        (banners)
-  · Blog                (blog)
-
-Canales de venta
-  · Canales             (channels)            ← NUEVA placeholder section
-  · Amazon Seller       (amazon)
-
-Potenciar
-  · Hub Marketing       (marketing)
-  · Marketing & Cupones (marketing-coupons)   ← link a tab de cupones
-  · SEO & Indexación    (seo)
-
-Apps & Integraciones
-  · Aplicaciones        (apps)                ← NUEVA (lista de apps instaladas)
-  · Integraciones       (integrations)
-  · Chatbot IA          (chatbot)
-
-Configuración
-  · Tema                (theme)
-  · Dominios            (domains)
-  · Staff & Usuarios    (staff)
-  · API & Conexiones    (api-keys)
-  · Conexiones de Entorno (env-connections)
-  · Auditoría de Acceso (access-audit)
-  · Setup Inicial       (setup)
-  · Importar Sitio      (importer)
-  · Previsualizar Importados (imported-preview)
-  · Importar Tema (IA)  (theme-importer)
-  · Configuración general (settings)          ← entra a la nueva SettingsSection con tabs
+src/pages/
+  ProductDetail.tsx                    (rediseñado, resuelve por slug DB)
+  (router) /producto/:slug             (añadir ruta en App.tsx)
 ```
 
-Cada grupo se renderiza con:
-- estado local `openGroups: Record<string, boolean>` (todos abiertos por defecto)
-- `SidebarGroupLabel` con onClick + chevron rotado
-- `adminOnly` se mantiene por item
-
-### 2. Módulo de Configuración (rehecho)
-
-Reescribir `SettingsSection.tsx` con un layout de **tabs verticales** (sub-nav lateral interno) tipo Tiendanube:
-
-```text
-Resumen                  → SettingsResumen.tsx (cards atajo a cada sub-sección + estado de checklist)
-Pagos y envíos
-  · Métodos de pago      → reusa <PaymentsSection /> filtrado a tab "gateways"
-  · Medios de envío      → reusa <ShippingSection /> en modo settings (read-only links)
-  · Centros de distribución → reusa <WarehousesSection />
-Comunicación
-  · Información de contacto  → SettingsContact (form: razón social, RFC, email, teléfono, dirección, redes sociales)
-  · Botón de WhatsApp        → SettingsWhatsApp (número, mensaje predeterminado, mostrar en mobile/desktop, posición)
-  · E-mails automáticos      → SettingsEmails (lista de plantillas: bienvenida, pedido confirmado, envío, recuperación; toggle activo + asunto + cuerpo HTML)
-Checkout
-  · Opciones del checkout    → SettingsCheckoutOptions (campos requeridos, permitir invitado, mínimo de compra, requiere RFC, edad mínima, captura nacimiento, etc.)
-  · Mensajes para clientes   → SettingsCheckoutMessages (mensaje header, footer, página gracias, política devoluciones)
-Otros
-  · Usuarios y notificaciones → reusa <StaffSection /> + tabla de notificaciones admin
-  · Dominios                  → reusa <DomainsSection />
-  · Códigos externos          → SettingsExternalCodes (head HTML, body HTML, GA4, Meta Pixel, GTM, hotjar, JSON con varios scripts)
-  · Idiomas y monedas         → SettingsLocale (idioma default, moneda default, lista de monedas activas + tasas)
-  · Redireccionamientos 301   → SettingsRedirects (CRUD sobre tabla `seo_redirects` ya existente)
-  · Campos personalizados     → SettingsCustomFields (CRUD: clave, label, tipo [text/number/select/date/checkbox], aplicable a [producto/cliente/pedido], opciones, requerido)
-```
-
-UI: panel izquierdo con grupos+items, panel derecho con el componente activo. URL hash `#settings/contacto` para deep-link (estado local sincronizado con `window.location.hash`).
-
-### 3. Persistencia — nuevas tablas
-
-```sql
--- Almacén llave/valor de configuración global (un solo proyecto)
-create table public.site_settings (
-  key text primary key,
-  value jsonb not null default '{}'::jsonb,
-  updated_at timestamptz not null default now(),
-  updated_by uuid
-);
-alter table public.site_settings enable row level security;
-create policy "Admin manage site_settings" on public.site_settings for all
-  using (has_role(auth.uid(),'admin') or has_role(auth.uid(),'super_admin'))
-  with check (has_role(auth.uid(),'admin') or has_role(auth.uid(),'super_admin'));
-create policy "Public read site_settings" on public.site_settings for select using (true);
-```
-
-Llaves usadas: `contact`, `whatsapp`, `checkout_options`, `checkout_messages`, `external_codes`, `locale`, `seo_global`.
-
-```sql
--- Plantillas de e-mail editables
-create table public.email_templates (
-  id uuid primary key default gen_random_uuid(),
-  slug text unique not null,        -- welcome, order_confirmed, order_shipped, password_recovery
-  name text not null,
-  subject text not null,
-  body_html text not null,
-  is_active boolean not null default true,
-  variables jsonb not null default '[]'::jsonb,  -- ['{{customer_name}}','{{order_number}}']
-  updated_at timestamptz not null default now()
-);
--- RLS: admin manage, public none
-```
-
-```sql
--- Campos personalizados extensibles
-create table public.custom_fields (
-  id uuid primary key default gen_random_uuid(),
-  key text not null,
-  label text not null,
-  type text not null check (type in ('text','number','select','date','checkbox','textarea')),
-  applies_to text not null check (applies_to in ('product','client','order')),
-  options jsonb not null default '[]'::jsonb,
-  is_required boolean not null default false,
-  display_order int not null default 0,
-  is_active boolean not null default true,
-  unique(key, applies_to)
-);
--- RLS: admin manage; public read active
-```
-
-`seo_redirects` ya existe → reusar.
-
-### 4. Nuevas secciones placeholder/wrapper
-
-- `AppsSection.tsx` — tarjetas con apps instaladas (lee `integrations` con `is_installed=true`) + acceso al hub.
-- `ChannelsSection.tsx` — tarjetas para Tienda online, Amazon, Mercado Libre (preview / link a hub).
-- `PaymentGatewaysShortcut` — entrada del sidebar que abre `payments` con `?tab=gateways` (vía estado en Admin).
-
-### 5. Cambios técnicos puntuales
-
-- `Admin.tsx`: añadir cases para `apps`, `channels`, `payment-gateways` (mismo render que `payments` con tab forzado), `marketing-coupons` (`marketing` con tab cupones), `overview` para "stats".
-- `SettingsSection.tsx`: tipo `subPage` y mapa a componente; lectura/escritura via helper `getSetting(key)` / `setSetting(key, value)` que usa `site_settings`.
-- Mantener `adminOnly` para grupos sensibles. El grupo "Apps & Integraciones" y "Configuración" son adminOnly enteros.
-
-### 6. Ítems entregables (archivos)
-
-Nuevos:
-- `src/components/admin/AppsSection.tsx`
-- `src/components/admin/ChannelsSection.tsx`
-- `src/components/admin/settings/SettingsLayout.tsx` (sidebar interno + router de subpáginas)
-- `src/components/admin/settings/SettingsResumen.tsx`
-- `src/components/admin/settings/SettingsContact.tsx`
-- `src/components/admin/settings/SettingsWhatsApp.tsx`
-- `src/components/admin/settings/SettingsEmails.tsx`
-- `src/components/admin/settings/SettingsCheckoutOptions.tsx`
-- `src/components/admin/settings/SettingsCheckoutMessages.tsx`
-- `src/components/admin/settings/SettingsExternalCodes.tsx`
-- `src/components/admin/settings/SettingsLocale.tsx`
-- `src/components/admin/settings/SettingsRedirects.tsx`
-- `src/components/admin/settings/SettingsCustomFields.tsx`
-- `src/lib/siteSettings.ts` (helpers get/set)
-- migración SQL (site_settings, email_templates, custom_fields)
-
-Modificados:
-- `src/components/admin/AdminSidebar.tsx` — grupos colapsables
-- `src/components/admin/SettingsSection.tsx` — usa SettingsLayout
-- `src/pages/Admin.tsx` — nuevos cases + soporte para deep-link a tab dentro de PaymentsSection/MarketingSection (via prop `defaultTab`)
-- `src/components/admin/PaymentsSection.tsx` — aceptar `defaultTab`
-- `src/components/admin/MarketingSection.tsx` — aceptar `defaultTab`
-
-### Notas
-- No se eliminan secciones existentes; solo se reagrupan y se le dan accesos adicionales.
-- Las nuevas secciones de Settings funcionan en modo "guardar/cargar" contra `site_settings` (jsonb por llave). Nada se rompe si la tabla está vacía: cada sub-form muestra placeholders.
-- Mantengo el patrón actual (un solo `Admin.tsx` con switch) en vez de migrar a rutas anidadas para minimizar cambios.
+Sin cambios destructivos en DB; todo se apoya en columnas ya creadas (`products.slug`, `gallery_urls`, `long_description_html`, `import_jobs.*`).
