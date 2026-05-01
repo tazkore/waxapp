@@ -451,5 +451,5 @@ Deno.serve(async (req) => {
     if (ai.length) return json({ images: ai, source: "ai_generated", query, validated: false, tried });
   }
 
-  return json({ images: [], source: "none", query, tried });
+  return json({ images: [], source: "none", query, validated: validate, tried });
 });
