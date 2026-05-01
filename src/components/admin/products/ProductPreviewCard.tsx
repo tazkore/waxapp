@@ -184,6 +184,72 @@ const ProductPreviewCard = ({
           )}
         </div>
 
+        {/* Category / Brand suggestion */}
+        {showSuggestion && (
+          <div className="flex items-start gap-2 p-2 rounded-md border border-primary/30 bg-primary/5">
+            <Lightbulb className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <p className="text-[11px] text-foreground/80 leading-snug">
+                Sugerencia automática:
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {suggestion.category && (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="text-[10px] gap-1 border-primary/40 text-primary cursor-help">
+                          <Tag className="h-2.5 w-2.5" /> {suggestion.category}
+                          <span className="opacity-60 ml-0.5">
+                            {Math.round(suggestion.category_confidence * 100)}%
+                          </span>
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs max-w-[260px]">
+                        {suggestion.category_reason || "Categoría sugerida"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                {suggestion.brand && (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="text-[10px] gap-1 border-primary/40 text-primary cursor-help">
+                          <Building2 className="h-2.5 w-2.5" /> {suggestion.brand}
+                          <span className="opacity-60 ml-0.5">
+                            {Math.round(suggestion.brand_confidence * 100)}%
+                          </span>
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs max-w-[260px]">
+                        {suggestion.brand_reason || "Marca sugerida"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              <div className="flex gap-1.5 pt-0.5">
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={applySuggestion}
+                  className="h-6 text-[10px] px-2 gap-1"
+                >
+                  <CheckCircle2 className="h-2.5 w-2.5" /> Aplicar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setDismissed(true)}
+                  className="h-6 text-[10px] px-2 gap-1 text-muted-foreground"
+                >
+                  <X className="h-2.5 w-2.5" /> Descartar
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Quick actions */}
         {(onAutoImage || onAutoFillAi || onPickImage) && (needsImage || needsAi) && (
           <div className="flex gap-1.5 pt-1.5 flex-wrap">
