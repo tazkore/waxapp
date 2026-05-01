@@ -632,6 +632,48 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_fields: {
+        Row: {
+          applies_to: string
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          is_required: boolean
+          key: string
+          label: string
+          options: Json
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          applies_to: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          key: string
+          label: string
+          options?: Json
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          applies_to?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          key?: string
+          label?: string
+          options?: Json
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       custom_pages: {
         Row: {
           blocks: Json
@@ -820,6 +862,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      email_templates: {
+        Row: {
+          body_html: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          subject: string
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          body_html?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          subject: string
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          body_html?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          subject?: string
+          updated_at?: string
+          variables?: Json
+        }
+        Relationships: []
       }
       environment_connections: {
         Row: {
@@ -1786,6 +1864,27 @@ export type Database = {
           name?: string
           slug?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      site_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
         }
         Relationships: []
       }
