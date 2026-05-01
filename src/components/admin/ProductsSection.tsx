@@ -12,7 +12,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Search, Pencil, Globe, Wand2, CheckCircle2, AlertCircle, Sparkles, Trash2 } from "lucide-react";
 import CsvImporter from "./products/CsvImporter";
-import ProductImporter from "./products/ProductImporter";
 import ImportJobsHistory from "./products/ImportJobsHistory";
 
 type Product = {
