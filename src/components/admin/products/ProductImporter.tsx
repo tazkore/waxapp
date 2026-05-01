@@ -11,6 +11,8 @@ import { useCanImportProducts } from "@/hooks/useCanImportProducts";
 import { insertWithRetry, isRlsError } from "@/lib/insertWithRetry";
 import RlsErrorPanel from "./RlsErrorPanel";
 import AutoImagePicker from "./AutoImagePicker";
+import ProductPreviewCard from "./ProductPreviewCard";
+import { aggregateValidation, validateProductRow } from "@/lib/validateProductRow";
 import {
   Loader2,
   Globe,
@@ -19,7 +21,6 @@ import {
   AlertCircle,
   Eye,
   Sparkles,
-  ImageOff,
   ShieldAlert,
 } from "lucide-react";
 
@@ -89,7 +90,87 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
   const [rlsError, setRlsError] = useState<string | null>(null);
   const [autoImgBusy, setAutoImgBusy] = useState(false);
   const [aiBatchBusy, setAiBatchBusy] = useState(false);
+  const [rowImageBusy, setRowImageBusy] = useState<Set<number>>(new Set());
+  const [rowAiBusy, setRowAiBusy] = useState<Set<number>>(new Set());
   const currentJobId = useRef<string | null>(null);
+
+  const setRowBusy = (which: "img" | "ai", i: number, busy: boolean) => {
+    const setter = which === "img" ? setRowImageBusy : setRowAiBusy;
+    setter((prev) => {
+      const n = new Set(prev);
+      busy ? n.add(i) : n.delete(i);
+      return n;
+    });
+  };
+
+  const autoImageRow = async (i: number) => {
+    const it = products[i];
+    if (!it?.name) return;
+    setRowBusy("img", i, true);
+    try {
+      const { data, error } = await supabase.functions.invoke("find-product-image", {
+        body: { name: it.name, brand: it.brand, category: it.category, gtin: it.gtin, count: 1 },
+      });
+      const img = data?.images?.[0];
+      if (!error && img) {
+        setProducts((curr) => {
+          const copy = [...curr];
+          if (copy[i]) copy[i] = { ...copy[i], images: [img, ...(copy[i].images || []).filter((u: string) => u !== img)] };
+          return copy;
+        });
+        toast({ title: "Imagen encontrada" });
+      } else {
+        toast({ title: "Sin resultados", description: "Prueba con \"Elegir\" para ver opciones.", variant: "destructive" });
+      }
+    } catch (e: any) {
+      toast({ title: "Error", description: e?.message || String(e), variant: "destructive" });
+    } finally {
+      setRowBusy("img", i, false);
+    }
+  };
+
+  const autoFillAiRow = async (i: number) => {
+    const it = products[i];
+    if (!it?.name) return;
+    setRowBusy("ai", i, true);
+    try {
+      const { data, error } = await supabase.functions.invoke("product-autofill", {
+        body: {
+          product: {
+            name: it.name, description: it.description, category: it.category,
+            brand_name: it.brand, price: it.price, sku: it.sku, gtin: it.gtin,
+            canonical_url: it.source_url,
+          },
+          only_missing: true,
+        },
+      });
+      if (error || !data?.proposal) throw new Error(error?.message || "Sin propuesta");
+      const p = data.proposal;
+      setProducts((curr) => {
+        const copy = [...curr];
+        if (copy[i]) {
+          copy[i] = {
+            ...copy[i],
+            description: copy[i].description || p.description,
+            short_description: copy[i].short_description || p.short_description,
+            category: copy[i].category || p.category,
+            meta_title: copy[i].meta_title || p.meta_title,
+            meta_description: copy[i].meta_description || p.meta_description,
+            focus_keyword: copy[i].focus_keyword || p.focus_keyword,
+            meta_keywords: p.meta_keywords || copy[i].meta_keywords,
+            tags: p.tags || copy[i].tags,
+            attributes: { ...(copy[i].attributes || {}), ...(p.attributes || {}) },
+          };
+        }
+        return copy;
+      });
+      toast({ title: "Producto enriquecido con IA" });
+    } catch (e: any) {
+      toast({ title: "IA no disponible", description: e?.message || String(e), variant: "destructive" });
+    } finally {
+      setRowBusy("ai", i, false);
+    }
+  };
 
   const map = async () => {
     if (!isHttpUrl(url.trim())) {
@@ -192,30 +273,20 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
   };
 
   const validateRow = (it: any, idx: number): { row?: any; errors: string[] } => {
-    const errors: string[] = [];
-    const name = typeof it?.name === "string" ? it.name.trim() : "";
-    if (!name) errors.push("nombre vacío");
-    if (name.length > 200) errors.push("nombre > 200 chars");
-
-    const priceNum = Number(it?.price);
-    const price = Number.isFinite(priceNum) && priceNum >= 0 ? priceNum : 0;
-    if (it?.price != null && !Number.isFinite(priceNum)) errors.push(`precio inválido (${it.price})`);
-
-    const compareNum = it?.compare_at_price != null ? Number(it.compare_at_price) : null;
-    if (compareNum != null && !Number.isFinite(compareNum)) errors.push("compare_at_price inválido");
-
+    const v = validateProductRow(it);
+    if (!v.canImport) {
+      return { errors: v.errors.map((e) => e.message) };
+    }
+    const name = String(it.name).trim();
+    const priceNum = Number(it?.price) || 0;
+    const compareNum = it?.compare_at_price != null && it.compare_at_price !== "" ? Number(it.compare_at_price) : null;
     const img = Array.isArray(it?.images) ? it.images[0] : it?.image_url;
     const gallery: string[] = Array.isArray(it?.images)
       ? it.images.filter((u: any) => typeof u === "string" && isHttpUrl(u))
       : [];
-    if (img && !isHttpUrl(img)) errors.push("image_url no es http(s)");
-    const canonical = it?.source_url || it?.canonical_url || null;
-    if (canonical && !isHttpUrl(canonical)) errors.push("canonical_url inválida");
-
-    if (errors.length) return { errors };
-
     const description = it?.description ? String(it.description).slice(0, 4000) : null;
     const attributes = it?.attributes && typeof it.attributes === "object" ? it.attributes : {};
+    const canonical = it?.source_url || it?.canonical_url || null;
     return {
       errors: [],
       row: {
@@ -223,13 +294,13 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         slug: slugify(name) || `producto-${Date.now()}-${idx}`,
         description,
         short_description: it?.short_description || (description ? description.slice(0, 160) : null),
-        price,
+        price: priceNum,
         stock: 0,
         sku: it?.sku ? String(it.sku).slice(0, 60) : null,
         category: it?.category ? String(it.category).slice(0, 100) : null,
         brand_name: it?.brand ? String(it.brand).slice(0, 100) : null,
         gtin: it?.gtin ? String(it.gtin).slice(0, 60) : null,
-        compare_at_price: compareNum ?? null,
+        compare_at_price: compareNum != null && Number.isFinite(compareNum) ? compareNum : null,
         image_url: img && isHttpUrl(img) ? img : null,
         gallery_urls: gallery,
         meta_title: it?.meta_title || name.slice(0, 60),
@@ -238,7 +309,7 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         meta_keywords: Array.isArray(it?.meta_keywords) ? it.meta_keywords : [],
         tags: Array.isArray(it?.tags) ? it.tags : [],
         attributes,
-        canonical_url: canonical,
+        canonical_url: canonical && isHttpUrl(canonical) ? canonical : null,
         is_active: false,
       },
     };
@@ -557,133 +628,173 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         </Card>
       )}
 
-      {previewProducts && (
-        <Card className="border-primary/40">
-          <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Eye className="h-4 w-4 text-primary" /> Vista previa — {previewProducts.length} producto(s)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {previewProducts.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                No se detectó ningún producto. Cambia de proveedor o activa la IA.
-              </p>
-            ) : (
-              previewProducts.map((it: any, i: number) => (
-                <div key={i} className="flex items-center gap-3 p-2 rounded bg-muted/30">
-                  {it.images?.[0] && (
-                    <img
-                      src={it.images[0]}
-                      alt=""
-                      className="h-12 w-12 rounded object-cover bg-muted"
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{it.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      ${it.price ?? "?"} · {it.category || "Sin categoría"}{" "}
-                      {it.brand ? `· ${it.brand}` : ""}
-                    </p>
+      {previewProducts && (() => {
+        const stats = aggregateValidation(previewProducts);
+        return (
+          <Card className="border-primary/40">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Eye className="h-4 w-4 text-primary" /> Vista previa validada — {previewProducts.length} producto(s)
+                </CardTitle>
+                {previewProducts.length > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-[11px] border-primary/40 text-primary bg-primary/10">
+                      {stats.ready} listos
+                    </Badge>
+                    {stats.withErrors > 0 && (
+                      <Badge variant="outline" className="text-[11px] border-destructive/50 text-destructive bg-destructive/10">
+                        {stats.withErrors} con errores
+                      </Badge>
+                    )}
+                    {stats.withWarnings > 0 && (
+                      <Badge variant="outline" className="text-[11px] border-amber-400/40 text-amber-400 bg-amber-400/10">
+                        {stats.withWarnings} incompletos
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className="text-[11px]">
+                      Completitud {stats.avgCompleteness}%
+                    </Badge>
                   </div>
-                  <Badge variant="outline" className="text-xs">OK</Badge>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
+                )}
+              </div>
+              {previewProducts.length > 0 && (stats.missingImage > 0 || stats.missingDescription > 0 || stats.missingPrice > 0) && (
+                <Alert className="mt-3">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    {stats.missingPrice > 0 && <>⚠️ <strong>{stats.missingPrice}</strong> sin precio · </>}
+                    {stats.missingImage > 0 && <>📷 <strong>{stats.missingImage}</strong> sin imagen · </>}
+                    {stats.missingDescription > 0 && <>📝 <strong>{stats.missingDescription}</strong> sin descripción</>}
+                    {" · "}Continúa con <em>Extraer todo</em> para corregirlos en lote con IA.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {previewProducts.length === 0 ? (
+                <p className="text-xs text-muted-foreground p-4 text-center">
+                  No se detectó ningún producto. Cambia de proveedor o activa la IA.
+                </p>
+              ) : (
+                previewProducts.map((it: any, i: number) => (
+                  <ProductPreviewCard key={i} item={it} index={i} />
+                ))
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
-      {products.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
-            <CardTitle className="text-sm">
-              {selectedP.size} de {products.length} productos a importar
-            </CardTitle>
-            <div className="flex gap-2 flex-wrap">
-              <Button
-                onClick={autoFillImages}
-                disabled={autoImgBusy || busy !== null}
-                size="sm"
-                variant="outline"
-                className="gap-2"
-              >
-                {autoImgBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                Auto-buscar imágenes
-              </Button>
-              <Button
-                onClick={autoFillWithAi}
-                disabled={aiBatchBusy || busy !== null || selectedP.size === 0}
-                size="sm"
-                variant="outline"
-                className="gap-2"
-              >
-                {aiBatchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                Completar con IA
-              </Button>
-              <Button
-                onClick={importProducts}
-                disabled={busy !== null || selectedP.size === 0 || !canImport}
-                size="sm"
-                className="gap-2"
-              >
-                {busy === "import" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                Importar al catálogo
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="max-h-[28rem] overflow-auto space-y-2">
-            {products.map((it: any, i: number) => {
-              const img = Array.isArray(it.images) ? it.images[0] : it.image_url;
-              return (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 p-2 rounded hover:bg-muted/50"
-                >
-                  <Checkbox
-                    checked={selectedP.has(i)}
-                    onCheckedChange={(v) => {
+      {products.length > 0 && (() => {
+        const stats = aggregateValidation(products);
+        const selectedItems = Array.from(selectedP).map((i) => products[i]).filter(Boolean);
+        const selectedStats = aggregateValidation(selectedItems);
+        return (
+          <Card>
+            <CardHeader className="pb-3 space-y-3">
+              <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
+                <CardTitle className="text-sm">
+                  {selectedP.size} de {products.length} productos a importar
+                </CardTitle>
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    onClick={autoFillImages}
+                    disabled={autoImgBusy || busy !== null}
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    {autoImgBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    Auto-imágenes ({stats.missingImage})
+                  </Button>
+                  <Button
+                    onClick={autoFillWithAi}
+                    disabled={aiBatchBusy || busy !== null || selectedP.size === 0}
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    {aiBatchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    Completar IA en lote
+                  </Button>
+                  <Button
+                    onClick={importProducts}
+                    disabled={busy !== null || selectedP.size === 0 || !canImport || selectedStats.withErrors === selectedItems.length}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    {busy === "import" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                    Importar {selectedStats.ready > 0 ? `(${selectedStats.ready} listos)` : ""}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Batch validation summary */}
+              <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                <Badge variant="outline" className="border-primary/40 text-primary bg-primary/10">
+                  ✓ {stats.ready} listos
+                </Badge>
+                {stats.withErrors > 0 && (
+                  <Badge variant="outline" className="border-destructive/50 text-destructive bg-destructive/10">
+                    ✕ {stats.withErrors} bloqueados
+                  </Badge>
+                )}
+                {stats.withWarnings > 0 && (
+                  <Badge variant="outline" className="border-amber-400/40 text-amber-400 bg-amber-400/10">
+                    ⚠ {stats.withWarnings} incompletos
+                  </Badge>
+                )}
+                <span className="text-muted-foreground">
+                  Completitud media: <strong className={stats.avgCompleteness >= 70 ? "text-primary" : stats.avgCompleteness >= 40 ? "text-amber-400" : "text-destructive"}>{stats.avgCompleteness}%</strong>
+                </span>
+              </div>
+
+              {stats.withErrors > 0 && (
+                <Alert variant="destructive" className="py-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    <strong>{stats.withErrors}</strong> producto(s) tienen errores que bloquean la importación
+                    (sin nombre o sin precio). Corrígelos manualmente o con <em>Completar IA</em>, o desmárcalos para continuar.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardHeader>
+            <CardContent className="max-h-[32rem] overflow-auto space-y-2">
+              {products.map((it: any, i: number) => (
+                <div key={i} className="flex items-start gap-2">
+                  <ProductPreviewCard
+                    item={it}
+                    index={i}
+                    selected={selectedP.has(i)}
+                    onToggle={(v) => {
                       const n = new Set(selectedP);
                       v ? n.add(i) : n.delete(i);
                       setSelectedP(n);
                     }}
+                    onAutoImage={() => autoImageRow(i)}
+                    onAutoFillAi={() => autoFillAiRow(i)}
+                    imageBusy={rowImageBusy.has(i)}
+                    aiBusy={rowAiBusy.has(i)}
                   />
-                  {img ? (
-                    <img src={img} alt="" className="h-12 w-12 rounded object-cover bg-muted shrink-0" />
-                  ) : (
-                    <div className="h-12 w-12 rounded bg-muted flex items-center justify-center shrink-0">
-                      <ImageOff className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{it.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      ${it.price ?? "?"} · {it.category || "Sin categoría"}
-                      {it.brand ? ` · ${it.brand}` : ""}
-                    </p>
-                    {!img && (
-                      <Badge variant="outline" className="mt-1 text-[10px] border-amber-500/50 text-amber-500">
-                        Sin imagen
-                      </Badge>
-                    )}
+                  <div className="pt-3">
+                    <AutoImagePicker
+                      query={{ name: it.name, brand: it.brand, category: it.category, gtin: it.gtin }}
+                      current={Array.isArray(it.images) ? it.images[0] : it.image_url}
+                      onPick={(url) =>
+                        setProducts((curr) => {
+                          const copy = [...curr];
+                          if (copy[i]) copy[i] = { ...copy[i], images: [url, ...(copy[i].images || []).filter((u: string) => u !== url)] };
+                          return copy;
+                        })
+                      }
+                    />
                   </div>
-                  <AutoImagePicker
-                    query={{ name: it.name, brand: it.brand, category: it.category, gtin: it.gtin }}
-                    current={img}
-                    onPick={(url) =>
-                      setProducts((curr) => {
-                        const copy = [...curr];
-                        if (copy[i]) copy[i] = { ...copy[i], images: [url, ...(copy[i].images || []).filter((u: string) => u !== url)] };
-                        return copy;
-                      })
-                    }
-                  />
                 </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      )}
+              ))}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {rlsError && (
         <RlsErrorPanel
