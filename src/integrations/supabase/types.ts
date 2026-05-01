@@ -1466,40 +1466,73 @@ export type Database = {
       }
       product_variants: {
         Row: {
+          attributes: Json
+          barcode: string | null
+          capacity_ml: number | null
+          color: string | null
+          compare_at_price: number | null
           created_at: string
+          flavor: string | null
           id: string
           image_url: string | null
+          image_urls: string[]
           is_active: boolean
           name: string
+          nicotine_mg: number | null
+          notes: string | null
           price: number
           product_id: string
+          size_label: string | null
           sku: string | null
           stock: number
           updated_at: string
+          weight_grams: number | null
         }
         Insert: {
+          attributes?: Json
+          barcode?: string | null
+          capacity_ml?: number | null
+          color?: string | null
+          compare_at_price?: number | null
           created_at?: string
+          flavor?: string | null
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           is_active?: boolean
           name: string
+          nicotine_mg?: number | null
+          notes?: string | null
           price?: number
           product_id: string
+          size_label?: string | null
           sku?: string | null
           stock?: number
           updated_at?: string
+          weight_grams?: number | null
         }
         Update: {
+          attributes?: Json
+          barcode?: string | null
+          capacity_ml?: number | null
+          color?: string | null
+          compare_at_price?: number | null
           created_at?: string
+          flavor?: string | null
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           is_active?: boolean
           name?: string
+          nicotine_mg?: number | null
+          notes?: string | null
           price?: number
           product_id?: string
+          size_label?: string | null
           sku?: string | null
           stock?: number
           updated_at?: string
+          weight_grams?: number | null
         }
         Relationships: [
           {
@@ -1514,119 +1547,176 @@ export type Database = {
       products: {
         Row: {
           attributes: Json
+          battery_mah: number | null
           brand_id: string | null
           brand_name: string | null
           canonical_url: string | null
+          capacity_ml: number | null
           category: string | null
+          cbd_percentage: number | null
           compare_at_price: number | null
+          compatibility: string[]
+          country_of_origin: string | null
           created_at: string
           description: string | null
           dimensions: Json
           featured_order: number
+          flavor_profile: string[]
           focus_keyword: string | null
           gallery_urls: string[]
           gtin: string | null
           id: string
           image_url: string | null
+          ingredients: string[]
           is_active: boolean
           is_featured: boolean
           long_description_html: string | null
+          material: string | null
           meta_description: string | null
           meta_keywords: string[]
           meta_title: string | null
+          metadata_template: string | null
           mpn: string | null
           name: string
+          nicotine_mg: number | null
           nofollow: boolean
           noindex: boolean
           og_image_url: string | null
+          pg_vg_ratio: string | null
           price: number
+          puffs_estimate: number | null
           schema_type: string
           short_description: string | null
           sku: string | null
           slug: string | null
+          specifications: Json
           stock: number
+          strain_type: string | null
           sub_store_id: string | null
           tags: string[]
+          terpenes: string[]
+          thc_percentage: number | null
           updated_at: string
+          vaporizer_type: string | null
           warehouse_id: string | null
+          warnings: string[]
+          warranty_months: number | null
           weight_grams: number | null
         }
         Insert: {
           attributes?: Json
+          battery_mah?: number | null
           brand_id?: string | null
           brand_name?: string | null
           canonical_url?: string | null
+          capacity_ml?: number | null
           category?: string | null
+          cbd_percentage?: number | null
           compare_at_price?: number | null
+          compatibility?: string[]
+          country_of_origin?: string | null
           created_at?: string
           description?: string | null
           dimensions?: Json
           featured_order?: number
+          flavor_profile?: string[]
           focus_keyword?: string | null
           gallery_urls?: string[]
           gtin?: string | null
           id?: string
           image_url?: string | null
+          ingredients?: string[]
           is_active?: boolean
           is_featured?: boolean
           long_description_html?: string | null
+          material?: string | null
           meta_description?: string | null
           meta_keywords?: string[]
           meta_title?: string | null
+          metadata_template?: string | null
           mpn?: string | null
           name: string
+          nicotine_mg?: number | null
           nofollow?: boolean
           noindex?: boolean
           og_image_url?: string | null
+          pg_vg_ratio?: string | null
           price?: number
+          puffs_estimate?: number | null
           schema_type?: string
           short_description?: string | null
           sku?: string | null
           slug?: string | null
+          specifications?: Json
           stock?: number
+          strain_type?: string | null
           sub_store_id?: string | null
           tags?: string[]
+          terpenes?: string[]
+          thc_percentage?: number | null
           updated_at?: string
+          vaporizer_type?: string | null
           warehouse_id?: string | null
+          warnings?: string[]
+          warranty_months?: number | null
           weight_grams?: number | null
         }
         Update: {
           attributes?: Json
+          battery_mah?: number | null
           brand_id?: string | null
           brand_name?: string | null
           canonical_url?: string | null
+          capacity_ml?: number | null
           category?: string | null
+          cbd_percentage?: number | null
           compare_at_price?: number | null
+          compatibility?: string[]
+          country_of_origin?: string | null
           created_at?: string
           description?: string | null
           dimensions?: Json
           featured_order?: number
+          flavor_profile?: string[]
           focus_keyword?: string | null
           gallery_urls?: string[]
           gtin?: string | null
           id?: string
           image_url?: string | null
+          ingredients?: string[]
           is_active?: boolean
           is_featured?: boolean
           long_description_html?: string | null
+          material?: string | null
           meta_description?: string | null
           meta_keywords?: string[]
           meta_title?: string | null
+          metadata_template?: string | null
           mpn?: string | null
           name?: string
+          nicotine_mg?: number | null
           nofollow?: boolean
           noindex?: boolean
           og_image_url?: string | null
+          pg_vg_ratio?: string | null
           price?: number
+          puffs_estimate?: number | null
           schema_type?: string
           short_description?: string | null
           sku?: string | null
           slug?: string | null
+          specifications?: Json
           stock?: number
+          strain_type?: string | null
           sub_store_id?: string | null
           tags?: string[]
+          terpenes?: string[]
+          thc_percentage?: number | null
           updated_at?: string
+          vaporizer_type?: string | null
           warehouse_id?: string | null
+          warnings?: string[]
+          warranty_months?: number | null
           weight_grams?: number | null
         }
         Relationships: [
