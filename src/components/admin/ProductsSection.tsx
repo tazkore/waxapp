@@ -107,18 +107,44 @@ const ProductsSection = () => {
     });
   };
 
+  const stats = useMemo(() => {
+    const total = products.length;
+    const active = products.filter(p => p.is_active).length;
+    const draft = total - active;
+    const featured = products.filter(p => p.is_featured).length;
+    const outOfStock = products.filter(p => (p.stock ?? 0) <= 0).length;
+    const avgSeo = total ? Math.round(products.reduce((acc, p) => acc + seoScore(p), 0) / total) : 0;
+    return { total, active, draft, featured, outOfStock, avgSeo };
+  }, [products]);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Productos & SEO</h1>
-          <p className="text-sm text-muted-foreground">Catálogo, metadatos para Google e importación desde sitios web.</p>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+            Productos & SEO
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Catálogo, metadatos para Google e importación desde sitios web.
+          </p>
         </div>
-        <Button onClick={newProduct} className="gap-2"><Plus className="h-4 w-4" /> Nuevo producto</Button>
+        <Button onClick={newProduct} size="lg" className="gap-2 shadow-lg shadow-primary/20">
+          <Plus className="h-4 w-4" /> Nuevo producto
+        </Button>
+      </div>
+
+      {/* KPI Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <StatCard label="Total" value={stats.total} accent="primary" />
+        <StatCard label="Activos" value={stats.active} accent="primary" subtext={`${stats.draft} borradores`} />
+        <StatCard label="Destacados" value={stats.featured} accent="amber" />
+        <StatCard label="Agotados" value={stats.outOfStock} accent={stats.outOfStock > 0 ? "destructive" : "muted"} />
+        <StatCard label="SEO promedio" value={`${stats.avgSeo}/100`} accent={stats.avgSeo >= 70 ? "primary" : stats.avgSeo >= 40 ? "amber" : "destructive"} />
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+        <TabsList className="bg-card/50 border border-border/50">
           <TabsTrigger value="catalog">Catálogo</TabsTrigger>
           <TabsTrigger value="import">Importar URL</TabsTrigger>
           <TabsTrigger value="csv">Importar CSV</TabsTrigger>
@@ -126,45 +152,41 @@ const ProductsSection = () => {
         </TabsList>
 
         <TabsContent value="catalog" className="space-y-4">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar por nombre, SKU, palabra clave…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[260px] max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nombre, SKU, palabra clave…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 bg-card/50 border-border/60 focus-visible:ring-primary/40"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {filtered.length} {filtered.length === 1 ? "producto" : "productos"}
+            </p>
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <Card className="border-dashed border-border/60 bg-card/30">
+              <CardContent className="p-12 text-center">
+                <div className="mx-auto w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
+                  <Search className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  No hay productos. Crea uno o importa desde una URL.
+                </p>
+              </CardContent>
+            </Card>
           ) : (
-            <div className="grid gap-3">
-              {filtered.length === 0 && (
-                <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No hay productos. Crea uno o importa desde una URL.</CardContent></Card>
-              )}
-              {filtered.map((p) => {
-                const score = seoScore(p);
-                return (
-                  <Card key={p.id} className="hover:border-primary/40 transition-colors">
-                    <CardContent className="p-4 flex items-center gap-4">
-                      {p.image_url ? (
-                        <img src={p.image_url} alt={p.name} className="h-14 w-14 rounded object-cover bg-muted" />
-                      ) : (
-                        <div className="h-14 w-14 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground">Sin foto</div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium text-foreground truncate">{p.name}</p>
-                          {!p.is_active && <Badge variant="outline" className="text-xs">Borrador</Badge>}
-                          {p.is_featured && <Badge className="text-xs">Destacado</Badge>}
-                          {p.noindex && <Badge variant="outline" className="text-xs text-amber-500 border-amber-500/40">noindex</Badge>}
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate">/producto/{p.slug || slugify(p.name)} · ${p.price} · stock {p.stock}</p>
-                      </div>
-                      <div className="text-right">
-                        <div className={`text-xs font-semibold ${score >= 80 ? "text-primary" : score >= 50 ? "text-amber-500" : "text-destructive"}`}>SEO {score}/100</div>
-                        <Button variant="ghost" size="sm" onClick={() => setEditing(p)} className="gap-1 mt-1"><Pencil className="h-3 w-3" /> Editar</Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filtered.map((p) => (
+                <ProductCard key={p.id} product={p} onEdit={() => setEditing(p)} score={seoScore(p)} />
+              ))}
             </div>
           )}
         </TabsContent>
@@ -193,6 +215,129 @@ const ProductsSection = () => {
         />
       )}
     </div>
+  );
+};
+
+/* ---------------- Stat Card ---------------- */
+
+const accentMap: Record<string, string> = {
+  primary: "text-primary",
+  amber: "text-amber-400",
+  destructive: "text-destructive",
+  muted: "text-muted-foreground",
+};
+
+const StatCard = ({ label, value, accent = "primary", subtext }: { label: string; value: string | number; accent?: string; subtext?: string }) => (
+  <Card className="border-border/50 bg-gradient-to-br from-card to-card/40 hover:border-primary/30 transition-colors">
+    <CardContent className="p-4">
+      <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">{label}</p>
+      <p className={`text-2xl font-bold mt-1 ${accentMap[accent] ?? accentMap.primary}`} style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+        {value}
+      </p>
+      {subtext && <p className="text-[11px] text-muted-foreground mt-0.5">{subtext}</p>}
+    </CardContent>
+  </Card>
+);
+
+/* ---------------- Product Card ---------------- */
+
+const ProductCard = ({ product: p, onEdit, score }: { product: Product; onEdit: () => void; score: number }) => {
+  const scoreColor = score >= 80 ? "text-primary" : score >= 50 ? "text-amber-400" : "text-destructive";
+  const scoreBar = score >= 80 ? "bg-primary" : score >= 50 ? "bg-amber-400" : "bg-destructive";
+  const outOfStock = (p.stock ?? 0) <= 0;
+
+  return (
+    <Card className="group overflow-hidden border-border/50 bg-card/60 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-200 flex flex-col">
+      {/* Image 16:9 */}
+      <div className="relative aspect-[16/10] bg-gradient-to-br from-muted/40 to-muted/10 overflow-hidden">
+        {p.image_url ? (
+          <img
+            src={p.image_url}
+            alt={p.name}
+            loading="lazy"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
+            Sin imagen
+          </div>
+        )}
+        {/* Badges over image */}
+        <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+          {!p.is_active && (
+            <Badge variant="outline" className="text-[10px] bg-background/80 backdrop-blur border-border/60">
+              Borrador
+            </Badge>
+          )}
+          {p.is_featured && (
+            <Badge className="text-[10px] bg-amber-400/90 text-black hover:bg-amber-400">
+              Destacado
+            </Badge>
+          )}
+          {p.noindex && (
+            <Badge variant="outline" className="text-[10px] bg-background/80 backdrop-blur text-amber-400 border-amber-400/40">
+              noindex
+            </Badge>
+          )}
+        </div>
+        {outOfStock && (
+          <div className="absolute top-2 right-2">
+            <Badge variant="outline" className="text-[10px] bg-destructive/90 text-destructive-foreground border-destructive">
+              Agotado
+            </Badge>
+          </div>
+        )}
+      </div>
+
+      {/* Body */}
+      <CardContent className="p-4 flex-1 flex flex-col gap-3">
+        <div className="space-y-1 min-w-0">
+          <h3 className="font-semibold text-sm text-foreground line-clamp-2 leading-snug" title={p.name}>
+            {p.name}
+          </h3>
+          <p className="text-[11px] text-muted-foreground truncate font-mono">
+            /{p.slug || slugify(p.name)}
+          </p>
+        </div>
+
+        <div className="flex items-end justify-between gap-2">
+          <div>
+            <p className="text-lg font-bold text-foreground" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+              ${Number(p.price).toLocaleString("es-MX")}
+            </p>
+            {p.compare_at_price && p.compare_at_price > p.price && (
+              <p className="text-[11px] text-muted-foreground line-through">
+                ${Number(p.compare_at_price).toLocaleString("es-MX")}
+              </p>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Stock: <span className={outOfStock ? "text-destructive font-semibold" : "text-foreground font-medium"}>{p.stock ?? 0}</span>
+          </p>
+        </div>
+
+        {/* SEO bar */}
+        <div className="space-y-1 pt-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">SEO</span>
+            <span className={`text-[11px] font-semibold ${scoreColor}`}>{score}/100</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-muted/60 overflow-hidden">
+            <div className={`h-full ${scoreBar} transition-all`} style={{ width: `${Math.min(100, score)}%` }} />
+          </div>
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onEdit}
+          className="gap-1 mt-1 border-border/60 hover:border-primary/50 hover:text-primary"
+        >
+          <Pencil className="h-3 w-3" /> Editar
+        </Button>
+      </CardContent>
+    </Card>
   );
 };
 
