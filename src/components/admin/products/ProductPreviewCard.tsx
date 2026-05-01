@@ -2,9 +2,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 // Progress not used directly — visual bar uses inline divs for color flexibility
-import { AlertCircle, ImageOff, Sparkles, ImageIcon, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, ImageOff, Sparkles, ImageIcon, CheckCircle2, Loader2, Lightbulb, X, Tag, Building2 } from "lucide-react";
 import { validateProductRow, type FieldIssue } from "@/lib/validateProductRow";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { suggestCategoryAndBrand, hasSuggestion, type CatalogEntry } from "@/lib/categoryBrandSuggester";
+import { useMemo, useState } from "react";
 
 interface Props {
   item: any;
@@ -14,8 +16,13 @@ interface Props {
   onAutoImage?: () => void;
   onAutoFillAi?: () => void;
   onPickImage?: () => void;
+  /** Apply a partial update to this row (e.g. {category, brand}) */
+  onApplyPatch?: (patch: Record<string, any>) => void;
   imageBusy?: boolean;
   aiBusy?: boolean;
+  /** Catalogs for suggestion fuzzy-match */
+  brandCatalog?: CatalogEntry[];
+  categoryCatalog?: CatalogEntry[];
 }
 
 const colorForScore = (n: number) =>
