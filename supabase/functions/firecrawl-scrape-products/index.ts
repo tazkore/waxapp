@@ -53,10 +53,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { job_id, urls } = await req.json();
-    if (!job_id || !Array.isArray(urls) || urls.length === 0) throw new Error("job_id and urls[] required");
+    if (!Array.isArray(urls) || urls.length === 0) throw new Error("urls[] required");
     const limited = urls.slice(0, 30); // cap to avoid runaway cost
 
-    await admin.from("import_jobs").update({ status: "scraping" }).eq("id", job_id);
+    if (job_id) {
+      await admin.from("import_jobs").update({ status: "scraping" }).eq("id", job_id);
+    }
 
     const products: any[] = [];
     for (const url of limited) {
@@ -106,10 +108,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    await admin
-      .from("import_jobs")
-      .update({ products_extracted: products.length, extracted_products: products, status: "pending" })
-      .eq("id", job_id);
+    if (job_id) {
+      await admin
+        .from("import_jobs")
+        .update({ products_extracted: products.length, extracted_products: products, status: "pending" })
+        .eq("id", job_id);
+    }
 
     return new Response(JSON.stringify({ products }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
