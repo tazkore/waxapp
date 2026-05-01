@@ -13,6 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Search, Pencil, Globe, Wand2, CheckCircle2, AlertCircle, Sparkles, Trash2 } from "lucide-react";
 import CsvImporter from "./products/CsvImporter";
 import ImportJobsHistory from "./products/ImportJobsHistory";
+import AdvancedMetadataEditor, { type AdvancedMetadata } from "./products/AdvancedMetadataEditor";
+import VariantMetadataEditor from "./products/VariantMetadataEditor";
 
 type Product = {
   id: string;
@@ -46,6 +48,26 @@ type Product = {
   noindex: boolean;
   nofollow: boolean;
   stock: number;
+  // Advanced metadata
+  metadata_template: string | null;
+  specifications: any;
+  warnings: string[] | null;
+  ingredients: string[] | null;
+  flavor_profile: string[] | null;
+  country_of_origin: string | null;
+  material: string | null;
+  battery_mah: number | null;
+  puffs_estimate: number | null;
+  nicotine_mg: number | null;
+  vaporizer_type: string | null;
+  thc_percentage: number | null;
+  cbd_percentage: number | null;
+  strain_type: string | null;
+  terpenes: string[] | null;
+  capacity_ml: number | null;
+  pg_vg_ratio: string | null;
+  compatibility: string[] | null;
+  warranty_months: number | null;
 };
 
 const slugify = (s: string) =>
@@ -104,6 +126,11 @@ const ProductsSection = () => {
       meta_title: null, meta_description: null, meta_keywords: [], focus_keyword: null,
       og_image_url: null, canonical_url: null, schema_type: "Product", gtin: null, mpn: null,
       weight_grams: null, dimensions: {}, tags: [], noindex: false, nofollow: false, stock: 0,
+      metadata_template: null, specifications: [], warnings: [], ingredients: [], flavor_profile: [],
+      country_of_origin: null, material: null, battery_mah: null, puffs_estimate: null,
+      nicotine_mg: null, vaporizer_type: null, thc_percentage: null, cbd_percentage: null,
+      strain_type: null, terpenes: [], capacity_ml: null, pg_vg_ratio: null,
+      compatibility: [], warranty_months: null,
     });
   };
 
@@ -389,13 +416,39 @@ const ProductEditor = ({ product, onClose, onSaved }: { product: Product; onClos
       noindex: !!p.noindex,
       nofollow: !!p.nofollow,
       stock: Number(p.stock) || 0,
+      // Advanced metadata
+      metadata_template: p.metadata_template || null,
+      specifications: Array.isArray(p.specifications) ? p.specifications : [],
+      warnings: p.warnings || [],
+      ingredients: p.ingredients || [],
+      flavor_profile: p.flavor_profile || [],
+      country_of_origin: p.country_of_origin || null,
+      material: p.material || null,
+      battery_mah: p.battery_mah != null ? Number(p.battery_mah) : null,
+      puffs_estimate: p.puffs_estimate != null ? Number(p.puffs_estimate) : null,
+      nicotine_mg: p.nicotine_mg != null ? Number(p.nicotine_mg) : null,
+      vaporizer_type: p.vaporizer_type || null,
+      thc_percentage: p.thc_percentage != null ? Number(p.thc_percentage) : null,
+      cbd_percentage: p.cbd_percentage != null ? Number(p.cbd_percentage) : null,
+      strain_type: p.strain_type || null,
+      terpenes: p.terpenes || [],
+      capacity_ml: p.capacity_ml != null ? Number(p.capacity_ml) : null,
+      pg_vg_ratio: p.pg_vg_ratio || null,
+      compatibility: p.compatibility || [],
+      warranty_months: p.warranty_months != null ? Number(p.warranty_months) : null,
     };
-    const { error } = p.id
-      ? await supabase.from("products").update(payload).eq("id", p.id)
-      : await supabase.from("products").insert(payload);
+    const result = p.id
+      ? await supabase.from("products").update(payload).eq("id", p.id).select().single()
+      : await supabase.from("products").insert(payload).select().single();
     setSaving(false);
-    if (error) {
-      toast({ title: "Error al guardar", description: error.message, variant: "destructive" });
+    if (result.error) {
+      toast({ title: "Error al guardar", description: result.error.message, variant: "destructive" });
+      return;
+    }
+    if (result.data && !p.id) {
+      // Mantener el editor abierto con el id ya asignado para que se puedan agregar variantes
+      setP((prev) => ({ ...prev, ...(result.data as any) }));
+      toast({ title: "Producto creado", description: "Ahora puedes agregar variantes y metadatos avanzados." });
       return;
     }
     toast({ title: "Producto guardado" });
@@ -450,7 +503,7 @@ const ProductEditor = ({ product, onClose, onSaved }: { product: Product; onClos
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             {p.id ? "Editar producto" : "Nuevo producto"}
@@ -461,11 +514,13 @@ const ProductEditor = ({ product, onClose, onSaved }: { product: Product; onClos
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
-          <TabsList className="grid grid-cols-4 w-full">
+          <TabsList className="grid grid-cols-6 w-full">
             <TabsTrigger value="basic">Básico</TabsTrigger>
             <TabsTrigger value="content">Contenido</TabsTrigger>
-            <TabsTrigger value="seo">SEO & Meta</TabsTrigger>
-            <TabsTrigger value="schema">Schema/JSON-LD</TabsTrigger>
+            <TabsTrigger value="meta">Metadatos</TabsTrigger>
+            <TabsTrigger value="variants">Variantes</TabsTrigger>
+            <TabsTrigger value="seo">SEO</TabsTrigger>
+            <TabsTrigger value="schema">Schema</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic" className="space-y-3 pt-4">
@@ -494,6 +549,61 @@ const ProductEditor = ({ product, onClose, onSaved }: { product: Product; onClos
             <Field label="Etiquetas (separadas por coma)">
               <Input value={(p.tags || []).join(", ")} onChange={(e) => set("tags", e.target.value.split(",").map(s => s.trim()).filter(Boolean))} />
             </Field>
+          </TabsContent>
+
+          <TabsContent value="meta" className="space-y-3 pt-4">
+            <AdvancedMetadataEditor
+              hint={{ name: p.name, category: p.category || undefined }}
+              value={{
+                metadata_template: p.metadata_template,
+                specifications: Array.isArray(p.specifications) ? p.specifications : [],
+                warnings: p.warnings || [],
+                ingredients: p.ingredients || [],
+                flavor_profile: p.flavor_profile || [],
+                country_of_origin: p.country_of_origin,
+                material: p.material,
+                battery_mah: p.battery_mah,
+                puffs_estimate: p.puffs_estimate,
+                nicotine_mg: p.nicotine_mg,
+                vaporizer_type: p.vaporizer_type,
+                thc_percentage: p.thc_percentage,
+                cbd_percentage: p.cbd_percentage,
+                strain_type: p.strain_type,
+                terpenes: p.terpenes || [],
+                capacity_ml: p.capacity_ml,
+                pg_vg_ratio: p.pg_vg_ratio,
+                compatibility: p.compatibility || [],
+                warranty_months: p.warranty_months,
+              }}
+              onChange={(v) => {
+                setP((prev) => ({
+                  ...prev,
+                  metadata_template: v.metadata_template ?? null,
+                  specifications: v.specifications ?? [],
+                  warnings: v.warnings ?? [],
+                  ingredients: v.ingredients ?? [],
+                  flavor_profile: v.flavor_profile ?? [],
+                  country_of_origin: v.country_of_origin ?? null,
+                  material: v.material ?? null,
+                  battery_mah: v.battery_mah ?? null,
+                  puffs_estimate: v.puffs_estimate ?? null,
+                  nicotine_mg: v.nicotine_mg ?? null,
+                  vaporizer_type: v.vaporizer_type ?? null,
+                  thc_percentage: v.thc_percentage ?? null,
+                  cbd_percentage: v.cbd_percentage ?? null,
+                  strain_type: v.strain_type ?? null,
+                  terpenes: v.terpenes ?? [],
+                  capacity_ml: v.capacity_ml ?? null,
+                  pg_vg_ratio: v.pg_vg_ratio ?? null,
+                  compatibility: v.compatibility ?? [],
+                  warranty_months: v.warranty_months ?? null,
+                }));
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent value="variants" className="space-y-3 pt-4">
+            <VariantMetadataEditor productId={p.id || null} />
           </TabsContent>
 
           <TabsContent value="seo" className="space-y-3 pt-4">
