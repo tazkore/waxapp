@@ -776,6 +776,29 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
                 </span>
               </div>
 
+              {/* Live AI batch progress */}
+              {aiBatchBusy && aiBatchProgress.total > 0 && (
+                <div className="space-y-1.5 p-3 rounded-lg border border-primary/30 bg-primary/5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-2 text-primary font-medium">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Generando metadatos con IA…
+                    </span>
+                    <span className="text-muted-foreground font-mono">
+                      {aiBatchProgress.done}/{aiBatchProgress.total}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-primary/70 transition-all"
+                      style={{ width: `${Math.round((aiBatchProgress.done / aiBatchProgress.total) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Sabores, ingredientes, tipo de evaporador, atributos técnicos y SEO.
+                  </p>
+                </div>
+              )}
               {stats.withErrors > 0 && (
                 <Alert variant="destructive" className="py-2">
                   <AlertCircle className="h-4 w-4" />
