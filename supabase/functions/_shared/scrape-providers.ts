@@ -2,7 +2,16 @@
 // Providers: 'firecrawl' | 'jina' | 'scrapingbee' | 'readability'
 // 'jina' and 'readability' do NOT require an API key and are FREE.
 
-export type Provider = "firecrawl" | "jina" | "scrapingbee" | "readability";
+export type Provider =
+  | "firecrawl"
+  | "jina"
+  | "scrapingbee"
+  | "readability"
+  | "browserless"
+  | "scraperapi"
+  | "scrapfly"
+  | "diffbot"
+  | "zenrows";
 
 export interface ScrapeResult {
   html?: string;
