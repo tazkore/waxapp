@@ -147,6 +147,8 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         .select()
         .single();
       if (jobErr) throw jobErr;
+      currentJobId.current = job.id;
+
 
       onJobsChanged?.();
 
