@@ -68,8 +68,11 @@ const ProductPreviewCard = ({
   onAutoImage,
   onAutoFillAi,
   onPickImage,
+  onApplyPatch,
   imageBusy,
   aiBusy,
+  brandCatalog,
+  categoryCatalog,
 }: Props) => {
   const validation = validateProductRow(it);
   const img = Array.isArray(it.images) ? it.images[0] : it.image_url;
@@ -77,6 +80,35 @@ const ProductPreviewCard = ({
   const allIssues = [...validation.errors, ...validation.warnings];
   const needsImage = allIssues.some((i) => i.field === "image_url");
   const needsAi = allIssues.some((i) => i.action === "ai");
+
+  const [dismissed, setDismissed] = useState(false);
+  const suggestion = useMemo(
+    () =>
+      suggestCategoryAndBrand(
+        {
+          name: it.name,
+          gtin: it.gtin,
+          description: it.description,
+          source_url: it.source_url,
+          current_category: it.category,
+          current_brand: it.brand || it.brand_name,
+        },
+        { brands: brandCatalog, categories: categoryCatalog }
+      ),
+    [it.name, it.gtin, it.description, it.source_url, it.category, it.brand, it.brand_name, brandCatalog, categoryCatalog]
+  );
+  const showSuggestion = !dismissed && onApplyPatch && hasSuggestion(suggestion);
+
+  const applySuggestion = () => {
+    if (!onApplyPatch) return;
+    const patch: Record<string, any> = {};
+    if (suggestion.category) patch.category = suggestion.category;
+    if (suggestion.brand) {
+      patch.brand = suggestion.brand;
+      patch.brand_name = suggestion.brand;
+    }
+    onApplyPatch(patch);
+  };
 
   return (
     <div
