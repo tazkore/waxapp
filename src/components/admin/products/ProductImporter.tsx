@@ -225,7 +225,72 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     };
   };
 
+  const logFailureToJob = async (msg: string) => {
+    if (!currentJobId.current) return;
+    try {
+      await supabase
+        .from("import_jobs")
+        .update({ status: "failed", error: msg.slice(0, 2000) })
+        .eq("id", currentJobId.current);
+      onJobsChanged?.();
+    } catch (e) {
+      console.error("Could not log failure to job", e);
+    }
+  };
+
+  const autoFillImages = async () => {
+    const missing = products
+      .map((it: any, i: number) => ({ it, i }))
+      .filter((x) => !(Array.isArray(x.it.images) && x.it.images[0]) && x.it?.name);
+    if (!missing.length) {
+      toast({ title: "Todos los productos ya tienen imagen" });
+      return;
+    }
+    setAutoImgBusy(true);
+    let filled = 0;
+    // 3 concurrentes
+    const queue = [...missing];
+    const workers = Array.from({ length: 3 }, async () => {
+      while (queue.length) {
+        const next = queue.shift();
+        if (!next) break;
+        try {
+          const { data, error } = await supabase.functions.invoke("find-product-image", {
+            body: {
+              name: next.it.name,
+              brand: next.it.brand || "",
+              category: next.it.category || "",
+              gtin: next.it.gtin || "",
+              count: 1,
+            },
+          });
+          const img = data?.images?.[0];
+          if (!error && img) {
+            setProducts((curr) => {
+              const copy = [...curr];
+              if (copy[next.i]) copy[next.i] = { ...copy[next.i], images: [img] };
+              return copy;
+            });
+            filled++;
+          }
+        } catch (e) {
+          console.error("auto-image err", e);
+        }
+      }
+    });
+    await Promise.all(workers);
+    setAutoImgBusy(false);
+    toast({ title: `Auto-imagen completada`, description: `${filled}/${missing.length} encontradas` });
+  };
+
   const importProducts = async () => {
+    setRlsError(null);
+
+    if (!canImport) {
+      setRlsError(`Tu rol "${role || "ninguno"}" no puede insertar en la tabla products.`);
+      return;
+    }
+
     const items = Array.from(selectedP).map((i) => ({ it: products[i], i })).filter((x) => x.it);
     if (!items.length) return;
     setBusy("import");
@@ -251,18 +316,52 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         return;
       }
 
-      const { error } = await supabase.from("products").insert(rows);
-      if (error) throw error;
-      toast({ title: "Importados", description: `${rows.length} productos creados como borradores` });
+      const { error, attempts, retried } = await insertWithRetry("products", rows);
+      if (error) {
+        const msg = error.message || String(error);
+        if (isRlsError(error)) {
+          setRlsError(msg);
+          await logFailureToJob(`RLS denied (${attempts} attempts): ${msg}`);
+          toast({
+            title: "Sin permisos para importar",
+            description: "Revisa el panel de error abajo.",
+            variant: "destructive",
+          });
+        } else {
+          await logFailureToJob(`Insert failed after ${attempts} attempt(s): ${msg}`);
+          toast({
+            title: "Error al importar",
+            description: `${msg} (${attempts} intento${attempts > 1 ? "s" : ""})`,
+            variant: "destructive",
+          });
+        }
+        return;
+      }
+
+      if (currentJobId.current) {
+        await supabase
+          .from("import_jobs")
+          .update({ status: "completed", products_imported: rows.length })
+          .eq("id", currentJobId.current);
+        onJobsChanged?.();
+      }
+
+      toast({
+        title: "Importados",
+        description: `${rows.length} productos creados como borradores${retried ? ` (recuperado tras ${attempts} intentos)` : ""}`,
+      });
       setProducts([]);
       setSelectedP(new Set());
       setLinks([]);
       setSelected(new Set());
       setPreviewProducts(null);
+      currentJobId.current = null;
       onImported();
       onSwitchToCatalog();
     } catch (e: any) {
-      toast({ title: "Error al importar", description: e?.message || String(e), variant: "destructive" });
+      const msg = e?.message || String(e);
+      await logFailureToJob(`Unexpected: ${msg}`);
+      toast({ title: "Error al importar", description: msg, variant: "destructive" });
     } finally {
       setBusy(null);
     }
