@@ -551,6 +551,61 @@ const ProductEditor = ({ product, onClose, onSaved }: { product: Product; onClos
             </Field>
           </TabsContent>
 
+          <TabsContent value="meta" className="space-y-3 pt-4">
+            <AdvancedMetadataEditor
+              hint={{ name: p.name, category: p.category || undefined }}
+              value={{
+                metadata_template: p.metadata_template,
+                specifications: Array.isArray(p.specifications) ? p.specifications : [],
+                warnings: p.warnings || [],
+                ingredients: p.ingredients || [],
+                flavor_profile: p.flavor_profile || [],
+                country_of_origin: p.country_of_origin,
+                material: p.material,
+                battery_mah: p.battery_mah,
+                puffs_estimate: p.puffs_estimate,
+                nicotine_mg: p.nicotine_mg,
+                vaporizer_type: p.vaporizer_type,
+                thc_percentage: p.thc_percentage,
+                cbd_percentage: p.cbd_percentage,
+                strain_type: p.strain_type,
+                terpenes: p.terpenes || [],
+                capacity_ml: p.capacity_ml,
+                pg_vg_ratio: p.pg_vg_ratio,
+                compatibility: p.compatibility || [],
+                warranty_months: p.warranty_months,
+              }}
+              onChange={(v) => {
+                setP((prev) => ({
+                  ...prev,
+                  metadata_template: v.metadata_template ?? null,
+                  specifications: v.specifications ?? [],
+                  warnings: v.warnings ?? [],
+                  ingredients: v.ingredients ?? [],
+                  flavor_profile: v.flavor_profile ?? [],
+                  country_of_origin: v.country_of_origin ?? null,
+                  material: v.material ?? null,
+                  battery_mah: v.battery_mah ?? null,
+                  puffs_estimate: v.puffs_estimate ?? null,
+                  nicotine_mg: v.nicotine_mg ?? null,
+                  vaporizer_type: v.vaporizer_type ?? null,
+                  thc_percentage: v.thc_percentage ?? null,
+                  cbd_percentage: v.cbd_percentage ?? null,
+                  strain_type: v.strain_type ?? null,
+                  terpenes: v.terpenes ?? [],
+                  capacity_ml: v.capacity_ml ?? null,
+                  pg_vg_ratio: v.pg_vg_ratio ?? null,
+                  compatibility: v.compatibility ?? [],
+                  warranty_months: v.warranty_months ?? null,
+                }));
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent value="variants" className="space-y-3 pt-4">
+            <VariantMetadataEditor productId={p.id || null} />
+          </TabsContent>
+
           <TabsContent value="seo" className="space-y-3 pt-4">
             <div className="flex justify-end">
               <Button variant="outline" size="sm" onClick={generateSeoWithAi} disabled={aiBusy} className="gap-2">
