@@ -37,6 +37,26 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Auto-redirect to /admin if already logged in with a staff role
+  useEffect(() => {
+    const checkAndRedirect = async (userId: string) => {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .limit(1)
+        .maybeSingle();
+      if (data) navigate('/admin', { replace: true });
+    };
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) checkAndRedirect(session.user.id);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session?.user) checkAndRedirect(session.user.id);
+    });
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
