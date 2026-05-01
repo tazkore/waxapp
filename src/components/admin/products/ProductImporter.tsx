@@ -862,6 +862,17 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
                     IA en seleccionados
                   </Button>
                   <Button
+                    onClick={() => normalizeSeoBatch("all")}
+                    disabled={busy !== null || aiBatchBusy || products.length === 0}
+                    size="sm"
+                    variant="outline"
+                    className="gap-2 border-primary/40 text-primary hover:bg-primary/10"
+                    title="Completa meta_title, meta_description, focus_keyword y tags faltantes (sin IA, instantáneo)"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Normalizar SEO
+                  </Button>
+                  <Button
                     onClick={importProducts}
                     disabled={busy !== null || selectedP.size === 0 || !canImport || selectedStats.withErrors === selectedItems.length}
                     size="sm"
