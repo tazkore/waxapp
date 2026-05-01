@@ -23,13 +23,27 @@ import {
   ShieldAlert,
 } from "lucide-react";
 
-type Provider = "firecrawl" | "jina" | "scrapingbee" | "readability";
+type Provider =
+  | "firecrawl"
+  | "jina"
+  | "scrapingbee"
+  | "readability"
+  | "browserless"
+  | "scraperapi"
+  | "scrapfly"
+  | "diffbot"
+  | "zenrows";
 
-const PROVIDERS: Array<{ id: Provider; label: string; hint: string }> = [
-  { id: "readability", label: "Sin API (gratis)", hint: "Fetch directo + JSON-LD/OG" },
-  { id: "jina", label: "Jina Reader (gratis)", hint: "No requiere key" },
-  { id: "firecrawl", label: "Firecrawl", hint: "Más preciso, requiere key" },
-  { id: "scrapingbee", label: "ScrapingBee", hint: "JS rendering, requiere key" },
+const PROVIDERS: Array<{ id: Provider; label: string; hint: string; group: "free" | "key" }> = [
+  { id: "readability", label: "Sin API (gratis)", hint: "Fetch directo + JSON-LD/OG", group: "free" },
+  { id: "jina", label: "Jina Reader (gratis)", hint: "No requiere key", group: "free" },
+  { id: "diffbot", label: "Diffbot Product", hint: "Producto estructurado de alta calidad", group: "key" },
+  { id: "firecrawl", label: "Firecrawl", hint: "Más preciso, requiere key", group: "key" },
+  { id: "browserless", label: "Browserless", hint: "Chrome headless con JS", group: "key" },
+  { id: "scraperapi", label: "ScraperAPI", hint: "Render JS + proxy", group: "key" },
+  { id: "scrapfly", label: "Scrapfly", hint: "Render JS + anti-bot", group: "key" },
+  { id: "zenrows", label: "ZenRows", hint: "Render JS + bypass", group: "key" },
+  { id: "scrapingbee", label: "ScrapingBee", hint: "JS rendering, requiere key", group: "key" },
 ];
 
 const slugify = (s: string) =>
@@ -74,6 +88,7 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
   const [previewProducts, setPreviewProducts] = useState<any[] | null>(null);
   const [rlsError, setRlsError] = useState<string | null>(null);
   const [autoImgBusy, setAutoImgBusy] = useState(false);
+  const [aiBatchBusy, setAiBatchBusy] = useState(false);
   const currentJobId = useRef<string | null>(null);
 
   const map = async () => {
@@ -200,13 +215,14 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     if (errors.length) return { errors };
 
     const description = it?.description ? String(it.description).slice(0, 4000) : null;
+    const attributes = it?.attributes && typeof it.attributes === "object" ? it.attributes : {};
     return {
       errors: [],
       row: {
         name: name.slice(0, 200),
         slug: slugify(name) || `producto-${Date.now()}-${idx}`,
         description,
-        short_description: description ? description.slice(0, 160) : null,
+        short_description: it?.short_description || (description ? description.slice(0, 160) : null),
         price,
         stock: 0,
         sku: it?.sku ? String(it.sku).slice(0, 60) : null,
@@ -216,9 +232,12 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         compare_at_price: compareNum ?? null,
         image_url: img && isHttpUrl(img) ? img : null,
         gallery_urls: gallery,
-        meta_title: name.slice(0, 60),
-        meta_description: description ? description.slice(0, 160) : null,
-        focus_keyword: name.split(" ").slice(0, 3).join(" "),
+        meta_title: it?.meta_title || name.slice(0, 60),
+        meta_description: it?.meta_description || (description ? description.slice(0, 160) : null),
+        focus_keyword: it?.focus_keyword || name.split(" ").slice(0, 3).join(" "),
+        meta_keywords: Array.isArray(it?.meta_keywords) ? it.meta_keywords : [],
+        tags: Array.isArray(it?.tags) ? it.tags : [],
+        attributes,
         canonical_url: canonical,
         is_active: false,
       },
@@ -281,6 +300,72 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     await Promise.all(workers);
     setAutoImgBusy(false);
     toast({ title: `Auto-imagen completada`, description: `${filled}/${missing.length} encontradas` });
+  };
+
+  const autoFillWithAi = async () => {
+    const indices = Array.from(selectedP);
+    if (!indices.length) {
+      toast({ title: "Selecciona productos primero", variant: "destructive" });
+      return;
+    }
+    setAiBatchBusy(true);
+    let filled = 0;
+    const queue = [...indices];
+    const workers = Array.from({ length: 3 }, async () => {
+      while (queue.length) {
+        const i = queue.shift();
+        if (i == null) break;
+        const it = products[i];
+        if (!it) continue;
+        try {
+          const { data, error } = await supabase.functions.invoke("product-autofill", {
+            body: {
+              product: {
+                name: it.name,
+                description: it.description,
+                category: it.category,
+                brand_name: it.brand,
+                price: it.price,
+                sku: it.sku,
+                gtin: it.gtin,
+                canonical_url: it.source_url,
+              },
+              only_missing: true,
+            },
+          });
+          if (!error && data?.proposal) {
+            setProducts((curr) => {
+              const copy = [...curr];
+              if (copy[i]) {
+                const p = data.proposal;
+                copy[i] = {
+                  ...copy[i],
+                  description: copy[i].description || p.description,
+                  short_description: copy[i].short_description || p.short_description,
+                  category: copy[i].category || p.category,
+                  meta_title: copy[i].meta_title || p.meta_title,
+                  meta_description: copy[i].meta_description || p.meta_description,
+                  focus_keyword: copy[i].focus_keyword || p.focus_keyword,
+                  meta_keywords: p.meta_keywords || copy[i].meta_keywords,
+                  tags: p.tags || copy[i].tags,
+                  attributes: { ...(copy[i].attributes || {}), ...(p.attributes || {}) },
+                };
+              }
+              return copy;
+            });
+            filled++;
+          }
+        } catch (e) {
+          console.error("autofill err", e);
+        }
+      }
+    });
+    await Promise.all(workers);
+    setAiBatchBusy(false);
+    toast({
+      title: "IA completada",
+      description: `${filled}/${indices.length} productos enriquecidos`,
+    });
   };
 
   const importProducts = async () => {
@@ -525,6 +610,16 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
               >
                 {autoImgBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 Auto-buscar imágenes
+              </Button>
+              <Button
+                onClick={autoFillWithAi}
+                disabled={aiBatchBusy || busy !== null || selectedP.size === 0}
+                size="sm"
+                variant="outline"
+                className="gap-2"
+              >
+                {aiBatchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Completar con IA
               </Button>
               <Button
                 onClick={importProducts}

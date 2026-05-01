@@ -1513,6 +1513,7 @@ export type Database = {
       }
       products: {
         Row: {
+          attributes: Json
           brand_id: string | null
           brand_name: string | null
           canonical_url: string | null
@@ -1551,6 +1552,7 @@ export type Database = {
           weight_grams: number | null
         }
         Insert: {
+          attributes?: Json
           brand_id?: string | null
           brand_name?: string | null
           canonical_url?: string | null
@@ -1589,6 +1591,7 @@ export type Database = {
           weight_grams?: number | null
         }
         Update: {
+          attributes?: Json
           brand_id?: string | null
           brand_name?: string | null
           canonical_url?: string | null
