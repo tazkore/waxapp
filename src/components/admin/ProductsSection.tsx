@@ -514,11 +514,13 @@ const ProductEditor = ({ product, onClose, onSaved }: { product: Product; onClos
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
-          <TabsList className="grid grid-cols-4 w-full">
+          <TabsList className="grid grid-cols-6 w-full">
             <TabsTrigger value="basic">Básico</TabsTrigger>
             <TabsTrigger value="content">Contenido</TabsTrigger>
-            <TabsTrigger value="seo">SEO & Meta</TabsTrigger>
-            <TabsTrigger value="schema">Schema/JSON-LD</TabsTrigger>
+            <TabsTrigger value="meta">Metadatos</TabsTrigger>
+            <TabsTrigger value="variants">Variantes</TabsTrigger>
+            <TabsTrigger value="seo">SEO</TabsTrigger>
+            <TabsTrigger value="schema">Schema</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic" className="space-y-3 pt-4">
