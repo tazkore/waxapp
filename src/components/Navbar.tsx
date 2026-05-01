@@ -34,6 +34,7 @@ const Navbar = () => {
   const count = totalItems();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+  const [isStaff, setIsStaff] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [navLinks, setNavLinks] = useState<{ label: string; href: string; openInNewTab?: boolean }[]>(FALLBACK_LINKS);
 
@@ -72,6 +73,17 @@ const Navbar = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => setSession(session));
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!session?.user) { setIsStaff(false); return; }
+    supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setIsStaff(!!data));
+  }, [session]);
 
   // Cmd/Ctrl + K shortcut
   useEffect(() => {
@@ -147,9 +159,16 @@ const Navbar = () => {
           </button>
 
           {session ? (
-            <a href="/mi-cuenta" className="rounded-lg p-2 text-foreground transition-colors hover:bg-muted" title="Mi Cuenta">
-              <User className="h-5 w-5" />
-            </a>
+            <div className="flex items-center gap-1">
+              {isStaff && (
+                <a href="/admin" className="hidden md:flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-primary transition-colors hover:bg-primary/10" title="Panel Admin">
+                  <Shield className="h-4 w-4" /> Admin
+                </a>
+              )}
+              <a href="/mi-cuenta" className="rounded-lg p-2 text-foreground transition-colors hover:bg-muted" title="Mi Cuenta">
+                <User className="h-5 w-5" />
+              </a>
+            </div>
           ) : (
             <div className="hidden md:flex items-center gap-1">
               <a href="/cliente" className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
@@ -212,6 +231,11 @@ const Navbar = () => {
                   </a>
                 ))}
               </div>
+              {session && isStaff && (
+                <a href="/admin" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-primary transition-colors hover:bg-primary/10">
+                  <Shield className="h-4 w-4" /> Panel Admin
+                </a>
+              )}
               {!session && (
                 <>
                   <a href="/cliente" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
