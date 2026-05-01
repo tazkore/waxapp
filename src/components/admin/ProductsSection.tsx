@@ -416,6 +416,26 @@ const ProductEditor = ({ product, onClose, onSaved }: { product: Product; onClos
       noindex: !!p.noindex,
       nofollow: !!p.nofollow,
       stock: Number(p.stock) || 0,
+      // Advanced metadata
+      metadata_template: p.metadata_template || null,
+      specifications: Array.isArray(p.specifications) ? p.specifications : [],
+      warnings: p.warnings || [],
+      ingredients: p.ingredients || [],
+      flavor_profile: p.flavor_profile || [],
+      country_of_origin: p.country_of_origin || null,
+      material: p.material || null,
+      battery_mah: p.battery_mah != null ? Number(p.battery_mah) : null,
+      puffs_estimate: p.puffs_estimate != null ? Number(p.puffs_estimate) : null,
+      nicotine_mg: p.nicotine_mg != null ? Number(p.nicotine_mg) : null,
+      vaporizer_type: p.vaporizer_type || null,
+      thc_percentage: p.thc_percentage != null ? Number(p.thc_percentage) : null,
+      cbd_percentage: p.cbd_percentage != null ? Number(p.cbd_percentage) : null,
+      strain_type: p.strain_type || null,
+      terpenes: p.terpenes || [],
+      capacity_ml: p.capacity_ml != null ? Number(p.capacity_ml) : null,
+      pg_vg_ratio: p.pg_vg_ratio || null,
+      compatibility: p.compatibility || [],
+      warranty_months: p.warranty_months != null ? Number(p.warranty_months) : null,
     };
     const { error } = p.id
       ? await supabase.from("products").update(payload).eq("id", p.id)
