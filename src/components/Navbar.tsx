@@ -74,6 +74,17 @@ const Navbar = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!session?.user) { setIsStaff(false); return; }
+    supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setIsStaff(!!data));
+  }, [session]);
+
   // Cmd/Ctrl + K shortcut
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
