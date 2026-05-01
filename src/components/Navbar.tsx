@@ -34,6 +34,7 @@ const Navbar = () => {
   const count = totalItems();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+  const [isStaff, setIsStaff] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [navLinks, setNavLinks] = useState<{ label: string; href: string; openInNewTab?: boolean }[]>(FALLBACK_LINKS);
 
