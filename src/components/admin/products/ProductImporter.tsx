@@ -1,0 +1,385 @@
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Loader2,
+  Globe,
+  Wand2,
+  CheckCircle2,
+  AlertCircle,
+  Eye,
+  Sparkles,
+} from "lucide-react";
+
+type Provider = "firecrawl" | "jina" | "scrapingbee" | "readability";
+
+const PROVIDERS: Array<{ id: Provider; label: string; hint: string }> = [
+  { id: "readability", label: "Sin API (gratis)", hint: "Fetch directo + JSON-LD/OG" },
+  { id: "jina", label: "Jina Reader (gratis)", hint: "No requiere key" },
+  { id: "firecrawl", label: "Firecrawl", hint: "Más preciso, requiere key" },
+  { id: "scrapingbee", label: "ScrapingBee", hint: "JS rendering, requiere key" },
+];
+
+const slugify = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 80);
+
+const isHttpUrl = (s: string) => {
+  try {
+    const u = new URL(s);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+const parseFnError = (data: any, error: any): string => {
+  if (data?.error?.message) {
+    const code = data.error.code ? `[${data.error.code}] ` : "";
+    return `${code}${data.error.message}`;
+  }
+  if (typeof data?.error === "string") return data.error;
+  return error?.message || "Error desconocido";
+};
+
+interface Props {
+  onImported: () => void;
+  onSwitchToCatalog: () => void;
+  onJobsChanged?: () => void;
+}
+
+const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props) => {
+  const { toast } = useToast();
+  const [url, setUrl] = useState("");
+  const [provider, setProvider] = useState<Provider>("readability");
+  const [useAi, setUseAi] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [links, setLinks] = useState<string[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [products, setProducts] = useState<any[]>([]);
+  const [selectedP, setSelectedP] = useState<Set<number>>(new Set());
+  const [previewProducts, setPreviewProducts] = useState<any[] | null>(null);
+
+  const map = async () => {
+    if (!isHttpUrl(url.trim())) {
+      toast({ title: "URL inválida", description: "Escribe https://…", variant: "destructive" });
+      return;
+    }
+    setBusy("map");
+    setPreviewProducts(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("firecrawl-map", {
+        body: { url: url.trim(), limit: 100, provider },
+      });
+      if (error || data?.error) throw new Error(parseFnError(data, error));
+      const found: string[] = data.links || [];
+      setLinks(found);
+      const likely = found.filter((l) =>
+        /\/(product|producto|p|item|productos|shop|tienda)[\/-]/i.test(l),
+      );
+      setSelected(new Set(likely.length ? likely : found.slice(0, 20)));
+      toast({ title: "Sitio mapeado", description: `${found.length} URLs encontradas` });
+    } catch (e: any) {
+      toast({ title: "Error al mapear", description: e?.message || String(e), variant: "destructive" });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const preview = async () => {
+    if (selected.size === 0) {
+      toast({ title: "Selecciona al menos 1 URL", variant: "destructive" });
+      return;
+    }
+    setBusy("preview");
+    try {
+      const sample = Array.from(selected).slice(0, 2);
+      const { data, error } = await supabase.functions.invoke("firecrawl-scrape-products", {
+        body: { urls: sample, provider, preview: true, use_ai: useAi },
+      });
+      if (error || data?.error) throw new Error(parseFnError(data, error));
+      const list = data.products || [];
+      setPreviewProducts(list);
+      toast({
+        title: "Vista previa lista",
+        description: `${list.length}/${sample.length} productos extraídos. Revisa antes de importar todo.`,
+      });
+    } catch (e: any) {
+      toast({ title: "Error en vista previa", description: e?.message || String(e), variant: "destructive" });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const extract = async () => {
+    if (selected.size === 0) {
+      toast({ title: "Selecciona al menos 1 URL", variant: "destructive" });
+      return;
+    }
+    setBusy("extract");
+    try {
+      // Create import_jobs row
+      const urlsArr = Array.from(selected);
+      const { data: job, error: jobErr } = await supabase
+        .from("import_jobs")
+        .insert({
+          source_url: url.trim(),
+          status: "pending",
+          urls_found: urlsArr.length,
+          discovered_urls: urlsArr,
+        })
+        .select()
+        .single();
+      if (jobErr) throw jobErr;
+
+      onJobsChanged?.();
+
+      const { data, error } = await supabase.functions.invoke("firecrawl-scrape-products", {
+        body: { urls: urlsArr, provider, use_ai: useAi, job_id: job.id },
+      });
+      if (error || data?.error) throw new Error(parseFnError(data, error));
+      const list = data.products || [];
+      setProducts(list);
+      setSelectedP(new Set(list.map((_: any, i: number) => i)));
+      onJobsChanged?.();
+      if (list.length === 0) {
+        toast({
+          title: "Sin productos extraídos",
+          description: "Prueba con otro proveedor o revisa el historial para detalles.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Productos extraídos", description: `${list.length} candidatos` });
+      }
+    } catch (e: any) {
+      toast({ title: "Error al extraer", description: e?.message || String(e), variant: "destructive" });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const importProducts = async () => {
+    const items = Array.from(selectedP).map((i) => products[i]).filter(Boolean);
+    if (!items.length) return;
+    setBusy("import");
+    try {
+      const rows = items.map((it: any) => ({
+        name: it.name || "Producto sin nombre",
+        slug: slugify(it.name || `producto-${Date.now()}`),
+        description: it.description || null,
+        short_description: it.description ? String(it.description).slice(0, 160) : null,
+        price: Number(it.price) || 0,
+        sku: it.sku || null,
+        category: it.category || null,
+        brand_name: it.brand || null,
+        gtin: it.gtin || null,
+        image_url: Array.isArray(it.images) ? it.images[0] : it.image_url || null,
+        gallery_urls: Array.isArray(it.images) ? it.images : [],
+        meta_title: (it.name || "").slice(0, 60),
+        meta_description: it.description ? String(it.description).slice(0, 160) : null,
+        focus_keyword: (it.name || "").split(" ").slice(0, 3).join(" "),
+        canonical_url: it.source_url || null,
+        is_active: false,
+      }));
+      const { error } = await supabase.from("products").insert(rows);
+      if (error) throw error;
+      toast({ title: "Importados", description: `${rows.length} productos creados como borradores` });
+      setProducts([]);
+      setSelectedP(new Set());
+      setLinks([]);
+      setSelected(new Set());
+      setPreviewProducts(null);
+      onImported();
+      onSwitchToCatalog();
+    } catch (e: any) {
+      toast({ title: "Error al importar", description: e?.message || String(e), variant: "destructive" });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Globe className="h-4 w-4 text-primary" /> Importar productos desde URL
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2 flex-wrap">
+            <Input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://tienda-ejemplo.com"
+              className="flex-1 min-w-[260px]"
+            />
+            <select
+              value={provider}
+              onChange={(e) => setProvider(e.target.value as Provider)}
+              className="bg-muted border border-border rounded px-2 text-sm"
+            >
+              {PROVIDERS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+            <Button onClick={map} disabled={busy === "map" || !url.trim()} className="gap-2">
+              {busy === "map" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+              Mapear sitio
+            </Button>
+          </div>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Checkbox checked={useAi} onCheckedChange={(v) => setUseAi(!!v)} />
+              <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> Usar IA si JSON-LD/OG no son suficientes</span>
+            </label>
+            <span className="opacity-70">· {PROVIDERS.find((p) => p.id === provider)?.hint}</span>
+          </div>
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <AlertCircle className="h-3 w-3" /> Los productos se importan como borradores (inactivos).
+          </p>
+        </CardContent>
+      </Card>
+
+      {links.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+            <CardTitle className="text-sm">
+              {selected.size} de {links.length} URLs seleccionadas
+            </CardTitle>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={preview}
+                disabled={busy !== null || selected.size === 0}
+                size="sm"
+                className="gap-2"
+              >
+                {busy === "preview" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+                Vista previa (1-2)
+              </Button>
+              <Button
+                onClick={extract}
+                disabled={busy !== null || selected.size === 0}
+                size="sm"
+                className="gap-2"
+              >
+                {busy === "extract" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                Extraer todo
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="max-h-72 overflow-auto space-y-1">
+            {links.map((l) => (
+              <label
+                key={l}
+                className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 px-2 py-1 rounded"
+              >
+                <Checkbox
+                  checked={selected.has(l)}
+                  onCheckedChange={(v) => {
+                    const n = new Set(selected);
+                    v ? n.add(l) : n.delete(l);
+                    setSelected(n);
+                  }}
+                />
+                <span className="truncate text-muted-foreground">{l}</span>
+              </label>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {previewProducts && (
+        <Card className="border-primary/40">
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Eye className="h-4 w-4 text-primary" /> Vista previa — {previewProducts.length} producto(s)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {previewProducts.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No se detectó ningún producto. Cambia de proveedor o activa la IA.
+              </p>
+            ) : (
+              previewProducts.map((it: any, i: number) => (
+                <div key={i} className="flex items-center gap-3 p-2 rounded bg-muted/30">
+                  {it.images?.[0] && (
+                    <img
+                      src={it.images[0]}
+                      alt=""
+                      className="h-12 w-12 rounded object-cover bg-muted"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{it.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      ${it.price ?? "?"} · {it.category || "Sin categoría"}{" "}
+                      {it.brand ? `· ${it.brand}` : ""}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="text-xs">OK</Badge>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {products.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-sm">
+              {selectedP.size} de {products.length} productos a importar
+            </CardTitle>
+            <Button
+              onClick={importProducts}
+              disabled={busy !== null || selectedP.size === 0}
+              size="sm"
+              className="gap-2"
+            >
+              {busy === "import" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              Importar al catálogo
+            </Button>
+          </CardHeader>
+          <CardContent className="max-h-96 overflow-auto space-y-2">
+            {products.map((it: any, i: number) => (
+              <label
+                key={i}
+                className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer"
+              >
+                <Checkbox
+                  checked={selectedP.has(i)}
+                  onCheckedChange={(v) => {
+                    const n = new Set(selectedP);
+                    v ? n.add(i) : n.delete(i);
+                    setSelectedP(n);
+                  }}
+                />
+                {it.images?.[0] && (
+                  <img src={it.images[0]} alt="" className="h-10 w-10 rounded object-cover bg-muted" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{it.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    ${it.price ?? "?"} · {it.category || "Sin categoría"}
+                  </p>
+                </div>
+              </label>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+export default ProductImporter;

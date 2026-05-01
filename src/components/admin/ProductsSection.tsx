@@ -117,7 +117,9 @@ const ProductsSection = () => {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="catalog">Catálogo</TabsTrigger>
-          <TabsTrigger value="import">Importar desde URL</TabsTrigger>
+          <TabsTrigger value="import">Importar URL</TabsTrigger>
+          <TabsTrigger value="csv">Importar CSV</TabsTrigger>
+          <TabsTrigger value="history">Historial</TabsTrigger>
         </TabsList>
 
         <TabsContent value="catalog" className="space-y-4">
@@ -146,10 +148,11 @@ const ProductsSection = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-foreground truncate">{p.name}</p>
-                          {!p.is_active && <Badge variant="outline" className="text-xs">Inactivo</Badge>}
+                          {!p.is_active && <Badge variant="outline" className="text-xs">Borrador</Badge>}
                           {p.is_featured && <Badge className="text-xs">Destacado</Badge>}
+                          {p.noindex && <Badge variant="outline" className="text-xs text-amber-500 border-amber-500/40">noindex</Badge>}
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">/{p.slug || slugify(p.name)} · ${p.price} · stock {p.stock}</p>
+                        <p className="text-xs text-muted-foreground truncate">/producto/{p.slug || slugify(p.name)} · ${p.price} · stock {p.stock}</p>
                       </div>
                       <div className="text-right">
                         <div className={`text-xs font-semibold ${score >= 80 ? "text-primary" : score >= 50 ? "text-amber-500" : "text-destructive"}`}>SEO {score}/100</div>
@@ -164,7 +167,19 @@ const ProductsSection = () => {
         </TabsContent>
 
         <TabsContent value="import">
-          <ProductImporter onImported={load} onSwitchToCatalog={() => setTab("catalog")} />
+          <ProductImporter
+            onImported={load}
+            onSwitchToCatalog={() => setTab("catalog")}
+            onJobsChanged={() => setHistoryKey((k) => k + 1)}
+          />
+        </TabsContent>
+
+        <TabsContent value="csv">
+          <CsvImporter onImported={load} />
+        </TabsContent>
+
+        <TabsContent value="history">
+          <ImportJobsHistory refreshKey={historyKey} />
         </TabsContent>
       </Tabs>
 
