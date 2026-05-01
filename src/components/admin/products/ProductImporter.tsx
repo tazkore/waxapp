@@ -62,6 +62,7 @@ interface Props {
 
 const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props) => {
   const { toast } = useToast();
+  const { canImport, role, loading: roleLoading, isSuperAdmin } = useCanImportProducts();
   const [url, setUrl] = useState("");
   const [provider, setProvider] = useState<Provider>("readability");
   const [useAi, setUseAi] = useState(true);
@@ -71,6 +72,9 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
   const [products, setProducts] = useState<any[]>([]);
   const [selectedP, setSelectedP] = useState<Set<number>>(new Set());
   const [previewProducts, setPreviewProducts] = useState<any[] | null>(null);
+  const [rlsError, setRlsError] = useState<string | null>(null);
+  const [autoImgBusy, setAutoImgBusy] = useState(false);
+  const currentJobId = useRef<string | null>(null);
 
   const map = async () => {
     if (!isHttpUrl(url.trim())) {
