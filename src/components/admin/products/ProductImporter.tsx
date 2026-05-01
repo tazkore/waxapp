@@ -368,7 +368,7 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     });
   };
 
-
+  const importProducts = async () => {
     setRlsError(null);
 
     if (!canImport) {
