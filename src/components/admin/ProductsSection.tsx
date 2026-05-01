@@ -171,9 +171,8 @@ const ProductsSection = () => {
 
         <TabsContent value="import">
           <ProductImporter
-            onImported={load}
+            onImported={() => { load(); setHistoryKey((k) => k + 1); }}
             onSwitchToCatalog={() => setTab("catalog")}
-            onJobsChanged={() => setHistoryKey((k) => k + 1)}
           />
         </TabsContent>
 
