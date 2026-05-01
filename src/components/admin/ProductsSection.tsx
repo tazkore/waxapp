@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Search, Pencil, Globe, Wand2, CheckCircle2, AlertCircle, Sparkles, Trash2 } from "lucide-react";
+import CsvImporter from "./products/CsvImporter";
+import ImportJobsHistory from "./products/ImportJobsHistory";
 
 type Product = {
   id: string;
@@ -71,6 +73,7 @@ const ProductsSection = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Product | null>(null);
+  const [historyKey, setHistoryKey] = useState(0);
 
   const load = async () => {
     setLoading(true);
@@ -168,9 +171,8 @@ const ProductsSection = () => {
 
         <TabsContent value="import">
           <ProductImporter
-            onImported={load}
+            onImported={() => { load(); setHistoryKey((k) => k + 1); }}
             onSwitchToCatalog={() => setTab("catalog")}
-            onJobsChanged={() => setHistoryKey((k) => k + 1)}
           />
         </TabsContent>
 
