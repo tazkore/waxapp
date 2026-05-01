@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, Loader2, Package, Image as ImageIcon } from "lucide-react";
+import { Plus, Trash2, Loader2, Package, Image as ImageIcon, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export type ProductVariantRow = {
@@ -374,8 +374,5 @@ const VariantMetadataEditor = ({ productId, initialVariants, onChange }: Props) 
     </div>
   );
 };
-
-// Patch import
-import { X } from "lucide-react";
 
 export default VariantMetadataEditor;
