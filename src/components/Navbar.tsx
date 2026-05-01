@@ -231,6 +231,11 @@ const Navbar = () => {
                   </a>
                 ))}
               </div>
+              {session && isStaff && (
+                <a href="/admin" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-primary transition-colors hover:bg-primary/10">
+                  <Shield className="h-4 w-4" /> Panel Admin
+                </a>
+              )}
               {!session && (
                 <>
                   <a href="/cliente" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
