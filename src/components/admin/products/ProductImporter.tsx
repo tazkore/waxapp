@@ -369,6 +369,17 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
 
   return (
     <div className="space-y-4">
+      {!roleLoading && !canImport && (
+        <Alert variant="destructive">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Permisos insuficientes</AlertTitle>
+          <AlertDescription className="text-sm">
+            Tu rol actual <strong className="font-mono">{role || "ninguno"}</strong> no puede insertar productos.
+            Puedes mapear y extraer, pero la importación final requiere rol{" "}
+            <strong>admin</strong>, <strong>super_admin</strong> o <strong>moderator</strong>.
+          </AlertDescription>
+        </Alert>
+      )}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
