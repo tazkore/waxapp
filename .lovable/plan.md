@@ -1,101 +1,73 @@
-# Plan — Importador robusto, SEO, canales y página de producto
+## Plan: Resiliencia de imports + auto-imágenes para productos
 
-Trabajo grande pero acotable a 7 entregables coordinados. Todo respeta el design system (Dark Tech, neon green) y los memos del proyecto.
+### 1. Reintentos automáticos con backoff (cliente)
+En `src/components/admin/products/ProductImporter.tsx`, envolver el `supabase.from("products").insert(rows)` en una utilidad `insertWithRetry` (3 intentos, 400ms / 1.2s / 3s). Solo reintentar errores transitorios (red, 5xx, timeout). Errores RLS (`code 42501` / "row-level security") **no se reintentan** — fallan inmediatamente al panel explicativo.
 
-## 1. Edge function `firecrawl-scrape-products` reescrita
+Cada fallo se registra en `import_jobs` (campo `error`) actualizando el `job_id` actual mediante:
+```ts
+await supabase.from("import_jobs").update({
+  status: "failed",
+  error: `RLS: ${msg}` o `Retry exhausted: ${msg}`
+}).eq("id", currentJobId);
+```
+Para esto, guardar el `job_id` creado en `extract()` en un `ref` y reusarlo en `importProducts()`.
 
-- Validación con Zod del body: `urls: string[] (1..30, URL válida)`, `job_id?: uuid`, `provider?: 'firecrawl'|'jina'|'scrapingbee'|'readability'`, `preview?: boolean`, `use_ai?: boolean (default true)`.
-- Errores estructurados: `{ error: { code, message, details } }` con códigos `INVALID_BODY`, `UNAUTHORIZED`, `FORBIDDEN`, `PROVIDER_FAIL`, `AI_FAIL`, `DB_FAIL`.
-- Logging detallado por URL (`console.log` con `job_id`, índice, status, dur ms).
-- Modo `preview=true`: limita a las primeras 2 URLs y NO actualiza `import_jobs`.
-- Soporte multi-proveedor usando `_shared/scrape-providers.ts` (firecrawl/jina/scrapingbee) + nuevo proveedor **`readability`** (fetch directo + parser HTML→texto en Deno, sin API key, gratis).
-- Extracción híbrida: si `use_ai=true` → IA Lovable; si no, regex/JSON-LD parser (Product schema en `<script type="application/ld+json">`, OpenGraph `og:title/price/image`).
-- Update granular de `import_jobs` (status: scraping → extracting → completed/failed) con `error` poblado en fallo.
+### 2. Pre-check de permisos RLS antes de importar
+Nuevo helper `useCanImportProducts()` que combina `useUserRole()` y revisa `role ∈ {super_admin, admin, moderator}`. Llamar al montar `ProductImporter` y:
+- Si `loading`: deshabilitar botón "Importar al catálogo".
+- Si sin rol válido: mostrar `<Alert variant="destructive">` arriba del card de productos extraídos con mensaje claro y botón "Solicitar acceso" (mailto al super_admin) — y bloquear importación.
 
-## 2. Nueva edge function `parse-product-csv`
+Adicionalmente, antes del insert real, hacer un `dry-run` con `supabase.from("products").select("id").limit(1).maybeSingle()` no aplica para INSERT, así que usaremos un test directo: `insert({ name: "__rls_check__", slug: "__rls_check_"+uuid, is_active: false })` con `.select().single()` y luego `delete().eq("id", ...)`. Si falla con 42501 → mostrar panel sin perder los productos extraídos.
 
-- Acepta `{ csv_text | rows[], mapping: { name, price, sku, image_url, description, category, gtin, brand_name } }`.
-- Valida con Zod, normaliza, devuelve `{ rows, errors[] }` para preview antes de insert.
+### 3. Panel de error RLS accionable
+Nuevo componente `src/components/admin/products/RlsErrorPanel.tsx`:
+- Detecta strings: `"row-level security"`, `"violates"`, `"42501"`, `"new row violates"`.
+- Muestra `<Alert>` con:
+  - **Título**: "No tienes permisos para importar productos"
+  - **Causa**: tu rol actual (`{role || "sin rol"}`) no puede insertar en `products`.
+  - **Solución**: pedir a un super_admin que te asigne rol `admin` o `moderator` en *Staff*.
+  - **Botón secundario**: "Ver detalles técnicos" (collapse con el mensaje original).
+  - **Botón primario**: "Ir a Staff" (cambia a sección si es super_admin) o copiar email.
 
-## 3. Tabla `import_jobs` — usos extendidos
+Integrar en `ProductImporter.tsx` debajo del card de productos extraídos cuando `rlsError` esté seteado.
 
-- Sin migración nueva; ya existe. Añadir índice si falta y usar columnas `source_type` (informal en `branding` JSONB).
-- UI nueva `ImportJobsHistory.tsx` (en ProductsSection tab "Historial"):
-  - Lista jobs (status badge, urls_found, products_extracted, error, fecha).
-  - Acciones: **Reintentar** (re-llama scrape con `urls=discovered_urls`), **Cancelar** (status='cancelled'), **Ver productos** (modal con `extracted_products`), **Eliminar**.
+### 4. Auto-búsqueda de imágenes para productos sin foto
 
-## 4. ProductsSection — Importer rediseñado
+**Nuevo edge function**: `supabase/functions/find-product-image/index.ts`
+- Body validado con Zod: `{ name: string, brand?: string, category?: string, gtin?: string, count?: 1..5 }`.
+- Estrategia en cascada:
+  1. **GTIN/UPC** → fetch `https://www.openfoodfacts.org/api/v2/product/{gtin}.json` (gratis, sin key) → toma `image_url`.
+  2. **Google Custom Search Image API** vía `LOVABLE_API_KEY` no aplica → usar **Bing/DuckDuckGo HTML scrape** server-side: `fetch("https://duckduckgo.com/?q=" + encodeURIComponent(query) + "&iax=images&ia=images&iaf=type:photo")` y extraer `vqd` + endpoint `i.js`. Free, sin API key.
+  3. **Fallback IA**: usar Lovable AI (`google/gemini-3.1-flash-image-preview`) con prompt `"Generate a clean product photo of {name} on white background"` cuando los pasos 1-2 fallen.
+- Devuelve `{ images: string[], source: "openfoodfacts"|"duckduckgo"|"ai_generated" }`.
+- Sin auth requerido (sólo lectura); `verify_jwt = false` por defecto.
 
-Tabs internos en ProductsSection: `Catálogo | Importar URL | Importar CSV | Historial`.
+**UI**: en `ProductImporter.tsx`, después de `extract()`, para cada producto sin `images[0]`:
+- Mostrar badge ámbar "Sin imagen" + botón ✨ "Buscar imagen".
+- Al click: invocar `find-product-image` con `{name, brand, category, gtin}`, mostrar grid de 3-5 thumbnails, al seleccionar → asigna `it.images = [url]` y refresca.
+- Botón global "Auto-buscar todas" arriba del card que itera los productos sin imagen en paralelo (límite 3 concurrentes).
 
-**Importar URL** (`ProductImporter.tsx` reescrito):
-- Selector proveedor incluye **"Sin API (gratis)"** = `readability` y **"Jina (gratis sin key)"** ya soportado.
-- Validación cliente: URL válida obligatoria, mínimo 1 URL seleccionada.
-- Botón nuevo **"Vista previa (1-2 productos)"** → llama con `preview=true`, muestra resultado en card antes de extraer todo.
-- Botón **"Extraer seleccionados"** → crea `import_jobs` row, pasa `job_id`.
-- Mensajes de error parseados desde `{error:{code,message}}` con fallback genérico.
+**Variantes**: nuevo botón en el editor de variantes existente (revisar `ProductsSection.tsx` para encontrarlo en una iteración futura) — por ahora solo aplica a productos del importer; las variantes heredan la imagen del padre si no tienen propia.
 
-**Importar CSV/Sheets**:
-- Drag-drop CSV o pegar URL pública de Google Sheets (CSV export).
-- Mapeo visual columnas → campos producto.
-- Preview tabla con validación (precio numérico, slug colisión, GTIN check).
-- Insert como borradores.
-
-## 5. Editor de producto — mejoras SEO
-
-- **Slug auto**: al cambiar nombre genera slug, comprueba colisión vía `select id from products where slug=?`, sufija `-2`, `-3`. Preview URL: `/{categoria}/{marca}/{slug}`.
-- **Schema/JSON-LD validator**: panel con preview JSON-LD generado, validación de campos requeridos por `schema_type` (Product: name, image, offers.price), badges errores/warnings y mock "rich result" estilo Google.
-- **Estado** flujo `draft | inactive | published`:
-  - Botón "Publicar" → `is_active=true`, `noindex=false`, `nofollow=false`, llama trigger sitemap refresh.
-  - Botón "Despublicar" → `is_active=false`, `noindex=true`.
-
-## 6. Página pública `/producto/:slug`
-
-Nueva ruta resolviendo por `slug` desde tabla `products` (no por id estático).
-- Galería con thumbnails (`gallery_urls` + `image_url`).
-- Descripción larga (`long_description_html` con DOMPurify).
-- Especificaciones técnicas (dimensions JSONB, weight_grams, GTIN, MPN, brand_name).
-- JSON-LD `Product` completo (offers, aggregateRating si existe, brand).
-- "Productos relacionados" por `category` o `brand_id` (8 cards).
-- Breadcrumb categoría > marca > producto.
-- Fallback al `ProductDetail` legacy si slug = id estático.
-
-## 7. SEO & Indexación
-
-- `generate-sitemap` actualizada para incluir `/producto/{slug}` (products activos), `/blog/{slug}` (published), categorías estáticas.
-- Nueva edge function `generate-robots-txt` retornando `robots.txt` con `Sitemap:` URL.
-- Botón en SeoSection "Regenerar sitemap" (sólo limpia cache UI, sitemap se sirve dinámico).
-
-## 8. ChannelsSection con test de conexión
-
-- Cards Web/Amazon/Mercado Libre muestran estado real:
-  - Web: siempre activo, link a tema.
-  - Amazon: lee `amazon_config.is_active`, `last_sync_at`, conteo `amazon_orders`. Botón "Probar conexión" llama `amazon-sync` con `mode=test`.
-  - Mercado Libre: si existe `integrations` con slug `mercadolibre`, mostrar estado; si no, CTA instalar.
-- Cada card muestra "Últimos pedidos importados" (3 más recientes).
-
-## Resumen técnico (componentes/archivos)
+### 5. Cambios en archivos
 
 ```text
-supabase/functions/
-  firecrawl-scrape-products/index.ts   (reescrito + Zod + readability + preview)
-  parse-product-csv/index.ts           (nueva)
-  generate-sitemap/index.ts            (extendida productos+blog)
-  generate-robots-txt/index.ts         (nueva)
-  _shared/scrape-providers.ts          (añadir provider 'readability')
+NUEVOS:
+  supabase/functions/find-product-image/index.ts
+  src/components/admin/products/RlsErrorPanel.tsx
+  src/components/admin/products/AutoImagePicker.tsx
+  src/hooks/useCanImportProducts.ts
+  src/lib/insertWithRetry.ts
 
-src/components/admin/
-  ProductsSection.tsx                  (tabs + integra subcomponentes)
-  products/ProductImporter.tsx         (extraído + preview + validación)
-  products/CsvImporter.tsx             (nuevo)
-  products/ImportJobsHistory.tsx       (nuevo)
-  products/SchemaValidator.tsx         (nuevo)
-  products/SlugField.tsx               (nuevo, autogenerate + colisión)
-  ChannelsSection.tsx                  (rediseño con estado real + test)
-
-src/pages/
-  ProductDetail.tsx                    (rediseñado, resuelve por slug DB)
-  (router) /producto/:slug             (añadir ruta en App.tsx)
+EDITADOS:
+  src/components/admin/products/ProductImporter.tsx
+    - useRef<jobId>, insertWithRetry, pre-check RLS, RlsErrorPanel,
+      AutoImagePicker integrado en cards de productos extraídos.
 ```
 
-Sin cambios destructivos en DB; todo se apoya en columnas ya creadas (`products.slug`, `gallery_urls`, `long_description_html`, `import_jobs.*`).
+### Notas técnicas
+- Backoff: `delays = [400, 1200, 3000]`, sólo si `error.code` ∈ {`PGRST301`, `503`, `504`} o mensaje contiene "fetch failed"/"network".
+- RLS detection: `error.code === "42501" || /row-level security/i.test(error.message)`.
+- DuckDuckGo image scrape devuelve URLs `image` directas — filtrar por extensiones válidas (jpg/png/webp) y dimensiones ≥300px si están disponibles.
+- AI fallback sólo si las dos primeras fuentes fallan (consume créditos).
+- No se modifica el esquema de DB; `import_jobs.error` ya existe.
