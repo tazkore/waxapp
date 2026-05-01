@@ -519,6 +519,60 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     });
   };
 
+  const normalizeSeoBatch = (scope: "selected" | "all" = "all") => {
+    const indices = scope === "all"
+      ? products.map((_, i) => i)
+      : Array.from(selectedP);
+    if (!indices.length) {
+      toast({
+        title: scope === "all" ? "No hay productos para normalizar" : "Selecciona productos primero",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let touched = 0;
+    const changeSummary: Record<string, number> = {};
+    const sampleChanges: string[] = [];
+
+    setProducts((curr) => {
+      const copy = [...curr];
+      for (const i of indices) {
+        const row = copy[i];
+        if (!row) continue;
+        const { patch, changes } = normalizeSeoMetadata(row);
+        if (Object.keys(patch).length === 0) continue;
+        copy[i] = { ...row, ...patch };
+        touched++;
+        for (const c of changes) {
+          const key = c.split(" ")[0];
+          changeSummary[key] = (changeSummary[key] || 0) + 1;
+        }
+        if (sampleChanges.length < 3) {
+          sampleChanges.push(`#${i + 1} ${row.name?.slice(0, 30) || "—"}: ${changes.join(", ")}`);
+        }
+      }
+      return copy;
+    });
+
+    if (touched === 0) {
+      toast({
+        title: "Todo en orden",
+        description: "Los metadatos SEO ya están completos y dentro de los límites recomendados.",
+      });
+      return;
+    }
+
+    const summary = Object.entries(changeSummary)
+      .map(([k, n]) => `${k}: ${n}`)
+      .join(" · ");
+
+    toast({
+      title: `SEO normalizado en ${touched}/${indices.length} productos`,
+      description: `${summary}\n${sampleChanges.join("\n")}`,
+    });
+  };
+
   const importProducts = async () => {
     setRlsError(null);
 
