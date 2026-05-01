@@ -21,7 +21,6 @@ import {
   AlertCircle,
   Eye,
   Sparkles,
-  ImageOff,
   ShieldAlert,
 } from "lucide-react";
 
