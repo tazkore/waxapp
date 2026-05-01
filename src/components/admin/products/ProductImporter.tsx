@@ -90,6 +90,7 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
   const [rlsError, setRlsError] = useState<string | null>(null);
   const [autoImgBusy, setAutoImgBusy] = useState(false);
   const [aiBatchBusy, setAiBatchBusy] = useState(false);
+  const [aiBatchProgress, setAiBatchProgress] = useState({ done: 0, total: 0 });
   const [rowImageBusy, setRowImageBusy] = useState<Set<number>>(new Set());
   const [rowAiBusy, setRowAiBusy] = useState<Set<number>>(new Set());
   const currentJobId = useRef<string | null>(null);
