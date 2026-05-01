@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
+// Progress not used directly — visual bar uses inline divs for color flexibility
 import { AlertCircle, ImageOff, Sparkles, ImageIcon, CheckCircle2, Loader2 } from "lucide-react";
 import { validateProductRow, type FieldIssue } from "@/lib/validateProductRow";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
