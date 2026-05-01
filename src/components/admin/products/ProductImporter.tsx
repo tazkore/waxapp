@@ -725,14 +725,24 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
                     Auto-imágenes ({stats.missingImage})
                   </Button>
                   <Button
-                    onClick={autoFillWithAi}
+                    onClick={() => autoFillWithAi("all")}
+                    disabled={aiBatchBusy || busy !== null || products.length === 0}
+                    size="sm"
+                    className="gap-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:opacity-90 shadow-lg shadow-primary/20"
+                    title="Genera sabores, ingredientes, tipo de evaporador, atributos técnicos y SEO para TODOS los productos antes de guardar"
+                  >
+                    {aiBatchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                    Completar metadatos IA (todos)
+                  </Button>
+                  <Button
+                    onClick={() => autoFillWithAi("selected")}
                     disabled={aiBatchBusy || busy !== null || selectedP.size === 0}
                     size="sm"
                     variant="outline"
                     className="gap-2"
                   >
                     {aiBatchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    Completar IA en lote
+                    IA en seleccionados
                   </Button>
                   <Button
                     onClick={importProducts}
