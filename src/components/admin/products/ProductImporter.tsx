@@ -511,47 +511,91 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
 
       {products.length > 0 && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
             <CardTitle className="text-sm">
               {selectedP.size} de {products.length} productos a importar
             </CardTitle>
-            <Button
-              onClick={importProducts}
-              disabled={busy !== null || selectedP.size === 0}
-              size="sm"
-              className="gap-2"
-            >
-              {busy === "import" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              Importar al catálogo
-            </Button>
-          </CardHeader>
-          <CardContent className="max-h-96 overflow-auto space-y-2">
-            {products.map((it: any, i: number) => (
-              <label
-                key={i}
-                className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer"
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                onClick={autoFillImages}
+                disabled={autoImgBusy || busy !== null}
+                size="sm"
+                variant="outline"
+                className="gap-2"
               >
-                <Checkbox
-                  checked={selectedP.has(i)}
-                  onCheckedChange={(v) => {
-                    const n = new Set(selectedP);
-                    v ? n.add(i) : n.delete(i);
-                    setSelectedP(n);
-                  }}
-                />
-                {it.images?.[0] && (
-                  <img src={it.images[0]} alt="" className="h-10 w-10 rounded object-cover bg-muted" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{it.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    ${it.price ?? "?"} · {it.category || "Sin categoría"}
-                  </p>
+                {autoImgBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Auto-buscar imágenes
+              </Button>
+              <Button
+                onClick={importProducts}
+                disabled={busy !== null || selectedP.size === 0 || !canImport}
+                size="sm"
+                className="gap-2"
+              >
+                {busy === "import" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                Importar al catálogo
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="max-h-[28rem] overflow-auto space-y-2">
+            {products.map((it: any, i: number) => {
+              const img = Array.isArray(it.images) ? it.images[0] : it.image_url;
+              return (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 p-2 rounded hover:bg-muted/50"
+                >
+                  <Checkbox
+                    checked={selectedP.has(i)}
+                    onCheckedChange={(v) => {
+                      const n = new Set(selectedP);
+                      v ? n.add(i) : n.delete(i);
+                      setSelectedP(n);
+                    }}
+                  />
+                  {img ? (
+                    <img src={img} alt="" className="h-12 w-12 rounded object-cover bg-muted shrink-0" />
+                  ) : (
+                    <div className="h-12 w-12 rounded bg-muted flex items-center justify-center shrink-0">
+                      <ImageOff className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{it.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      ${it.price ?? "?"} · {it.category || "Sin categoría"}
+                      {it.brand ? ` · ${it.brand}` : ""}
+                    </p>
+                    {!img && (
+                      <Badge variant="outline" className="mt-1 text-[10px] border-amber-500/50 text-amber-500">
+                        Sin imagen
+                      </Badge>
+                    )}
+                  </div>
+                  <AutoImagePicker
+                    query={{ name: it.name, brand: it.brand, category: it.category, gtin: it.gtin }}
+                    current={img}
+                    onPick={(url) =>
+                      setProducts((curr) => {
+                        const copy = [...curr];
+                        if (copy[i]) copy[i] = { ...copy[i], images: [url, ...(copy[i].images || []).filter((u: string) => u !== url)] };
+                        return copy;
+                      })
+                    }
+                  />
                 </div>
-              </label>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
+      )}
+
+      {rlsError && (
+        <RlsErrorPanel
+          message={rlsError}
+          role={role}
+          isSuperAdmin={isSuperAdmin}
+        />
       )}
     </div>
   );
