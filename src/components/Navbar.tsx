@@ -159,9 +159,16 @@ const Navbar = () => {
           </button>
 
           {session ? (
-            <a href="/mi-cuenta" className="rounded-lg p-2 text-foreground transition-colors hover:bg-muted" title="Mi Cuenta">
-              <User className="h-5 w-5" />
-            </a>
+            <div className="flex items-center gap-1">
+              {isStaff && (
+                <a href="/admin" className="hidden md:flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-primary transition-colors hover:bg-primary/10" title="Panel Admin">
+                  <Shield className="h-4 w-4" /> Admin
+                </a>
+              )}
+              <a href="/mi-cuenta" className="rounded-lg p-2 text-foreground transition-colors hover:bg-muted" title="Mi Cuenta">
+                <User className="h-5 w-5" />
+              </a>
+            </div>
           ) : (
             <div className="hidden md:flex items-center gap-1">
               <a href="/cliente" className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
