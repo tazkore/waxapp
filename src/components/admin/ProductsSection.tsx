@@ -48,6 +48,26 @@ type Product = {
   noindex: boolean;
   nofollow: boolean;
   stock: number;
+  // Advanced metadata
+  metadata_template: string | null;
+  specifications: any;
+  warnings: string[] | null;
+  ingredients: string[] | null;
+  flavor_profile: string[] | null;
+  country_of_origin: string | null;
+  material: string | null;
+  battery_mah: number | null;
+  puffs_estimate: number | null;
+  nicotine_mg: number | null;
+  vaporizer_type: string | null;
+  thc_percentage: number | null;
+  cbd_percentage: number | null;
+  strain_type: string | null;
+  terpenes: string[] | null;
+  capacity_ml: number | null;
+  pg_vg_ratio: string | null;
+  compatibility: string[] | null;
+  warranty_months: number | null;
 };
 
 const slugify = (s: string) =>
@@ -106,6 +126,11 @@ const ProductsSection = () => {
       meta_title: null, meta_description: null, meta_keywords: [], focus_keyword: null,
       og_image_url: null, canonical_url: null, schema_type: "Product", gtin: null, mpn: null,
       weight_grams: null, dimensions: {}, tags: [], noindex: false, nofollow: false, stock: 0,
+      metadata_template: null, specifications: [], warnings: [], ingredients: [], flavor_profile: [],
+      country_of_origin: null, material: null, battery_mah: null, puffs_estimate: null,
+      nicotine_mg: null, vaporizer_type: null, thc_percentage: null, cbd_percentage: null,
+      strain_type: null, terpenes: [], capacity_ml: null, pg_vg_ratio: null,
+      compatibility: [], warranty_months: null,
     });
   };
 
