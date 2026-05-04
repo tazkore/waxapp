@@ -11,11 +11,16 @@ interface Props {
   current?: string | null;
   onPick: (url: string) => void;
   size?: "sm" | "icon";
+  /** Open the picker dialog immediately on mount (and call onClose when closed) */
+  defaultOpen?: boolean;
+  /** Hide the trigger button entirely (useful when controlling via defaultOpen) */
+  hideTrigger?: boolean;
+  onClose?: () => void;
 }
 
-const AutoImagePicker = ({ query, current, onPick, size = "sm" }: Props) => {
+const AutoImagePicker = ({ query, current, onPick, size = "sm", defaultOpen = false, hideTrigger = false, onClose }: Props) => {
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [busy, setBusy] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [source, setSource] = useState<string>("");
