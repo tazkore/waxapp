@@ -28,6 +28,8 @@ const Checkout = () => {
   const [orderNumber, setOrderNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [paymentError, setPaymentError] = useState('');
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
   const cardFormRef = useRef<HTMLFormElement>(null);
 
   const [shipping, setShipping] = useState({
@@ -42,12 +44,50 @@ const Checkout = () => {
   });
   const [clipPublicKey, setClipPublicKey] = useState('');
 
+  // Auth guard: require login to checkout
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setIsAuthed(!!session);
+      setAuthChecked(true);
+      if (session?.user) {
+        setShipping(prev => ({
+          ...prev,
+          email: prev.email || session.user.email || '',
+          name: prev.name || (session.user.user_metadata?.full_name as string) || '',
+        }));
+      }
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAuthed(!!session);
+      setAuthChecked(true);
+      if (!session) {
+        toast({ title: 'Inicia sesión para continuar', description: 'Necesitas una cuenta para completar tu compra.' });
+        navigate('/cliente?redirect=/checkout', { replace: true });
+        return;
+      }
+      setShipping(prev => ({
+        ...prev,
+        email: prev.email || session.user.email || '',
+        name: prev.name || (session.user.user_metadata?.full_name as string) || '',
+      }));
+    });
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
   // Fetch Clip public key on mount
   useEffect(() => {
     supabase.functions.invoke('clip-config').then(({ data }) => {
       if (data?.public_key) setClipPublicKey(data.public_key);
     });
   }, []);
+
+  if (!authChecked || !isAuthed) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const shippingCost = shippingMethod === 'express' ? 250 : shippingMethod === 'standard' ? 99 : 0;
   const total = subtotal() + shippingCost;
