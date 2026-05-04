@@ -1189,6 +1189,7 @@ export type Database = {
           created_at: string
           customer_email: string
           customer_name: string
+          fulfillment_processed_at: string | null
           id: string
           items: Json
           order_number: string
@@ -1203,6 +1204,7 @@ export type Database = {
           created_at?: string
           customer_email: string
           customer_name: string
+          fulfillment_processed_at?: string | null
           id?: string
           items?: Json
           order_number: string
@@ -1217,6 +1219,7 @@ export type Database = {
           created_at?: string
           customer_email?: string
           customer_name?: string
+          fulfillment_processed_at?: string | null
           id?: string
           items?: Json
           order_number?: string
