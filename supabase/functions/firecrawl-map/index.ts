@@ -38,8 +38,12 @@ Deno.serve(async (req) => {
     try {
       links = await providerMap(provider as Provider, url, limit);
     } catch (err) {
-      await admin.from("import_jobs").update({ status: "failed", error: String(err) }).eq("id", job.id);
-      throw err;
+      const msg = err instanceof Error ? err.message : String(err);
+      const friendly = provider === "firecrawl"
+        ? `El mapeo con Firecrawl falló (${msg.slice(0, 120)}). Suele deberse a créditos agotados o sitios bloqueados. Usa "Importar de URL (IA)" individual con Jina Reader o agrega URLs en modo Bulk.`
+        : `El mapeo con ${provider} falló: ${msg.slice(0, 200)}`;
+      await admin.from("import_jobs").update({ status: "failed", error: friendly }).eq("id", job.id);
+      return new Response(JSON.stringify({ error: friendly }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     await admin
