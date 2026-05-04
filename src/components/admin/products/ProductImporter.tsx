@@ -762,25 +762,27 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
             onRemove={removeRow}
           />
 
-          {/* Hidden image picker, opened via row click */}
+          {/* Image picker dialog, opened via "Buscador IA" overlay or row action */}
           {pickerIdx != null && products[pickerIdx] && (
-            <div className="hidden">
-              {/* AutoImagePicker manages its own dialog state internally; we trigger by mounting + auto-open */}
-              <PickerHost
-                key={pickerIdx}
-                product={products[pickerIdx]}
-                onPick={(url) => {
-                  applyRowPatch(pickerIdx, {
-                    images: [
-                      url,
-                      ...(((products[pickerIdx].images) || []).filter((u: string) => u !== url)),
-                    ],
-                  });
-                  setPickerIdx(null);
-                }}
-                onClose={() => setPickerIdx(null)}
-              />
-            </div>
+            <AutoImagePicker
+              key={`picker-${pickerIdx}`}
+              hideTrigger
+              defaultOpen
+              query={{
+                name: products[pickerIdx].name,
+                brand: products[pickerIdx].brand,
+                category: products[pickerIdx].category,
+                gtin: products[pickerIdx].gtin,
+              }}
+              current={Array.isArray(products[pickerIdx].images) ? products[pickerIdx].images[0] : products[pickerIdx].image_url}
+              onPick={(url) => {
+                applyRowPatch(pickerIdx, {
+                  images: [url, ...(((products[pickerIdx].images) || []).filter((u: string) => u !== url))],
+                });
+                setPickerIdx(null);
+              }}
+              onClose={() => setPickerIdx(null)}
+            />
           )}
         </div>
       )}
