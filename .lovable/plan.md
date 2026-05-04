@@ -1,114 +1,56 @@
-# AI Scraping & Enrichment Hub
+## Objetivo
 
-Rediseño de la pestaña **Importar** dentro de Productos. Reutiliza toda la infraestructura ya construida (Firecrawl/Jina/Diffbot multi-proveedor, `product-autofill`, `find-product-image`, `normalizeSeoMetadata`, `validateProductRow`, `import_jobs`, staging por `is_active=false`) y la reorganiza con la UX que pediste.
+En la sección **Productos** del admin, exponer una barra de acciones unificada con todos los flujos que pediste y reparar el scraping para que no falle en silencio cuando un proveedor está caído o sin créditos.
 
-## 1. Panel de entrada con Tabs
+## 1. Toolbar de acciones en Productos
 
-Reemplazar la card "Importar productos desde URL" por un componente `ScrapeInputPanel` con `Tabs` shadcn (Dark Mode Tech: bg `#0A0A0A`, surface `#1A1A1A`, acento neón `#00E676`):
+En `src/components/admin/ProductsSection.tsx`, junto al botón "Nuevo producto", agregar un grupo de botones (responsive, agrupados en un dropdown "Más" cuando no quepan):
 
-- **Tab "Individual"**
-  - `Input` para una URL de producto.
-  - `Select` "Motor de Extracción" con los proveedores ya soportados por `firecrawl-scrape-products` / `_shared/scrape-providers.ts`: Firecrawl, Jina Reader, Diffbot, ScrapingBee, Browserless, ScraperAPI, Scrapfly, ZenRows, "Sin API (gratis)" (readability). Mantenemos los nombres reales en backend; etiqueta UI: Firecrawl / Jina / Diffbot / Microlink-style (readability) / Apify-style (scrapfly/zenrows) / Manual (textarea libre que abre un modal para pegar título+precio+desc).
-  - Botón **"Extraer Datos Brutos"** (icono `Globe` o `Download`).
-  - Bajo el capó: invoca `firecrawl-scrape-products` con `urls:[url]` y push directo al staging local.
+- **Plantilla CSV** — descarga `productos-plantilla.csv` generado en cliente con headers exactos: `name,price,sku,image_url,description,category,gtin,brand_name,stock` (y una fila de ejemplo). Usa `Blob` + `URL.createObjectURL`.
+- **Importar CSV** — atajo que cambia a la pestaña `csv` (ya existe `CsvImporter`).
+- **Importar de URL (IA)** — atajo que cambia a la pestaña `import` y preselecciona modo "Individual" en `ScrapeInputPanel`.
+- **Importar desde sitio web (IA)** — atajo a pestaña `import` modo "Mapeo de dominio".
+- **Exportar CSV** — descarga el catálogo actual filtrado (`filtered`) como CSV con las mismas columnas que la plantilla + `slug,is_active`. Escape correcto de comas/comillas.
+- **Nuevo producto** — se mantiene.
 
-- **Tab "Masivo (Bulk)"**
-  - `Textarea` grande aceptando URLs separadas por coma, espacio o salto de línea.
-  - Mismo `Select` de motor + checkbox "Usar IA si JSON-LD/OG insuficiente" (ya existe, `useAi`).
-  - Botón **"Extraer Datos Brutos"** que parsea, valida con `isHttpUrl`, deduplica, crea `import_jobs` row y llama `firecrawl-scrape-products` por lote.
-  - Conservamos el flujo "Mapear sitio" como tercer tab opcional **"Mapear dominio"** (lo que hoy hace `firecrawl-map`) para no perder funcionalidad existente.
+Agregar también el banner ya solicitado:
+> 💡 Descarga la plantilla CSV, llena los campos y súbela en "Importar CSV". Los nombres de columna deben mantenerse igual.
 
-Toast de éxito tras extracción: `"N productos en staging"`.
+Se renderiza como `Alert` arriba de los Tabs cuando `tab === "csv"`.
 
-## 2. Tabla de Staging (Borradores)
+## 2. Reparar el scraping
 
-Se sustituye la lista vertical de `ProductPreviewCard` por una tabla densa `StagingTable` (componente nuevo) con columnas:
+Síntomas típicos: Firecrawl devuelve 402 (sin créditos) o 500, y el flujo aborta sin productos. Cambios:
 
-| Foto | Nombre Original | Precio | SEO | Acciones |
-|---|---|---|---|---|
+### Edge function `firecrawl-scrape-products`
+- Cuando `provider === "firecrawl"` y `providerScrape` lanza error, **reintentar automáticamente con `jina`** (gratis, sin key) antes de marcar la URL como fallida. Loggear `provider_used` en cada producto y en `failures[].used_provider`.
+- Mejorar `failures` para devolver `reason` más legible (status HTTP + primera línea del body) y propagarla en la respuesta.
+- Si TODAS las URLs fallan, devolver `error.code = "PROVIDER_FAIL"` con el primer mensaje (hoy a veces devuelve 200 con `extracted: 0` y el front solo muestra "Sin productos extraídos").
 
-- **Foto**: thumbnail 56×56. Si `image_url` falta → placeholder gris con botón mini `🔍 Buscador IA` que abre `AutoImagePicker` ya existente (busca con `find-product-image`).
-- **Nombre Original**: muestra el nombre crudo extraído + chip discreto con `source_url`.
-- **Precio**: `$X` o badge rojo "Sin precio".
-- **SEO**: badge color según `validateProductRow`:
-  - 🟢 Verde "Optimizado" si no hay errores ni warnings de `meta_title`/`meta_description`/`focus_keyword`/`tags`.
-  - 🟡 Amarillo "Incompleto" si solo warnings.
-  - 🔴 Rojo "Faltante" si errores.
-- **Acciones por fila**:
-  - Botón `✨ IA` → abre **modal de enriquecimiento** (ver §3).
-  - Botón `🔍 Imagen` → abre `AutoImagePicker`.
-  - Botón `✏️ Editar` → abre el mismo modal en pestaña "Datos básicos".
-  - Botón 🗑 quitar de staging.
-- Checkbox por fila + checkbox "seleccionar todos" en header.
+### Edge function `firecrawl-map`
+- Mismo patrón: si `firecrawl` falla, intentar `jina` map alternativo (Jina no mapea, así que cuando Firecrawl falle devolver mensaje claro "Mapeo requiere Firecrawl con créditos. Usa Importar Individual o cambia de proveedor.").
 
-Vista densa (table) por defecto; toggle a vista grid (cards actuales) para retrocompatibilidad.
+### Front `ProductImporter.tsx`
+- En `extractUrls`, mostrar en el toast el `provider_used` real cuando hubo fallback ("Extraído con Jina (fallback)").
+- Si `data.failures` viene con elementos, mostrarlos en un `Alert` colapsable bajo el panel de input con la URL y la razón, para que el usuario sepa por qué no se extrajo.
+- Si `extracted === 0`, sugerir explícitamente: "Cambia el motor a 'Jina Reader (gratis)' o 'Microlink-style' y reintenta".
 
-## 3. Modal de Enriquecimiento IA (`EnrichmentDialog`)
+### `ScrapeInputPanel.tsx`
+- Reordenar `PROVIDERS` para que **Jina** y **Readability** (gratis, sin key) aparezcan primero junto a Firecrawl, con badge "Gratis". Esto reduce los fallos por créditos agotados.
 
-Nuevo componente `src/components/admin/products/EnrichmentDialog.tsx`. Se abre al hacer clic en `✨ IA` en una fila, o al hacer clic en `Editar`. Pestañas:
+## 3. Detalles técnicos
 
-- **Datos limpios**
-  - `Nombre Limpio` (input, prellenado con `name`).
-  - `Categoría sugerida` + `Marca sugerida` (reutiliza `categoryBrandSuggester` y `applyRowPatch`).
-  - `Precio`, `Stock`, `SKU`, `GTIN`.
-- **SEO**
-  - `meta_title` (contador 60 char, color rojo/verde).
-  - `meta_description` (contador 160 char).
-  - `focus_keyword`.
-  - `tags` (chips editables).
-  - Botón **"Generar con IA"** → `product-autofill` con `only_missing:false` para esta fila (reusa `autoFillAiRow` extraído).
-  - Botón **"Normalizar"** → `normalizeSeoMetadata` para esta fila.
-- **Atributos / Metadatos avanzados**
-  - Embebe el `AdvancedMetadataEditor` existente sobre `it.attributes` y `it.specifications` para la fila staging.
+- No se requiere migración de DB.
+- No se requieren nuevos secrets.
+- Cambios contenidos en:
+  - `src/components/admin/ProductsSection.tsx` (toolbar, banner, helpers `downloadTemplate`, `exportCsv`)
+  - `src/components/admin/products/ProductImporter.tsx` (mostrar failures, prop opcional para preseleccionar tab interno)
+  - `src/components/admin/products/ScrapeInputPanel.tsx` (orden de proveedores + badge "Gratis", aceptar `initialMode` opcional)
+  - `supabase/functions/firecrawl-scrape-products/index.ts` (fallback a Jina, mejores errores)
+  - `supabase/functions/firecrawl-map/index.ts` (mensaje claro cuando Firecrawl falla)
 
-Footer del modal: `Cancelar` / `Guardar cambios en staging` (sólo actualiza `products[i]` en memoria, no toca BD).
+## Resultado esperado
 
-Toast `"Producto enriquecido — N campos actualizados"`.
-
-## 4. Sistema inteligente de imágenes
-
-Ya existe el flujo: `AutoImagePicker` + edge function `find-product-image`. Lo cableamos en:
-
-- Thumbnail vacío de la tabla de staging → botón overlay `🔍 Buscador IA`.
-- Acción individual `Imagen` por fila.
-- Acción global existente `Auto-imágenes (N)` se conserva pero se mueve a la barra de acciones de la tabla.
-- Dentro del `EnrichmentDialog` pestaña "Datos limpios" se muestra galería seleccionable cuando el usuario expande "Imagen".
-
-Si `find-product-image` devuelve 0 resultados → mensaje claro "No se encontraron imágenes; pega una URL manual" + input.
-
-## 5. Aprobación final
-
-Barra inferior sticky `PublishBar` cuando hay seleccionados:
-
-- Resumen: `X seleccionados · Y listos · Z con errores · Completitud media W%` (reutiliza `aggregateValidation`).
-- Botón gigante neón `🚀 Publicar en Inventario` (verde `#00E676`):
-  - Sólo habilitado si todos los seleccionados tienen `validateProductRow.canImport === true`.
-  - Si hay seleccionados con errores → muestra dialog "Saltar N inválidos y publicar Y" / "Cancelar".
-  - Pipeline: `validateRow` → `insertWithRetry("products", rows)` con `is_active:false` (queda como borrador); luego dialog opcional "¿Activar ahora en tienda?" que hace `update is_active:true`. Mantiene la lógica RLS y `import_jobs` actual.
-- Toasts por paso: "Validando…", "Insertando 12 productos…", "✅ 12 publicados como borradores", "✅ 12 activados en tienda".
-
-## 6. Limpieza visual Dark Mode Tech
-
-- Cards: `bg-[#1A1A1A] border-white/5`.
-- Botones primarios: `bg-[#00E676] text-black hover:bg-[#00E676]/90 shadow-[0_0_20px_rgba(0,230,118,0.25)]`.
-- Tabs activos: underline neón verde.
-- Badges de estado: rojo `#FF5252`, ámbar `#FFB300`, verde `#00E676`.
-
-## Archivos a crear / editar
-
-**Crear**
-- `src/components/admin/products/ScrapeInputPanel.tsx` — Tabs Individual / Bulk / Mapear dominio + select de proveedor.
-- `src/components/admin/products/StagingTable.tsx` — tabla densa con SEO badge y acciones por fila.
-- `src/components/admin/products/EnrichmentDialog.tsx` — modal IA + SEO + metadatos.
-- `src/components/admin/products/PublishBar.tsx` — barra sticky inferior con publicar.
-
-**Editar**
-- `src/components/admin/products/ProductImporter.tsx` — refactor: extraer handlers (`autoFillAiRow`, `autoImageRow`, `applyRowPatch`, `importProducts`) y orquestar los nuevos sub-componentes; conservar `import_jobs`, `useCanImportProducts`, `RlsErrorPanel`, `previewProducts`, `selectedP`. Sin cambios de schema en BD ni de edge functions.
-- `src/components/admin/products/ProductPreviewCard.tsx` — sigue disponible para la vista "grid" alternativa.
-
-## Notas técnicas
-
-- Estado de staging vive en `useState` dentro de `ProductImporter` (`products[]`, `selectedP:Set<number>`) tal cual hoy — no se persiste hasta "Publicar en Inventario".
-- No se introducen nuevas tablas ni edge functions: todas las llamadas usan funciones ya desplegadas (`firecrawl-map`, `firecrawl-scrape-products`, `product-autofill`, `find-product-image`).
-- Compatibilidad: `ImportedProductsPreviewSection` (lista de borradores ya en BD) sigue intacta y conserva su pestaña en el sidebar.
-- Sin migraciones SQL.
+- Una barra superior visible con: Plantilla CSV · Importar CSV · Importar de URL (IA) · Importar desde sitio web (IA) · Exportar CSV · Nuevo.
+- Banner informativo en pestaña CSV.
+- Scraping que ya no se queda mudo: si Firecrawl falla, automáticamente cae a Jina y muestra qué proveedor se usó; si todo falla, lista las URLs problemáticas con el motivo y sugiere cambiar de proveedor.
