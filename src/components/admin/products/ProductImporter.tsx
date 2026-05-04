@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,44 +10,22 @@ import { useCanImportProducts } from "@/hooks/useCanImportProducts";
 import { insertWithRetry, isRlsError } from "@/lib/insertWithRetry";
 import RlsErrorPanel from "./RlsErrorPanel";
 import AutoImagePicker from "./AutoImagePicker";
-import ProductPreviewCard from "./ProductPreviewCard";
-import { aggregateValidation, validateProductRow } from "@/lib/validateProductRow";
+import { validateProductRow } from "@/lib/validateProductRow";
 import { norm, type CatalogEntry } from "@/lib/categoryBrandSuggester";
 import { normalizeSeoMetadata } from "@/lib/normalizeSeoMetadata";
+import ScrapeInputPanel, { type Provider } from "./ScrapeInputPanel";
+import StagingTable from "./StagingTable";
+import EnrichmentDialog from "./EnrichmentDialog";
+import PublishBar from "./PublishBar";
 import {
   Loader2,
-  Globe,
   Wand2,
-  CheckCircle2,
-  AlertCircle,
-  Eye,
   Sparkles,
   ShieldAlert,
   FileText,
+  Eye,
+  Zap,
 } from "lucide-react";
-
-type Provider =
-  | "firecrawl"
-  | "jina"
-  | "scrapingbee"
-  | "readability"
-  | "browserless"
-  | "scraperapi"
-  | "scrapfly"
-  | "diffbot"
-  | "zenrows";
-
-const PROVIDERS: Array<{ id: Provider; label: string; hint: string; group: "free" | "key" }> = [
-  { id: "readability", label: "Sin API (gratis)", hint: "Fetch directo + JSON-LD/OG", group: "free" },
-  { id: "jina", label: "Jina Reader (gratis)", hint: "No requiere key", group: "free" },
-  { id: "diffbot", label: "Diffbot Product", hint: "Producto estructurado de alta calidad", group: "key" },
-  { id: "firecrawl", label: "Firecrawl", hint: "Más preciso, requiere key", group: "key" },
-  { id: "browserless", label: "Browserless", hint: "Chrome headless con JS", group: "key" },
-  { id: "scraperapi", label: "ScraperAPI", hint: "Render JS + proxy", group: "key" },
-  { id: "scrapfly", label: "Scrapfly", hint: "Render JS + anti-bot", group: "key" },
-  { id: "zenrows", label: "ZenRows", hint: "Render JS + bypass", group: "key" },
-  { id: "scrapingbee", label: "ScrapingBee", hint: "JS rendering, requiere key", group: "key" },
-];
 
 const slugify = (s: string) =>
   s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -81,15 +58,22 @@ interface Props {
 const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props) => {
   const { toast } = useToast();
   const { canImport, role, loading: roleLoading, isSuperAdmin } = useCanImportProducts();
-  const [url, setUrl] = useState("");
-  const [provider, setProvider] = useState<Provider>("readability");
+
+  // ------- Input config -------
+  const [provider, setProvider] = useState<Provider>("firecrawl");
   const [useAi, setUseAi] = useState(true);
-  const [busy, setBusy] = useState<string | null>(null);
+
+  // ------- Map flow -------
+  const [mappedFromUrl, setMappedFromUrl] = useState("");
   const [links, setLinks] = useState<string[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
+
+  // ------- Staging state -------
   const [products, setProducts] = useState<any[]>([]);
   const [selectedP, setSelectedP] = useState<Set<number>>(new Set());
-  const [previewProducts, setPreviewProducts] = useState<any[] | null>(null);
+
+  // ------- Misc UI state -------
+  const [busy, setBusy] = useState<string | null>(null);
   const [rlsError, setRlsError] = useState<string | null>(null);
   const [autoImgBusy, setAutoImgBusy] = useState(false);
   const [aiBatchBusy, setAiBatchBusy] = useState(false);
@@ -99,6 +83,11 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
   const currentJobId = useRef<string | null>(null);
   const [brandCatalog, setBrandCatalog] = useState<CatalogEntry[]>([]);
   const [categoryCatalog, setCategoryCatalog] = useState<CatalogEntry[]>([]);
+
+  // Enrichment dialog
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  // Image picker overlay (per row)
+  const [pickerIdx, setPickerIdx] = useState<number | null>(null);
 
   // Load existing brands and distinct categories once for fuzzy suggestions
   useEffect(() => {
@@ -129,7 +118,7 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     return () => { alive = false; };
   }, []);
 
-  /** Patch a single row in `products` (used by per-row suggestions) */
+  /** Patch a single staging row */
   const applyRowPatch = (i: number, patch: Record<string, any>) => {
     setProducts((curr) => {
       const copy = [...curr];
@@ -147,6 +136,19 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     });
   };
 
+  const removeRow = (i: number) => {
+    setProducts((curr) => curr.filter((_, idx) => idx !== i));
+    setSelectedP((prev) => {
+      const n = new Set<number>();
+      prev.forEach((x) => {
+        if (x < i) n.add(x);
+        else if (x > i) n.add(x - 1);
+      });
+      return n;
+    });
+    toast({ title: "Producto descartado de staging" });
+  };
+
   const autoImageRow = async (i: number) => {
     const it = products[i];
     if (!it?.name) return;
@@ -157,14 +159,14 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
       });
       const img = data?.images?.[0];
       if (!error && img) {
-        setProducts((curr) => {
-          const copy = [...curr];
-          if (copy[i]) copy[i] = { ...copy[i], images: [img, ...(copy[i].images || []).filter((u: string) => u !== img)] };
-          return copy;
-        });
+        applyRowPatch(i, { images: [img, ...((it.images || []).filter((u: string) => u !== img))] });
         toast({ title: "Imagen encontrada" });
       } else {
-        toast({ title: "Sin resultados", description: "Prueba con \"Elegir\" para ver opciones.", variant: "destructive" });
+        toast({
+          title: "Sin resultados",
+          description: "Abre el buscador IA para ver más opciones.",
+          variant: "destructive",
+        });
       }
     } catch (e: any) {
       toast({ title: "Error", description: e?.message || String(e), variant: "destructive" });
@@ -204,6 +206,8 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
             meta_keywords: p.meta_keywords || copy[i].meta_keywords,
             tags: p.tags || copy[i].tags,
             attributes: { ...(copy[i].attributes || {}), ...(p.attributes || {}) },
+            flavor_profile: copy[i].flavor_profile?.length ? copy[i].flavor_profile : p.flavor_profile,
+            ingredients: copy[i].ingredients?.length ? copy[i].ingredients : p.ingredients,
           };
         }
         return copy;
@@ -216,16 +220,17 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     }
   };
 
-  const map = async () => {
-    if (!isHttpUrl(url.trim())) {
-      toast({ title: "URL inválida", description: "Escribe https://…", variant: "destructive" });
+  // ------- Domain mapping -------
+  const mapDomain = async (url: string) => {
+    if (!isHttpUrl(url)) {
+      toast({ title: "URL inválida", variant: "destructive" });
       return;
     }
     setBusy("map");
-    setPreviewProducts(null);
+    setMappedFromUrl(url);
     try {
       const { data, error } = await supabase.functions.invoke("firecrawl-map", {
-        body: { url: url.trim(), limit: 100, provider },
+        body: { url, limit: 100, provider },
       });
       if (error || data?.error) throw new Error(parseFnError(data, error));
       const found: string[] = data.links || [];
@@ -233,7 +238,7 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
       const likely = found.filter((l) =>
         /\/(product|producto|p|item|productos|shop|tienda)[\/-]/i.test(l),
       );
-      setSelected(new Set(likely.length ? likely : found.slice(0, 20)));
+      setSelectedLinks(new Set(likely.length ? likely : found.slice(0, 20)));
       toast({ title: "Sitio mapeado", description: `${found.length} URLs encontradas` });
     } catch (e: any) {
       toast({ title: "Error al mapear", description: e?.message || String(e), variant: "destructive" });
@@ -242,73 +247,48 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     }
   };
 
-  const preview = async () => {
-    if (selected.size === 0) {
-      toast({ title: "Selecciona al menos 1 URL", variant: "destructive" });
+  // ------- Extraction (single / bulk / from map) -------
+  const extractUrls = async (urls: string[], busyKey: string) => {
+    if (urls.length === 0) {
+      toast({ title: "Sin URLs válidas", variant: "destructive" });
       return;
     }
-    setBusy("preview");
+    setBusy(busyKey);
     try {
-      const sample = Array.from(selected).slice(0, 2);
-      const { data, error } = await supabase.functions.invoke("firecrawl-scrape-products", {
-        body: { urls: sample, provider, preview: true, use_ai: useAi },
-      });
-      if (error || data?.error) throw new Error(parseFnError(data, error));
-      const list = data.products || [];
-      setPreviewProducts(list);
-      toast({
-        title: "Vista previa lista",
-        description: `${list.length}/${sample.length} productos extraídos. Revisa antes de importar todo.`,
-      });
-    } catch (e: any) {
-      toast({ title: "Error en vista previa", description: e?.message || String(e), variant: "destructive" });
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const extract = async () => {
-    if (selected.size === 0) {
-      toast({ title: "Selecciona al menos 1 URL", variant: "destructive" });
-      return;
-    }
-    setBusy("extract");
-    try {
-      // Create import_jobs row
-      const urlsArr = Array.from(selected);
       const { data: job, error: jobErr } = await supabase
         .from("import_jobs")
         .insert({
-          source_url: url.trim(),
+          source_url: urls[0],
           status: "pending",
-          urls_found: urlsArr.length,
-          discovered_urls: urlsArr,
+          urls_found: urls.length,
+          discovered_urls: urls,
         })
         .select()
         .single();
       if (jobErr) throw jobErr;
       currentJobId.current = job.id;
-
-
       onJobsChanged?.();
 
       const { data, error } = await supabase.functions.invoke("firecrawl-scrape-products", {
-        body: { urls: urlsArr, provider, use_ai: useAi, job_id: job.id },
+        body: { urls, provider, use_ai: useAi, job_id: job.id },
       });
       if (error || data?.error) throw new Error(parseFnError(data, error));
-      const list = data.products || [];
-      setProducts(list);
-      setSelectedP(new Set(list.map((_: any, i: number) => i)));
+      const list: any[] = data.products || [];
+
+      // Append to staging instead of replacing, so multiple bulk runs accumulate
+      setProducts((curr) => {
+        const merged = [...curr, ...list];
+        setSelectedP(new Set(merged.map((_, i) => i)));
+        return merged;
+      });
       onJobsChanged?.();
-      if (list.length === 0) {
-        toast({
-          title: "Sin productos extraídos",
-          description: "Prueba con otro proveedor o revisa el historial para detalles.",
-          variant: "destructive",
-        });
-      } else {
-        toast({ title: "Productos extraídos", description: `${list.length} candidatos` });
-      }
+      toast({
+        title: list.length ? `${list.length} producto(s) en staging` : "Sin productos extraídos",
+        description: list.length
+          ? "Revisa, enriquece con IA y publica."
+          : "Cambia de motor o activa la IA y reintenta.",
+        variant: list.length ? "default" : "destructive",
+      });
     } catch (e: any) {
       toast({ title: "Error al extraer", description: e?.message || String(e), variant: "destructive" });
     } finally {
@@ -355,7 +335,6 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         attributes,
         canonical_url: canonical && isHttpUrl(canonical) ? canonical : null,
         is_active: false,
-        // ----- Advanced metadata mapping (scraper or AI autofill may provide these) -----
         metadata_template: it?.metadata_template || attributes?.metadata_template || null,
         specifications: Array.isArray(it?.specifications) ? it.specifications : [],
         warnings: Array.isArray(it?.warnings) ? it.warnings : (typeof attributes?.warnings === "string" ? [attributes.warnings] : []),
@@ -402,7 +381,6 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     }
     setAutoImgBusy(true);
     let filled = 0;
-    // 3 concurrentes
     const queue = [...missing];
     const workers = Array.from({ length: 3 }, async () => {
       while (queue.length) {
@@ -437,13 +415,13 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     toast({ title: `Auto-imagen completada`, description: `${filled}/${missing.length} encontradas` });
   };
 
-  const autoFillWithAi = async (scope: "selected" | "all" = "selected") => {
+  const autoFillWithAi = async (scope: "selected" | "all" = "all") => {
     const indices = scope === "all"
       ? products.map((_, i) => i)
       : Array.from(selectedP);
     if (!indices.length) {
       toast({
-        title: scope === "all" ? "No hay productos extraídos" : "Selecciona productos primero",
+        title: scope === "all" ? "No hay productos en staging" : "Selecciona productos primero",
         variant: "destructive",
       });
       return;
@@ -500,7 +478,6 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
             filled++;
           } else {
             failed++;
-            if (data?.error) console.warn("autofill row failed", data.error);
           }
         } catch (e) {
           failed++;
@@ -519,71 +496,45 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     });
   };
 
-  const normalizeSeoBatch = (scope: "selected" | "all" = "all") => {
-    const indices = scope === "all"
-      ? products.map((_, i) => i)
-      : Array.from(selectedP);
-    if (!indices.length) {
-      toast({
-        title: scope === "all" ? "No hay productos para normalizar" : "Selecciona productos primero",
-        variant: "destructive",
-      });
+  const normalizeSeoBatch = () => {
+    if (products.length === 0) {
+      toast({ title: "No hay productos para normalizar", variant: "destructive" });
       return;
     }
-
     let touched = 0;
     const changeSummary: Record<string, number> = {};
-    const sampleChanges: string[] = [];
-
     setProducts((curr) => {
       const copy = [...curr];
-      for (const i of indices) {
-        const row = copy[i];
-        if (!row) continue;
-        const { patch, changes } = normalizeSeoMetadata(row);
+      for (let i = 0; i < copy.length; i++) {
+        const { patch, changes } = normalizeSeoMetadata(copy[i]);
         if (Object.keys(patch).length === 0) continue;
-        copy[i] = { ...row, ...patch };
+        copy[i] = { ...copy[i], ...patch };
         touched++;
         for (const c of changes) {
           const key = c.split(" ")[0];
           changeSummary[key] = (changeSummary[key] || 0) + 1;
         }
-        if (sampleChanges.length < 3) {
-          sampleChanges.push(`#${i + 1} ${row.name?.slice(0, 30) || "—"}: ${changes.join(", ")}`);
-        }
       }
       return copy;
     });
-
     if (touched === 0) {
-      toast({
-        title: "Todo en orden",
-        description: "Los metadatos SEO ya están completos y dentro de los límites recomendados.",
-      });
+      toast({ title: "SEO ya está completo en todos los productos" });
       return;
     }
-
-    const summary = Object.entries(changeSummary)
-      .map(([k, n]) => `${k}: ${n}`)
-      .join(" · ");
-
-    toast({
-      title: `SEO normalizado en ${touched}/${indices.length} productos`,
-      description: `${summary}\n${sampleChanges.join("\n")}`,
-    });
+    const summary = Object.entries(changeSummary).map(([k, n]) => `${k}: ${n}`).join(" · ");
+    toast({ title: `SEO normalizado en ${touched} productos`, description: summary });
   };
 
   const importProducts = async () => {
     setRlsError(null);
-
     if (!canImport) {
       setRlsError(`Tu rol "${role || "ninguno"}" no puede insertar en la tabla products.`);
       return;
     }
-
     const items = Array.from(selectedP).map((i) => ({ it: products[i], i })).filter((x) => x.it);
     if (!items.length) return;
     setBusy("import");
+    toast({ title: "Validando productos…" });
     try {
       const rows: any[] = [];
       const invalid: Array<{ idx: number; name: string; errors: string[] }> = [];
@@ -592,7 +543,6 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         if (row) rows.push(row);
         else invalid.push({ idx: i + 1, name: it?.name || `#${i + 1}`, errors });
       }
-
       if (invalid.length) {
         const sample = invalid.slice(0, 3).map((v) => `• ${v.name}: ${v.errors.join(", ")}`).join("\n");
         toast({
@@ -606,17 +556,14 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         return;
       }
 
+      toast({ title: `Insertando ${rows.length} productos…` });
       const { error, attempts, retried } = await insertWithRetry("products", rows);
       if (error) {
         const msg = error.message || String(error);
         if (isRlsError(error)) {
           setRlsError(msg);
           await logFailureToJob(`RLS denied (${attempts} attempts): ${msg}`);
-          toast({
-            title: "Sin permisos para importar",
-            description: "Revisa el panel de error abajo.",
-            variant: "destructive",
-          });
+          toast({ title: "Sin permisos para importar", description: "Revisa el panel de error.", variant: "destructive" });
         } else {
           await logFailureToJob(`Insert failed after ${attempts} attempt(s): ${msg}`);
           toast({
@@ -627,7 +574,6 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         }
         return;
       }
-
       if (currentJobId.current) {
         await supabase
           .from("import_jobs")
@@ -635,16 +581,14 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
           .eq("id", currentJobId.current);
         onJobsChanged?.();
       }
-
       toast({
-        title: "Importados",
-        description: `${rows.length} productos creados como borradores${retried ? ` (recuperado tras ${attempts} intentos)` : ""}`,
+        title: `✅ ${rows.length} productos publicados`,
+        description: `Quedan como borradores en el catálogo${retried ? ` (recuperado tras ${attempts} intentos)` : ""}.`,
       });
       setProducts([]);
       setSelectedP(new Set());
       setLinks([]);
-      setSelected(new Set());
-      setPreviewProducts(null);
+      setSelectedLinks(new Set());
       currentJobId.current = null;
       onImported();
       onSwitchToCatalog();
@@ -657,89 +601,63 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
     }
   };
 
+  // ============ UI ============
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-4">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+            <Zap className="h-5 w-5 text-primary" />
+            AI Scraping & Enrichment Hub
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Extrae productos desde cualquier URL, enriquece con IA y publica en tu inventario.
+          </p>
+        </div>
+      </div>
+
       {!roleLoading && !canImport && (
         <Alert variant="destructive">
           <ShieldAlert className="h-4 w-4" />
           <AlertTitle>Permisos insuficientes</AlertTitle>
           <AlertDescription className="text-sm">
             Tu rol actual <strong className="font-mono">{role || "ninguno"}</strong> no puede insertar productos.
-            Puedes mapear y extraer, pero la importación final requiere rol{" "}
+            Puedes mapear y extraer, pero la publicación requiere rol{" "}
             <strong>admin</strong>, <strong>super_admin</strong> o <strong>moderator</strong>.
           </AlertDescription>
         </Alert>
       )}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Globe className="h-4 w-4 text-primary" /> Importar productos desde URL
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex gap-2 flex-wrap">
-            <Input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://tienda-ejemplo.com"
-              className="flex-1 min-w-[260px]"
-            />
-            <select
-              value={provider}
-              onChange={(e) => setProvider(e.target.value as Provider)}
-              className="bg-muted border border-border rounded px-2 text-sm"
-            >
-              {PROVIDERS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-            <Button onClick={map} disabled={busy === "map" || !url.trim()} className="gap-2">
-              {busy === "map" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-              Mapear sitio
-            </Button>
-          </div>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <Checkbox checked={useAi} onCheckedChange={(v) => setUseAi(!!v)} />
-              <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> Usar IA si JSON-LD/OG no son suficientes</span>
-            </label>
-            <span className="opacity-70">· {PROVIDERS.find((p) => p.id === provider)?.hint}</span>
-          </div>
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            <AlertCircle className="h-3 w-3" /> Los productos se importan como borradores (inactivos).
-          </p>
-        </CardContent>
-      </Card>
 
+      {/* 1. Input Panel (tabs) */}
+      <ScrapeInputPanel
+        provider={provider}
+        onProviderChange={setProvider}
+        useAi={useAi}
+        onUseAiChange={setUseAi}
+        busyKey={busy}
+        onExtractSingle={(u) => extractUrls([u], "extract-single")}
+        onExtractBulk={(urls) => extractUrls(urls, "extract-bulk")}
+        onMapDomain={mapDomain}
+      />
+
+      {/* Domain map results */}
       {links.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+        <Card className="border-white/5">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap pb-3">
             <CardTitle className="text-sm">
-              {selected.size} de {links.length} URLs seleccionadas
+              {selectedLinks.size} de {links.length} URLs seleccionadas{" "}
+              <span className="text-muted-foreground font-normal text-xs">de {mappedFromUrl}</span>
             </CardTitle>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={preview}
-                disabled={busy !== null || selected.size === 0}
-                size="sm"
-                className="gap-2"
-              >
-                {busy === "preview" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
-                Vista previa (1-2)
-              </Button>
-              <Button
-                onClick={extract}
-                disabled={busy !== null || selected.size === 0}
-                size="sm"
-                className="gap-2"
-              >
-                {busy === "extract" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                Extraer todo
-              </Button>
-            </div>
+            <Button
+              onClick={() => extractUrls(Array.from(selectedLinks), "extract-bulk")}
+              disabled={busy !== null || selectedLinks.size === 0}
+              size="sm"
+              className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {busy === "extract-bulk" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+              Extraer {selectedLinks.size} URLs
+            </Button>
           </CardHeader>
           <CardContent className="max-h-72 overflow-auto space-y-1">
             {links.map((l) => (
@@ -748,11 +666,11 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
                 className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 px-2 py-1 rounded"
               >
                 <Checkbox
-                  checked={selected.has(l)}
+                  checked={selectedLinks.has(l)}
                   onCheckedChange={(v) => {
-                    const n = new Set(selected);
+                    const n = new Set(selectedLinks);
                     v ? n.add(l) : n.delete(l);
-                    setSelected(n);
+                    setSelectedLinks(n);
                   }}
                 />
                 <span className="truncate text-muted-foreground">{l}</span>
@@ -762,230 +680,151 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         </Card>
       )}
 
-      {previewProducts && (() => {
-        const stats = aggregateValidation(previewProducts);
-        return (
-          <Card className="border-primary/40">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-3 flex-wrap">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Eye className="h-4 w-4 text-primary" /> Vista previa validada — {previewProducts.length} producto(s)
-                </CardTitle>
-                {previewProducts.length > 0 && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className="text-[11px] border-primary/40 text-primary bg-primary/10">
-                      {stats.ready} listos
-                    </Badge>
-                    {stats.withErrors > 0 && (
-                      <Badge variant="outline" className="text-[11px] border-destructive/50 text-destructive bg-destructive/10">
-                        {stats.withErrors} con errores
-                      </Badge>
-                    )}
-                    {stats.withWarnings > 0 && (
-                      <Badge variant="outline" className="text-[11px] border-amber-400/40 text-amber-400 bg-amber-400/10">
-                        {stats.withWarnings} incompletos
-                      </Badge>
-                    )}
-                    <Badge variant="outline" className="text-[11px]">
-                      Completitud {stats.avgCompleteness}%
-                    </Badge>
-                  </div>
-                )}
-              </div>
-              {previewProducts.length > 0 && (stats.missingImage > 0 || stats.missingDescription > 0 || stats.missingPrice > 0) && (
-                <Alert className="mt-3">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="text-xs">
-                    {stats.missingPrice > 0 && <>⚠️ <strong>{stats.missingPrice}</strong> sin precio · </>}
-                    {stats.missingImage > 0 && <>📷 <strong>{stats.missingImage}</strong> sin imagen · </>}
-                    {stats.missingDescription > 0 && <>📝 <strong>{stats.missingDescription}</strong> sin descripción</>}
-                    {" · "}Continúa con <em>Extraer todo</em> para corregirlos en lote con IA.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {previewProducts.length === 0 ? (
-                <p className="text-xs text-muted-foreground p-4 text-center">
-                  No se detectó ningún producto. Cambia de proveedor o activa la IA.
-                </p>
-              ) : (
-                previewProducts.map((it: any, i: number) => (
-                  <ProductPreviewCard key={i} item={it} index={i} />
-                ))
-              )}
-            </CardContent>
-          </Card>
-        );
-      })()}
+      {/* 2. Staging Table */}
+      {products.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Eye className="h-4 w-4 text-primary" />
+              Staging — {products.length} producto(s) extraído(s)
+            </h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                onClick={() => autoFillWithAi("all")}
+                disabled={aiBatchBusy || busy !== null || products.length === 0}
+                size="sm"
+                className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_hsl(var(--primary)/0.3)]"
+                title="Genera nombres limpios, SEO y atributos para todos los productos"
+              >
+                {aiBatchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                ✨ Procesar todo con IA
+              </Button>
+              <Button
+                onClick={autoFillImages}
+                disabled={autoImgBusy || busy !== null}
+                size="sm"
+                variant="outline"
+                className="gap-2"
+              >
+                {autoImgBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Auto-imágenes
+              </Button>
+              <Button
+                onClick={normalizeSeoBatch}
+                disabled={busy !== null || aiBatchBusy || products.length === 0}
+                size="sm"
+                variant="outline"
+                className="gap-2 border-primary/40 text-primary hover:bg-primary/10"
+              >
+                <FileText className="h-4 w-4" /> Normalizar SEO
+              </Button>
+            </div>
+          </div>
 
-      {products.length > 0 && (() => {
-        const stats = aggregateValidation(products);
-        const selectedItems = Array.from(selectedP).map((i) => products[i]).filter(Boolean);
-        const selectedStats = aggregateValidation(selectedItems);
-        return (
-          <Card>
-            <CardHeader className="pb-3 space-y-3">
-              <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
-                <CardTitle className="text-sm">
-                  {selectedP.size} de {products.length} productos a importar
-                </CardTitle>
-                <div className="flex gap-2 flex-wrap">
-                  <Button
-                    onClick={autoFillImages}
-                    disabled={autoImgBusy || busy !== null}
-                    size="sm"
-                    variant="outline"
-                    className="gap-2"
-                  >
-                    {autoImgBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    Auto-imágenes ({stats.missingImage})
-                  </Button>
-                  <Button
-                    onClick={() => autoFillWithAi("all")}
-                    disabled={aiBatchBusy || busy !== null || products.length === 0}
-                    size="sm"
-                    className="gap-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:opacity-90 shadow-lg shadow-primary/20"
-                    title="Genera sabores, ingredientes, tipo de evaporador, atributos técnicos y SEO para TODOS los productos antes de guardar"
-                  >
-                    {aiBatchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                    Completar metadatos IA (todos)
-                  </Button>
-                  <Button
-                    onClick={() => autoFillWithAi("selected")}
-                    disabled={aiBatchBusy || busy !== null || selectedP.size === 0}
-                    size="sm"
-                    variant="outline"
-                    className="gap-2"
-                  >
-                    {aiBatchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    IA en seleccionados
-                  </Button>
-                  <Button
-                    onClick={() => normalizeSeoBatch("all")}
-                    disabled={busy !== null || aiBatchBusy || products.length === 0}
-                    size="sm"
-                    variant="outline"
-                    className="gap-2 border-primary/40 text-primary hover:bg-primary/10"
-                    title="Completa meta_title, meta_description, focus_keyword y tags faltantes (sin IA, instantáneo)"
-                  >
-                    <FileText className="h-4 w-4" />
-                    Normalizar SEO
-                  </Button>
-                  <Button
-                    onClick={importProducts}
-                    disabled={busy !== null || selectedP.size === 0 || !canImport || selectedStats.withErrors === selectedItems.length}
-                    size="sm"
-                    className="gap-2"
-                  >
-                    {busy === "import" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                    Importar {selectedStats.ready > 0 ? `(${selectedStats.ready} listos)` : ""}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Batch validation summary */}
-              <div className="flex items-center gap-2 flex-wrap text-[11px]">
-                <Badge variant="outline" className="border-primary/40 text-primary bg-primary/10">
-                  ✓ {stats.ready} listos
-                </Badge>
-                {stats.withErrors > 0 && (
-                  <Badge variant="outline" className="border-destructive/50 text-destructive bg-destructive/10">
-                    ✕ {stats.withErrors} bloqueados
-                  </Badge>
-                )}
-                {stats.withWarnings > 0 && (
-                  <Badge variant="outline" className="border-amber-400/40 text-amber-400 bg-amber-400/10">
-                    ⚠ {stats.withWarnings} incompletos
-                  </Badge>
-                )}
-                <span className="text-muted-foreground">
-                  Completitud media: <strong className={stats.avgCompleteness >= 70 ? "text-primary" : stats.avgCompleteness >= 40 ? "text-amber-400" : "text-destructive"}>{stats.avgCompleteness}%</strong>
+          {/* Live AI batch progress */}
+          {aiBatchBusy && aiBatchProgress.total > 0 && (
+            <div className="space-y-1.5 p-3 rounded-lg border border-primary/30 bg-primary/5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-2 text-primary font-medium">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Procesando con IA…
+                </span>
+                <span className="text-muted-foreground font-mono">
+                  {aiBatchProgress.done}/{aiBatchProgress.total}
                 </span>
               </div>
+              <div className="h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary to-primary/70 transition-all"
+                  style={{ width: `${Math.round((aiBatchProgress.done / aiBatchProgress.total) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
 
-              {/* Live AI batch progress */}
-              {aiBatchBusy && aiBatchProgress.total > 0 && (
-                <div className="space-y-1.5 p-3 rounded-lg border border-primary/30 bg-primary/5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-2 text-primary font-medium">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Generando metadatos con IA…
-                    </span>
-                    <span className="text-muted-foreground font-mono">
-                      {aiBatchProgress.done}/{aiBatchProgress.total}
-                    </span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-muted/60 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-primary to-primary/70 transition-all"
-                      style={{ width: `${Math.round((aiBatchProgress.done / aiBatchProgress.total) * 100)}%` }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    Sabores, ingredientes, tipo de evaporador, atributos técnicos y SEO.
-                  </p>
-                </div>
-              )}
-              {stats.withErrors > 0 && (
-                <Alert variant="destructive" className="py-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="text-xs">
-                    <strong>{stats.withErrors}</strong> producto(s) tienen errores que bloquean la importación
-                    (sin nombre o sin precio). Corrígelos manualmente o con <em>Completar IA</em>, o desmárcalos para continuar.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardHeader>
-            <CardContent className="max-h-[32rem] overflow-auto space-y-2">
-              {products.map((it: any, i: number) => (
-                <div key={i} className="flex items-start gap-2">
-                  <ProductPreviewCard
-                    item={it}
-                    index={i}
-                    selected={selectedP.has(i)}
-                    onToggle={(v) => {
-                      const n = new Set(selectedP);
-                      v ? n.add(i) : n.delete(i);
-                      setSelectedP(n);
-                    }}
-                    onAutoImage={() => autoImageRow(i)}
-                    onAutoFillAi={() => autoFillAiRow(i)}
-                    onApplyPatch={(patch) => applyRowPatch(i, patch)}
-                    brandCatalog={brandCatalog}
-                    categoryCatalog={categoryCatalog}
-                    imageBusy={rowImageBusy.has(i)}
-                    aiBusy={rowAiBusy.has(i)}
-                  />
-                  <div className="pt-3">
-                    <AutoImagePicker
-                      query={{ name: it.name, brand: it.brand, category: it.category, gtin: it.gtin }}
-                      current={Array.isArray(it.images) ? it.images[0] : it.image_url}
-                      onPick={(url) =>
-                        setProducts((curr) => {
-                          const copy = [...curr];
-                          if (copy[i]) copy[i] = { ...copy[i], images: [url, ...(copy[i].images || []).filter((u: string) => u !== url)] };
-                          return copy;
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        );
-      })()}
+          <StagingTable
+            products={products}
+            selectedIdx={selectedP}
+            rowImageBusy={rowImageBusy}
+            rowAiBusy={rowAiBusy}
+            onToggle={(i, v) => {
+              const n = new Set(selectedP);
+              v ? n.add(i) : n.delete(i);
+              setSelectedP(n);
+            }}
+            onToggleAll={(v) => {
+              if (v) setSelectedP(new Set(products.map((_, i) => i)));
+              else setSelectedP(new Set());
+            }}
+            onAutoImage={autoImageRow}
+            onPickImage={(i) => setPickerIdx(i)}
+            onEnrich={(i) => setEditingIdx(i)}
+            onRemove={removeRow}
+          />
 
-      {rlsError && (
-        <RlsErrorPanel
-          message={rlsError}
-          role={role}
-          isSuperAdmin={isSuperAdmin}
-        />
+          {/* Image picker dialog, opened via "Buscador IA" overlay or row action */}
+          {pickerIdx != null && products[pickerIdx] && (
+            <AutoImagePicker
+              key={`picker-${pickerIdx}`}
+              hideTrigger
+              defaultOpen
+              query={{
+                name: products[pickerIdx].name,
+                brand: products[pickerIdx].brand,
+                category: products[pickerIdx].category,
+                gtin: products[pickerIdx].gtin,
+              }}
+              current={Array.isArray(products[pickerIdx].images) ? products[pickerIdx].images[0] : products[pickerIdx].image_url}
+              onPick={(url) => {
+                applyRowPatch(pickerIdx, {
+                  images: [url, ...(((products[pickerIdx].images) || []).filter((u: string) => u !== url))],
+                });
+                setPickerIdx(null);
+              }}
+              onClose={() => setPickerIdx(null)}
+            />
+          )}
+        </div>
       )}
+
+      {/* Empty staging hint */}
+      {products.length === 0 && links.length === 0 && (
+        <Card className="border-dashed border-white/10">
+          <CardContent className="py-10 text-center text-muted-foreground space-y-2">
+            <Wand2 className="h-8 w-8 mx-auto text-primary/60" />
+            <p className="text-sm">Pega una URL individual o varias para extraer datos brutos.</p>
+            <p className="text-xs">Los productos extraídos quedarán aquí hasta que los apruebes para inventario.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Enrichment dialog */}
+      <EnrichmentDialog
+        open={editingIdx != null}
+        onOpenChange={(v) => !v && setEditingIdx(null)}
+        product={editingIdx != null ? products[editingIdx] : null}
+        index={editingIdx}
+        onPatch={applyRowPatch}
+        onRunAi={async (i) => { await autoFillAiRow(i); }}
+        aiBusy={editingIdx != null && rowAiBusy.has(editingIdx)}
+      />
+
+      {/* RLS error */}
+      {rlsError && (
+        <RlsErrorPanel message={rlsError} role={role} isSuperAdmin={isSuperAdmin} />
+      )}
+
+      {/* Sticky publish bar */}
+      <PublishBar
+        products={products}
+        selectedIdx={selectedP}
+        busy={busy === "import"}
+        canImport={canImport}
+        onPublish={importProducts}
+      />
     </div>
   );
 };
+
 
 export default ProductImporter;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,14 +11,32 @@ interface Props {
   current?: string | null;
   onPick: (url: string) => void;
   size?: "sm" | "icon";
+  /** Open the picker dialog immediately on mount (and call onClose when closed) */
+  defaultOpen?: boolean;
+  /** Hide the trigger button entirely (useful when controlling via defaultOpen) */
+  hideTrigger?: boolean;
+  onClose?: () => void;
 }
 
-const AutoImagePicker = ({ query, current, onPick, size = "sm" }: Props) => {
+const AutoImagePicker = ({ query, current, onPick, size = "sm", defaultOpen = false, hideTrigger = false, onClose }: Props) => {
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [busy, setBusy] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [source, setSource] = useState<string>("");
+
+  // Auto-search on mount when defaultOpen is set
+  React.useEffect(() => {
+    if (defaultOpen && !images.length && !busy) {
+      search();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultOpen]);
+
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v);
+    if (!v) onClose?.();
+  };
 
   const search = async () => {
     setBusy(true);
@@ -47,22 +65,24 @@ const AutoImagePicker = ({ query, current, onPick, size = "sm" }: Props) => {
 
   return (
     <>
-      <Button
-        type="button"
-        size={size === "icon" ? "icon" : "sm"}
-        variant={current ? "ghost" : "outline"}
-        onClick={openDialog}
-        className="gap-1"
-        title="Buscar imagen automáticamente"
-      >
-        {size === "icon" ? <Sparkles className="h-4 w-4" /> : (
-          <>
-            <Sparkles className="h-3.5 w-3.5" /> {current ? "Cambiar" : "Buscar imagen"}
-          </>
-        )}
-      </Button>
+      {!hideTrigger && (
+        <Button
+          type="button"
+          size={size === "icon" ? "icon" : "sm"}
+          variant={current ? "ghost" : "outline"}
+          onClick={openDialog}
+          className="gap-1"
+          title="Buscar imagen automáticamente"
+        >
+          {size === "icon" ? <Sparkles className="h-4 w-4" /> : (
+            <>
+              <Sparkles className="h-3.5 w-3.5" /> {current ? "Cambiar" : "Buscar imagen"}
+            </>
+          )}
+        </Button>
+      )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
