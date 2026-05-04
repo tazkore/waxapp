@@ -60,7 +60,7 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
   const { canImport, role, loading: roleLoading, isSuperAdmin } = useCanImportProducts();
 
   // ------- Input config -------
-  const [provider, setProvider] = useState<Provider>("firecrawl");
+  const [provider, setProvider] = useState<Provider>("jina");
   const [useAi, setUseAi] = useState(true);
 
   // ------- Map flow -------
