@@ -88,9 +88,46 @@ const CsvImporter = ({ onImported }: Props) => {
     if (!rows.length) return;
     setBusy("import");
     try {
-      const { error } = await supabase.from("products").insert(rows);
-      if (error) throw error;
-      toast({ title: "Importados", description: `${rows.length} productos como borradores` });
+      // Ensure every row has a unique non-empty slug (guard against collisions with existing data)
+      const rand = () => Math.random().toString(36).slice(2, 7);
+      const slugify = (s: string) =>
+        (s || "producto")
+          .toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "")
+          .slice(0, 70) || "producto";
+      const prepared = rows.map((r) => ({
+        ...r,
+        slug: `${(r.slug && r.slug.trim()) || slugify(r.name)}-${rand()}`,
+      }));
+
+      // Insert one-by-one with retry on unique-violation so a single dup doesn't abort the batch
+      let imported = 0;
+      const failed: string[] = [];
+      for (const row of prepared) {
+        let attempt = 0;
+        let currentSlug = row.slug;
+        while (attempt < 4) {
+          const { error } = await supabase.from("products").insert({ ...row, slug: currentSlug });
+          if (!error) { imported++; break; }
+          if (error.code === "23505" && /slug/i.test(error.message)) {
+            currentSlug = `${slugify(row.name)}-${rand()}${rand()}`;
+            attempt++;
+            continue;
+          }
+          failed.push(`${row.name}: ${error.message}`);
+          break;
+        }
+        if (attempt >= 4) failed.push(`${row.name}: no se pudo generar slug único`);
+      }
+
+      if (imported === 0 && failed.length) throw new Error(failed[0]);
+      toast({
+        title: failed.length ? "Importación parcial" : "Importados",
+        description: `${imported} productos creados${failed.length ? ` · ${failed.length} con error` : ""}`,
+        variant: failed.length ? "default" : "default",
+      });
       setCsvText("");
       setSheetUrl("");
       setHeaders([]);
