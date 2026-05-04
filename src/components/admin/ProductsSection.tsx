@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { scrapeProductsInBatches } from "@/lib/scrapeInBatches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -793,12 +794,13 @@ const ProductImporter = ({ onImported, onSwitchToCatalog }: { onImported: () => 
     if (selected.size === 0) return;
     setBusy("extract");
     try {
-      const { data, error } = await supabase.functions.invoke("firecrawl-scrape-products", {
-        body: { urls: Array.from(selected), provider },
+      const { products: list } = await scrapeProductsInBatches({
+        urls: Array.from(selected),
+        provider,
+        onProgress: (done, total) => {
+          if (total > 30) toast({ title: `Extrayendo… ${done}/${total}` });
+        },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      const list = data.products || [];
       setProducts(list);
       setSelectedP(new Set(list.map((_: any, i: number) => i)));
       toast({ title: "Productos extraídos", description: `${list.length} candidatos` });
