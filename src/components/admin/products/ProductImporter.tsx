@@ -17,6 +17,7 @@ import ScrapeInputPanel, { type Provider } from "./ScrapeInputPanel";
 import StagingTable from "./StagingTable";
 import EnrichmentDialog from "./EnrichmentDialog";
 import PublishBar from "./PublishBar";
+import { scrapeProductsInBatches } from "@/lib/scrapeInBatches";
 import {
   Loader2,
   Wand2,
