@@ -66,11 +66,16 @@ const ImportJobsHistory = ({ refreshKey }: Props) => {
     setBusy(job.id);
     try {
       await supabase.from("import_jobs").update({ status: "pending", error: null }).eq("id", job.id);
-      const { data, error } = await supabase.functions.invoke("firecrawl-scrape-products", {
-        body: { urls: job.discovered_urls, job_id: job.id, provider: "readability", use_ai: true },
+      const { products } = await scrapeProductsInBatches({
+        urls: job.discovered_urls,
+        job_id: job.id,
+        provider: "readability",
+        use_ai: true,
+        onProgress: (done, total) => {
+          if (total > 30) toast({ title: `Reintentando… ${done}/${total}` });
+        },
       });
-      if (error || data?.error) throw new Error(data?.error?.message || error?.message || "Error");
-      toast({ title: "Reintento OK", description: `${data.extracted ?? 0} productos extraídos` });
+      toast({ title: "Reintento OK", description: `${products.length} productos extraídos` });
       load();
     } catch (e: any) {
       toast({ title: "Reintento falló", description: e?.message, variant: "destructive" });
