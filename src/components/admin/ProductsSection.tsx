@@ -201,8 +201,28 @@ const ProductsSection = () => {
             Catálogo, metadatos para Google e importación desde sitios web.
           </p>
         </div>
-        <Button onClick={newProduct} size="lg" className="gap-2 shadow-lg shadow-primary/20">
-          <Plus className="h-4 w-4" /> Nuevo producto
+      </div>
+
+      {/* Toolbar de acciones */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <Button variant="outline" size="sm" onClick={downloadTemplate} className="gap-1.5">
+          <FileDown className="h-4 w-4" /> Plantilla CSV
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setTab("csv")} className="gap-1.5">
+          <FileUp className="h-4 w-4" /> Importar CSV
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => { setImporterMode("single"); setTab("import"); }} className="gap-1.5">
+          <LinkIcon className="h-4 w-4" /> Importar de URL (IA)
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => { setImporterMode("map"); setTab("import"); }} className="gap-1.5">
+          <Globe className="h-4 w-4" /> Importar desde sitio web (IA)
+        </Button>
+        <Button variant="outline" size="sm" onClick={exportCsv} className="gap-1.5" disabled={!products.length}>
+          <Download className="h-4 w-4" /> Exportar CSV
+        </Button>
+        <div className="flex-1" />
+        <Button onClick={newProduct} size="sm" className="gap-1.5 shadow-lg shadow-primary/20">
+          <Plus className="h-4 w-4" /> Nuevo
         </Button>
       </div>
 
@@ -222,6 +242,16 @@ const ProductsSection = () => {
           <TabsTrigger value="csv">Importar CSV</TabsTrigger>
           <TabsTrigger value="history">Historial</TabsTrigger>
         </TabsList>
+
+        {tab === "csv" && (
+          <Alert className="mt-3 bg-primary/5 border-primary/30">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertDescription className="text-xs">
+              💡 Descarga la <button onClick={downloadTemplate} className="underline text-primary font-medium">plantilla CSV</button>, llena los campos y súbela en "Importar CSV". Los nombres de columna deben mantenerse igual.
+            </AlertDescription>
+          </Alert>
+        )}
+
 
         <TabsContent value="catalog" className="space-y-4">
           <div className="flex items-center gap-3 flex-wrap">
