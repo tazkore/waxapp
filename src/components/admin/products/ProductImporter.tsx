@@ -826,51 +826,5 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
   );
 };
 
-/**
- * Tiny wrapper that auto-opens AutoImagePicker for the row clicked
- * (the picker manages its own Dialog open state via the trigger button).
- */
-const PickerHost = ({
-  product,
-  onPick,
-  onClose,
-}: {
-  product: any;
-  onPick: (url: string) => void;
-  onClose: () => void;
-}) => {
-  // Render the picker normally + click its trigger via ref
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-    const t = setTimeout(() => {
-      const btn = document.getElementById("__staging_picker_trigger__");
-      btn?.click();
-    }, 50);
-    return () => clearTimeout(t);
-  }, []);
-  return (
-    <div className="block">
-      <span id="__staging_picker_trigger_wrap__">
-        <button id="__staging_picker_trigger__" style={{ display: "none" }} />
-      </span>
-      {mounted && (
-        <AutoImagePicker
-          query={{
-            name: product.name,
-            brand: product.brand,
-            category: product.category,
-            gtin: product.gtin,
-          }}
-          current={Array.isArray(product.images) ? product.images[0] : product.image_url}
-          onPick={(url) => {
-            onPick(url);
-            onClose();
-          }}
-        />
-      )}
-    </div>
-  );
-};
 
 export default ProductImporter;
