@@ -108,15 +108,18 @@ const SiteImporterSection = () => {
     if (!jobId || selectedLinks.size === 0) return;
     setBusy("scrape");
     try {
-      const { data, error } = await supabase.functions.invoke("firecrawl-scrape-products", {
-        body: { job_id: jobId, urls: Array.from(selectedLinks), provider },
+      const { products } = await scrapeProductsInBatches({
+        job_id: jobId,
+        urls: Array.from(selectedLinks),
+        provider,
+        onProgress: (done, total) => {
+          if (total > 30) toast({ title: `Extrayendo… ${done}/${total}` });
+        },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setProducts(data.products || []);
-      setSelectedProducts(new Set((data.products || []).map((_: any, i: number) => i)));
+      setProducts(products);
+      setSelectedProducts(new Set(products.map((_: any, i: number) => i)));
       setStep("extracted");
-      toast({ title: "Productos extraídos", description: `${data.products?.length || 0} productos detectados` });
+      toast({ title: "Productos extraídos", description: `${products.length} productos detectados` });
     } catch (e: any) {
       fail(e, "Error al extraer productos");
     } finally {
