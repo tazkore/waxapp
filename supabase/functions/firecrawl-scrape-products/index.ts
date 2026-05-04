@@ -152,19 +152,45 @@ Deno.serve(async (req) => {
   }
 
   const products: any[] = [];
-  const failures: Array<{ url: string; reason: string }> = [];
+  const failures: Array<{ url: string; reason: string; tried: string[] }> = [];
 
   for (let i = 0; i < limited.length; i++) {
     const url = limited[i];
     const t0 = Date.now();
+    const tried: string[] = [];
+    let lastError = "";
+    let scrape: Awaited<ReturnType<typeof providerScrape>> | null = null;
+    let providerUsed: Provider = provider as Provider;
+
+    // Try the requested provider, then fall back to Jina (free, no key) if it fails
+    const fallbackChain: Provider[] =
+      provider === "jina" ? ["jina"] : [provider as Provider, "jina"];
+
+    for (const p of fallbackChain) {
+      tried.push(p);
+      try {
+        scrape = await providerScrape(p, url);
+        providerUsed = p;
+        break;
+      } catch (e) {
+        lastError = e instanceof Error ? e.message : String(e);
+        console.warn(`[scrape-products] provider=${p} failed for ${url}: ${lastError}`);
+      }
+    }
+
+    if (!scrape) {
+      failures.push({ url, reason: lastError || "All providers failed", tried });
+      console.error(`[scrape-products] FAIL #${i} ${url}: ${lastError}`);
+      continue;
+    }
+
     try {
-      const scrape = await providerScrape(provider as Provider, url);
       const html = scrape.html ?? "";
       const markdown = scrape.markdown ?? "";
 
       let parsed: any = null;
 
-      // 0) Diffbot fast-path: structured product data already extracted
+      // 0) Diffbot fast-path
       const diffbot = (scrape.metadata as any)?.diffbot;
       if (diffbot?.objects?.[0]?.type === "product") {
         const o = diffbot.objects[0];
@@ -181,10 +207,10 @@ Deno.serve(async (req) => {
         };
       }
 
-      // 1) Try non-AI structured extraction first (free + reliable when JSON-LD exists)
+      // 1) Non-AI structured extraction (JSON-LD/OG)
       if (!parsed && html) parsed = extractProductFromHtml(html, url);
 
-      // 2) Fallback to AI if available and non-AI returned nothing useful
+      // 2) AI fallback
       if (!parsed && aiAvailable && (markdown || html)) {
         try {
           const aiInput = markdown || html.slice(0, 14000);
@@ -194,11 +220,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               model: "google/gemini-2.5-flash",
               messages: [
-                {
-                  role: "system",
-                  content:
-                    "You extract e-commerce product data from scraped page content. Only return is_product_page=true if this is clearly a product detail page (not a category, blog, or homepage). Image URLs must be absolute.",
-                },
+                { role: "system", content: "You extract e-commerce product data from scraped page content. Only return is_product_page=true if this is clearly a product detail page (not a category, blog, or homepage). Image URLs must be absolute." },
                 { role: "user", content: `URL: ${url}\n\nCONTENT:\n${aiInput.slice(0, 12000)}` },
               ],
               tools: [PRODUCT_TOOL],
@@ -218,15 +240,15 @@ Deno.serve(async (req) => {
       }
 
       if (parsed?.is_product_page && parsed.name) {
-        products.push({ source_url: url, ...parsed });
-        console.log(`[scrape-products] OK #${i} ${url} (${Date.now() - t0}ms)`);
+        products.push({ source_url: url, provider_used: providerUsed, ...parsed });
+        console.log(`[scrape-products] OK #${i} ${url} via ${providerUsed} (${Date.now() - t0}ms)`);
       } else {
-        failures.push({ url, reason: "Not a product page or missing name" });
+        failures.push({ url, reason: "No es una página de producto o falta el nombre", tried });
         console.log(`[scrape-products] SKIP #${i} ${url} (${Date.now() - t0}ms)`);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      failures.push({ url, reason: msg });
+      failures.push({ url, reason: msg, tried });
       console.error(`[scrape-products] FAIL #${i} ${url}: ${msg}`);
     }
   }
