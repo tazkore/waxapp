@@ -271,11 +271,17 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
       currentJobId.current = job.id;
       onJobsChanged?.();
 
-      const { data, error } = await supabase.functions.invoke("firecrawl-scrape-products", {
-        body: { urls, provider, use_ai: useAi, job_id: job.id },
+      const { products: list, batches } = await scrapeProductsInBatches({
+        urls,
+        provider,
+        use_ai: useAi,
+        job_id: job.id,
+        onProgress: (done, total) => {
+          if (total > 30) toast({ title: `Extrayendo… ${done}/${total}` });
+        },
       });
-      if (error || data?.error) throw new Error(parseFnError(data, error));
-      const list: any[] = data.products || [];
+      const data: any = { products: list, failures: [] };
+      if (batches > 1) console.log(`[scrape] processed in ${batches} batches`);
 
       // Append to staging instead of replacing, so multiple bulk runs accumulate
       setProducts((curr) => {
