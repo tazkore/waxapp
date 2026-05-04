@@ -322,7 +322,7 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
       errors: [],
       row: {
         name: name.slice(0, 200),
-        slug: slugify(name) || `producto-${Date.now()}-${idx}`,
+        slug: `${slugify(name)}-${randSuffix()}`,
         description,
         short_description: it?.short_description || (description ? description.slice(0, 160) : null),
         price: priceNum,
