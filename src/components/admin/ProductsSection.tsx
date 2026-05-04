@@ -10,7 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Search, Pencil, Globe, Wand2, CheckCircle2, AlertCircle, Sparkles, Trash2 } from "lucide-react";
+import { Loader2, Plus, Search, Pencil, Globe, Wand2, CheckCircle2, AlertCircle, Sparkles, Trash2, FileDown, FileUp, Download, Link as LinkIcon, Info } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import CsvImporter from "./products/CsvImporter";
 import ImportJobsHistory from "./products/ImportJobsHistory";
 import AdvancedMetadataEditor, { type AdvancedMetadata } from "./products/AdvancedMetadataEditor";
@@ -96,6 +97,50 @@ const ProductsSection = () => {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Product | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
+  
+
+  const CSV_HEADERS = ["name", "price", "sku", "image_url", "description", "category", "gtin", "brand_name", "stock"];
+
+  const csvEscape = (v: any) => {
+    if (v == null) return "";
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  const downloadFile = (filename: string, content: string, mime = "text/csv;charset=utf-8") => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadTemplate = () => {
+    const example = ["Vape Pen Starter", "499", "VP-001", "https://ejemplo.com/img.jpg", "Descripción breve", "Vapes", "1234567890123", "Mi Marca", "10"];
+    const csv = CSV_HEADERS.join(",") + "\n" + example.map(csvEscape).join(",") + "\n";
+    downloadFile("productos-plantilla.csv", csv);
+    toast({ title: "Plantilla descargada", description: "Llena las columnas y súbela en 'Importar CSV'." });
+  };
+
+  const exportCsv = () => {
+    const headers = [...CSV_HEADERS, "slug", "is_active"];
+    const lines = [headers.join(",")];
+    for (const p of filtered) {
+      lines.push([
+        p.name, p.price, p.sku ?? "", p.image_url ?? "",
+        (p.description ?? "").replace(/\s+/g, " ").trim(),
+        p.category ?? "", p.gtin ?? "", p.brand_name ?? "", p.stock ?? 0,
+        p.slug ?? "", p.is_active ? "true" : "false",
+      ].map(csvEscape).join(","));
+    }
+    downloadFile(`productos-${new Date().toISOString().slice(0, 10)}.csv`, lines.join("\n"));
+    toast({ title: "Exportado", description: `${filtered.length} productos descargados.` });
+  };
+
 
   const load = async () => {
     setLoading(true);
@@ -156,8 +201,28 @@ const ProductsSection = () => {
             Catálogo, metadatos para Google e importación desde sitios web.
           </p>
         </div>
-        <Button onClick={newProduct} size="lg" className="gap-2 shadow-lg shadow-primary/20">
-          <Plus className="h-4 w-4" /> Nuevo producto
+      </div>
+
+      {/* Toolbar de acciones */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <Button variant="outline" size="sm" onClick={downloadTemplate} className="gap-1.5">
+          <FileDown className="h-4 w-4" /> Plantilla CSV
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setTab("csv")} className="gap-1.5">
+          <FileUp className="h-4 w-4" /> Importar CSV
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => { setTab("import"); }} className="gap-1.5">
+          <LinkIcon className="h-4 w-4" /> Importar de URL (IA)
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => { setTab("import"); }} className="gap-1.5">
+          <Globe className="h-4 w-4" /> Importar desde sitio web (IA)
+        </Button>
+        <Button variant="outline" size="sm" onClick={exportCsv} className="gap-1.5" disabled={!products.length}>
+          <Download className="h-4 w-4" /> Exportar CSV
+        </Button>
+        <div className="flex-1" />
+        <Button onClick={newProduct} size="sm" className="gap-1.5 shadow-lg shadow-primary/20">
+          <Plus className="h-4 w-4" /> Nuevo
         </Button>
       </div>
 
@@ -177,6 +242,16 @@ const ProductsSection = () => {
           <TabsTrigger value="csv">Importar CSV</TabsTrigger>
           <TabsTrigger value="history">Historial</TabsTrigger>
         </TabsList>
+
+        {tab === "csv" && (
+          <Alert className="mt-3 bg-primary/5 border-primary/30">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertDescription className="text-xs">
+              💡 Descarga la <button onClick={downloadTemplate} className="underline text-primary font-medium">plantilla CSV</button>, llena los campos y súbela en "Importar CSV". Los nombres de columna deben mantenerse igual.
+            </AlertDescription>
+          </Alert>
+        )}
+
 
         <TabsContent value="catalog" className="space-y-4">
           <div className="flex items-center gap-3 flex-wrap">

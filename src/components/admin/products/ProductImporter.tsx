@@ -60,7 +60,7 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
   const { canImport, role, loading: roleLoading, isSuperAdmin } = useCanImportProducts();
 
   // ------- Input config -------
-  const [provider, setProvider] = useState<Provider>("firecrawl");
+  const [provider, setProvider] = useState<Provider>("jina");
   const [useAi, setUseAi] = useState(true);
 
   // ------- Map flow -------
@@ -282,11 +282,16 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         return merged;
       });
       onJobsChanged?.();
+      const usedProviders = Array.from(new Set(list.map((x: any) => x.provider_used).filter(Boolean)));
+      const fallbackUsed = usedProviders.length && !usedProviders.every((p) => p === provider);
+      const failuresMsg = data.failures?.length
+        ? ` · ${data.failures.length} URL(s) sin extraer`
+        : "";
       toast({
         title: list.length ? `${list.length} producto(s) en staging` : "Sin productos extraídos",
         description: list.length
-          ? "Revisa, enriquece con IA y publica."
-          : "Cambia de motor o activa la IA y reintenta.",
+          ? `${fallbackUsed ? `Extraído con ${usedProviders.join(", ")} (fallback). ` : ""}Revisa, enriquece con IA y publica.${failuresMsg}`
+          : "Cambia el motor a 'Jina Reader' o 'Microlink-style' (gratis) y reintenta.",
         variant: list.length ? "default" : "destructive",
       });
     } catch (e: any) {

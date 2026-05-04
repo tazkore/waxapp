@@ -18,10 +18,10 @@ export type Provider =
   | "diffbot"
   | "zenrows";
 
-const PROVIDERS: Array<{ id: Provider; label: string; hint: string }> = [
-  { id: "firecrawl", label: "Firecrawl", hint: "Recomendado · más preciso" },
-  { id: "readability", label: "Microlink-style (gratis)", hint: "Fetch directo + JSON-LD/OG" },
-  { id: "jina", label: "Jina Reader (gratis)", hint: "Sin API key" },
+const PROVIDERS: Array<{ id: Provider; label: string; hint: string; free?: boolean }> = [
+  { id: "jina", label: "Jina Reader", hint: "Sin API key · recomendado", free: true },
+  { id: "readability", label: "Microlink-style", hint: "Fetch directo + JSON-LD/OG", free: true },
+  { id: "firecrawl", label: "Firecrawl", hint: "Más preciso · requiere créditos" },
   { id: "diffbot", label: "Diffbot Product", hint: "Producto estructurado de alta calidad" },
   { id: "scrapfly", label: "Apify-style (Scrapfly)", hint: "Render JS + anti-bot" },
   { id: "browserless", label: "Browserless", hint: "Chrome headless con JS" },
