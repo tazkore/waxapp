@@ -602,13 +602,15 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
       if (currentJobId.current) {
         await supabase
           .from("import_jobs")
-          .update({ status: "completed", products_imported: rows.length })
+          .update({ status: failures.length && inserted === 0 ? "failed" : "completed", products_imported: inserted })
           .eq("id", currentJobId.current);
         onJobsChanged?.();
       }
       toast({
-        title: `✅ ${rows.length} productos publicados`,
-        description: `Quedan como borradores en el catálogo${retried ? ` (recuperado tras ${attempts} intentos)` : ""}.`,
+        title: `✅ ${inserted} productos publicados`,
+        description: failures.length
+          ? `${failures.length} fallaron. Primero: ${failures[0]}`
+          : "Quedan como borradores en el catálogo.",
       });
       setProducts([]);
       setSelectedP(new Set());
