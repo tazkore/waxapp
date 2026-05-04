@@ -65,22 +65,24 @@ const AutoImagePicker = ({ query, current, onPick, size = "sm", defaultOpen = fa
 
   return (
     <>
-      <Button
-        type="button"
-        size={size === "icon" ? "icon" : "sm"}
-        variant={current ? "ghost" : "outline"}
-        onClick={openDialog}
-        className="gap-1"
-        title="Buscar imagen automáticamente"
-      >
-        {size === "icon" ? <Sparkles className="h-4 w-4" /> : (
-          <>
-            <Sparkles className="h-3.5 w-3.5" /> {current ? "Cambiar" : "Buscar imagen"}
-          </>
-        )}
-      </Button>
+      {!hideTrigger && (
+        <Button
+          type="button"
+          size={size === "icon" ? "icon" : "sm"}
+          variant={current ? "ghost" : "outline"}
+          onClick={openDialog}
+          className="gap-1"
+          title="Buscar imagen automáticamente"
+        >
+          {size === "icon" ? <Sparkles className="h-4 w-4" /> : (
+            <>
+              <Sparkles className="h-3.5 w-3.5" /> {current ? "Cambiar" : "Buscar imagen"}
+            </>
+          )}
+        </Button>
+      )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
