@@ -29,7 +29,9 @@ import {
 
 const slugify = (s: string) =>
   s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 80);
+    .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 70) || "producto";
+
+const randSuffix = () => Math.random().toString(36).slice(2, 7);
 
 const isHttpUrl = (s: string) => {
   try {
@@ -320,7 +322,7 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
       errors: [],
       row: {
         name: name.slice(0, 200),
-        slug: slugify(name) || `producto-${Date.now()}-${idx}`,
+        slug: `${slugify(name)}-${randSuffix()}`,
         description,
         short_description: it?.short_description || (description ? description.slice(0, 160) : null),
         price: priceNum,
@@ -562,33 +564,53 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
       }
 
       toast({ title: `Insertando ${rows.length} productos…` });
-      const { error, attempts, retried } = await insertWithRetry("products", rows);
-      if (error) {
-        const msg = error.message || String(error);
-        if (isRlsError(error)) {
-          setRlsError(msg);
-          await logFailureToJob(`RLS denied (${attempts} attempts): ${msg}`);
-          toast({ title: "Sin permisos para importar", description: "Revisa el panel de error.", variant: "destructive" });
-        } else {
-          await logFailureToJob(`Insert failed after ${attempts} attempt(s): ${msg}`);
-          toast({
-            title: "Error al importar",
-            description: `${msg} (${attempts} intento${attempts > 1 ? "s" : ""})`,
-            variant: "destructive",
-          });
+      let inserted = 0;
+      const failures: string[] = [];
+      let firstRlsErr: any = null;
+      for (const row of rows) {
+        let attempt = 0;
+        let currentSlug: string = row.slug;
+        let lastErr: any = null;
+        while (attempt < 5) {
+          const { error } = await supabase.from("products").insert({ ...row, slug: currentSlug });
+          if (!error) { inserted++; lastErr = null; break; }
+          lastErr = error;
+          if (error.code === "23505" && /slug/i.test(error.message || "")) {
+            currentSlug = `${slugify(row.name)}-${randSuffix()}${randSuffix()}`;
+            attempt++;
+            continue;
+          }
+          break;
         }
+        if (lastErr) {
+          if (isRlsError(lastErr) && !firstRlsErr) firstRlsErr = lastErr;
+          failures.push(`${row.name}: ${lastErr.message || lastErr}`);
+        }
+      }
+      if (firstRlsErr) {
+        const msg = firstRlsErr.message || String(firstRlsErr);
+        setRlsError(msg);
+        await logFailureToJob(`RLS denied: ${msg}`);
+        toast({ title: "Sin permisos para importar", description: "Revisa el panel de error.", variant: "destructive" });
+        return;
+      }
+      if (inserted === 0 && failures.length) {
+        await logFailureToJob(`All inserts failed: ${failures[0]}`);
+        toast({ title: "Error al importar", description: failures[0], variant: "destructive" });
         return;
       }
       if (currentJobId.current) {
         await supabase
           .from("import_jobs")
-          .update({ status: "completed", products_imported: rows.length })
+          .update({ status: failures.length && inserted === 0 ? "failed" : "completed", products_imported: inserted })
           .eq("id", currentJobId.current);
         onJobsChanged?.();
       }
       toast({
-        title: `✅ ${rows.length} productos publicados`,
-        description: `Quedan como borradores en el catálogo${retried ? ` (recuperado tras ${attempts} intentos)` : ""}.`,
+        title: `✅ ${inserted} productos publicados`,
+        description: failures.length
+          ? `${failures.length} fallaron. Primero: ${failures[0]}`
+          : "Quedan como borradores en el catálogo.",
       });
       setProducts([]);
       setSelectedP(new Set());
