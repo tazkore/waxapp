@@ -97,7 +97,7 @@ const ProductsSection = () => {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Product | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
-  const [importerMode, setImporterMode] = useState<"single" | "bulk" | "map">("single");
+  
 
   const CSV_HEADERS = ["name", "price", "sku", "image_url", "description", "category", "gtin", "brand_name", "stock"];
 
