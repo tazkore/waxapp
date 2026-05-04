@@ -211,10 +211,10 @@ const ProductsSection = () => {
         <Button variant="outline" size="sm" onClick={() => setTab("csv")} className="gap-1.5">
           <FileUp className="h-4 w-4" /> Importar CSV
         </Button>
-        <Button variant="outline" size="sm" onClick={() => { setImporterMode("single"); setTab("import"); }} className="gap-1.5">
+        <Button variant="outline" size="sm" onClick={() => { setTab("import"); }} className="gap-1.5">
           <LinkIcon className="h-4 w-4" /> Importar de URL (IA)
         </Button>
-        <Button variant="outline" size="sm" onClick={() => { setImporterMode("map"); setTab("import"); }} className="gap-1.5">
+        <Button variant="outline" size="sm" onClick={() => { setTab("import"); }} className="gap-1.5">
           <Globe className="h-4 w-4" /> Importar desde sitio web (IA)
         </Button>
         <Button variant="outline" size="sm" onClick={exportCsv} className="gap-1.5" disabled={!products.length}>
