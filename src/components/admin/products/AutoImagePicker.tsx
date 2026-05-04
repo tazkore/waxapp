@@ -25,6 +25,19 @@ const AutoImagePicker = ({ query, current, onPick, size = "sm", defaultOpen = fa
   const [images, setImages] = useState<string[]>([]);
   const [source, setSource] = useState<string>("");
 
+  // Auto-search on mount when defaultOpen is set
+  React.useEffect(() => {
+    if (defaultOpen && !images.length && !busy) {
+      search();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultOpen]);
+
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v);
+    if (!v) onClose?.();
+  };
+
   const search = async () => {
     setBusy(true);
     setImages([]);
