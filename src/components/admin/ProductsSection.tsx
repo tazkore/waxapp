@@ -97,6 +97,50 @@ const ProductsSection = () => {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Product | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
+  const [importerMode, setImporterMode] = useState<"single" | "bulk" | "map">("single");
+
+  const CSV_HEADERS = ["name", "price", "sku", "image_url", "description", "category", "gtin", "brand_name", "stock"];
+
+  const csvEscape = (v: any) => {
+    if (v == null) return "";
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  const downloadFile = (filename: string, content: string, mime = "text/csv;charset=utf-8") => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadTemplate = () => {
+    const example = ["Vape Pen Starter", "499", "VP-001", "https://ejemplo.com/img.jpg", "Descripción breve", "Vapes", "1234567890123", "Mi Marca", "10"];
+    const csv = CSV_HEADERS.join(",") + "\n" + example.map(csvEscape).join(",") + "\n";
+    downloadFile("productos-plantilla.csv", csv);
+    toast({ title: "Plantilla descargada", description: "Llena las columnas y súbela en 'Importar CSV'." });
+  };
+
+  const exportCsv = () => {
+    const headers = [...CSV_HEADERS, "slug", "is_active"];
+    const lines = [headers.join(",")];
+    for (const p of filtered) {
+      lines.push([
+        p.name, p.price, p.sku ?? "", p.image_url ?? "",
+        (p.description ?? "").replace(/\s+/g, " ").trim(),
+        p.category ?? "", p.gtin ?? "", p.brand_name ?? "", p.stock ?? 0,
+        p.slug ?? "", p.is_active ? "true" : "false",
+      ].map(csvEscape).join(","));
+    }
+    downloadFile(`productos-${new Date().toISOString().slice(0, 10)}.csv`, lines.join("\n"));
+    toast({ title: "Exportado", description: `${filtered.length} productos descargados.` });
+  };
+
 
   const load = async () => {
     setLoading(true);
