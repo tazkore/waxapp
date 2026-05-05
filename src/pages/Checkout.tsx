@@ -36,11 +36,15 @@ const Checkout = () => {
     name: '', email: '', phone: '', address: '', address2: '', city: '', state: '', postalCode: '', country: 'México',
   });
   const [cpLoading, setCpLoading] = useState(false);
+  const cpDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cpLastLookupRef = useRef<string>('');
 
-  // Auto-complete city/state from Mexican postal code (CP)
+  // Auto-complete city/state from Mexican postal code (CP) — debounced
   const lookupPostalCode = async (cp: string) => {
     const clean = cp.replace(/\D/g, '');
     if (clean.length !== 5) return;
+    if (cpLastLookupRef.current === clean) return; // avoid duplicate fetch
+    cpLastLookupRef.current = clean;
     setCpLoading(true);
     try {
       const res = await fetch(`https://api.zippopotam.us/mx/${clean}`);
@@ -55,11 +59,24 @@ const Checkout = () => {
         }));
       }
     } catch {
+      cpLastLookupRef.current = ''; // allow retry on failure
       toast({ title: 'Código postal no encontrado', description: 'Completa ciudad y estado manualmente.', variant: 'destructive' });
     } finally {
       setCpLoading(false);
     }
   };
+
+  const scheduleCpLookup = (cp: string) => {
+    if (cpDebounceRef.current) clearTimeout(cpDebounceRef.current);
+    const clean = cp.replace(/\D/g, '');
+    if (clean.length !== 5) return;
+    cpDebounceRef.current = setTimeout(() => lookupPostalCode(clean), 400);
+  };
+
+  useEffect(() => () => {
+    if (cpDebounceRef.current) clearTimeout(cpDebounceRef.current);
+  }, []);
+
   const [shippingMethod, setShippingMethod] = useState('standard');
   const [paymentMethod, setPaymentMethod] = useState('card');
 
