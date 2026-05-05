@@ -580,9 +580,9 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
       const existingNames = new Set<string>();
       try {
         const queries: Promise<any>[] = [];
-        if (skus.length) queries.push(supabase.from("products").select("sku").in("sku", skus));
-        if (canonicals.length) queries.push(supabase.from("products").select("canonical_url").in("canonical_url", canonicals));
-        if (names.length) queries.push(supabase.from("products").select("name").in("name", names));
+        if (skus.length) queries.push(Promise.resolve(supabase.from("products").select("sku").in("sku", skus)));
+        if (canonicals.length) queries.push(Promise.resolve(supabase.from("products").select("canonical_url").in("canonical_url", canonicals)));
+        if (names.length) queries.push(Promise.resolve(supabase.from("products").select("name").in("name", names)));
         const results = await Promise.all(queries);
         let idx = 0;
         if (skus.length) { (results[idx++]?.data || []).forEach((r: any) => r.sku && existingSkus.add(String(r.sku))); }
