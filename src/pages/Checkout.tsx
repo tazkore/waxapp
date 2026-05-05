@@ -341,24 +341,44 @@ const Checkout = () => {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-foreground">Dirección *</Label>
-                    <Input value={shipping.address} onChange={e => setShipping({...shipping, address: e.target.value})} className="bg-muted border-border" placeholder="Calle y número" />
+                    <Input value={shipping.address} onChange={e => setShipping({...shipping, address: e.target.value})} className="bg-muted border-border" placeholder="Calle y número exterior" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-foreground">Número interior / Colonia / Referencias</Label>
+                    <Input value={shipping.address2} onChange={e => setShipping({...shipping, address2: e.target.value})} className="bg-muted border-border" placeholder="Int. 4, Col. Roma Norte, entre calles..." />
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-foreground">Ciudad</Label>
+                      <Label className="text-foreground">C.P. *</Label>
+                      <div className="relative">
+                        <Input
+                          value={shipping.postalCode}
+                          onChange={e => {
+                            const v = e.target.value.replace(/\D/g, '').slice(0, 5);
+                            setShipping({...shipping, postalCode: v});
+                            if (v.length === 5) lookupPostalCode(v);
+                          }}
+                          onBlur={e => lookupPostalCode(e.target.value)}
+                          className="bg-muted border-border"
+                          placeholder="06700"
+                          inputMode="numeric"
+                          maxLength={5}
+                          required
+                        />
+                        {cpLoading && <Loader2 className="h-4 w-4 animate-spin absolute right-2 top-3 text-muted-foreground" />}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-foreground">Ciudad *</Label>
                       <Input value={shipping.city} onChange={e => setShipping({...shipping, city: e.target.value})} className="bg-muted border-border" />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-foreground">Estado</Label>
+                      <Label className="text-foreground">Estado *</Label>
                       <Input value={shipping.state} onChange={e => setShipping({...shipping, state: e.target.value})} className="bg-muted border-border" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-foreground">C.P.</Label>
-                      <Input value={shipping.postalCode} onChange={e => setShipping({...shipping, postalCode: e.target.value})} className="bg-muted border-border" />
                     </div>
                   </div>
                   <div className="pt-4 flex justify-end">
-                    <Button onClick={() => setStep(2)} disabled={!shipping.name || !shipping.email || !shipping.address} className="gap-2">
+                    <Button onClick={() => setStep(2)} disabled={!shipping.name || !shipping.email || !shipping.address || !shipping.postalCode || shipping.postalCode.length !== 5 || !shipping.city || !shipping.state} className="gap-2">
                       Continuar <ArrowRight className="h-4 w-4" />
                     </Button>
                   </div>
