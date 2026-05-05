@@ -33,8 +33,33 @@ const Checkout = () => {
   const cardFormRef = useRef<HTMLFormElement>(null);
 
   const [shipping, setShipping] = useState({
-    name: '', email: '', phone: '', address: '', city: '', state: '', postalCode: '', country: 'México',
+    name: '', email: '', phone: '', address: '', address2: '', city: '', state: '', postalCode: '', country: 'México',
   });
+  const [cpLoading, setCpLoading] = useState(false);
+
+  // Auto-complete city/state from Mexican postal code (CP)
+  const lookupPostalCode = async (cp: string) => {
+    const clean = cp.replace(/\D/g, '');
+    if (clean.length !== 5) return;
+    setCpLoading(true);
+    try {
+      const res = await fetch(`https://api.zippopotam.us/mx/${clean}`);
+      if (!res.ok) throw new Error('CP no encontrado');
+      const data = await res.json();
+      const place = data?.places?.[0];
+      if (place) {
+        setShipping(prev => ({
+          ...prev,
+          city: prev.city || place['place name'] || '',
+          state: prev.state || place['state'] || '',
+        }));
+      }
+    } catch {
+      toast({ title: 'Código postal no encontrado', description: 'Completa ciudad y estado manualmente.', variant: 'destructive' });
+    } finally {
+      setCpLoading(false);
+    }
+  };
   const [shippingMethod, setShippingMethod] = useState('standard');
   const [paymentMethod, setPaymentMethod] = useState('card');
 
