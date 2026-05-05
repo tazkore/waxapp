@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Trash2, ShoppingBag, HelpCircle } from 'lucide-react';
+import { X, Trash2, ShoppingBag, HelpCircle, Minus, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/store/cartStore';
 import CartOnboarding, { hasSeenCartOnboarding } from './CartOnboarding';
