@@ -570,11 +570,67 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
         return;
       }
 
-      toast({ title: `Insertando ${rows.length} productos…` });
+      // ---- Pre-filtrar duplicados contra el catálogo existente ----
+      // Buscamos por SKU, canonical_url o nombre exacto para evitar reinsertar.
+      const skus = Array.from(new Set(rows.map((r) => r.sku).filter(Boolean)));
+      const canonicals = Array.from(new Set(rows.map((r) => r.canonical_url).filter(Boolean)));
+      const names = Array.from(new Set(rows.map((r) => r.name).filter(Boolean)));
+      const existingSkus = new Set<string>();
+      const existingCanonicals = new Set<string>();
+      const existingNames = new Set<string>();
+      try {
+        const queries: Promise<any>[] = [];
+        if (skus.length) queries.push(Promise.resolve(supabase.from("products").select("sku").in("sku", skus)));
+        if (canonicals.length) queries.push(Promise.resolve(supabase.from("products").select("canonical_url").in("canonical_url", canonicals)));
+        if (names.length) queries.push(Promise.resolve(supabase.from("products").select("name").in("name", names)));
+        const results = await Promise.all(queries);
+        let idx = 0;
+        if (skus.length) { (results[idx++]?.data || []).forEach((r: any) => r.sku && existingSkus.add(String(r.sku))); }
+        if (canonicals.length) { (results[idx++]?.data || []).forEach((r: any) => r.canonical_url && existingCanonicals.add(String(r.canonical_url))); }
+        if (names.length) { (results[idx++]?.data || []).forEach((r: any) => r.name && existingNames.add(String(r.name).toLowerCase())); }
+      } catch (e) {
+        console.warn("dedup precheck failed", e);
+      }
+
+      const toInsert: any[] = [];
+      let skipped = 0;
+      for (const r of rows) {
+        const dup =
+          (r.sku && existingSkus.has(String(r.sku))) ||
+          (r.canonical_url && existingCanonicals.has(String(r.canonical_url))) ||
+          (r.name && existingNames.has(String(r.name).toLowerCase()));
+        if (dup) { skipped++; continue; }
+        toInsert.push(r);
+      }
+
+      if (skipped > 0) {
+        toast({
+          title: `${skipped} ya existían en el catálogo`,
+          description: "Se omitieron para no duplicar.",
+        });
+      }
+
+      if (!toInsert.length) {
+        toast({ title: "Nada nuevo que importar", description: "Todos los productos ya existen en el catálogo." });
+        if (currentJobId.current) {
+          await supabase
+            .from("import_jobs")
+            .update({ status: "completed", products_imported: 0, error: `Todos duplicados (${skipped} omitidos)` })
+            .eq("id", currentJobId.current);
+          onJobsChanged?.();
+        }
+        setProducts([]);
+        setSelectedP(new Set());
+        currentJobId.current = null;
+        setBusy(null);
+        return;
+      }
+
+      toast({ title: `Insertando ${toInsert.length} productos nuevos…` });
       let inserted = 0;
       const failures: string[] = [];
       let firstRlsErr: any = null;
-      for (const row of rows) {
+      for (const row of toInsert) {
         let attempt = 0;
         let currentSlug: string = row.slug;
         let lastErr: any = null;
@@ -587,6 +643,8 @@ const ProductImporter = ({ onImported, onSwitchToCatalog, onJobsChanged }: Props
             attempt++;
             continue;
           }
+          // Otra unique violation (sku/canonical) → tratar como duplicado, no fallo
+          if (error.code === "23505") { skipped++; lastErr = null; break; }
           break;
         }
         if (lastErr) {
