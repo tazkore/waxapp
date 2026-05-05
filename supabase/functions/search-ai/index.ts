@@ -12,10 +12,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { query } = await req.json();
+    const { query } = await req.json().catch(() => ({ query: "" }));
     if (!query || typeof query !== "string" || query.trim().length < 2) {
-      return new Response(JSON.stringify({ error: "Query too short" }), {
-        status: 400,
+      return new Response(JSON.stringify({ results: [], answer: "" }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
