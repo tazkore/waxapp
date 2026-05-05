@@ -6,7 +6,7 @@ import { useCartStore } from '@/store/cartStore';
 import CartOnboarding, { hasSeenCartOnboarding } from './CartOnboarding';
 
 const CartDrawer = () => {
-  const { items, isOpen, setCartOpen, removeItem, subtotal } = useCartStore();
+  const { items, isOpen, setCartOpen, removeItem, updateQuantity, subtotal } = useCartStore();
   const navigate = useNavigate();
   const total = subtotal();
   const [showOnboarding, setShowOnboarding] = useState(false);
