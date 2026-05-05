@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Trash2, ShoppingBag, HelpCircle } from 'lucide-react';
+import { X, Trash2, ShoppingBag, HelpCircle, Minus, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/store/cartStore';
 import CartOnboarding, { hasSeenCartOnboarding } from './CartOnboarding';
 
 const CartDrawer = () => {
-  const { items, isOpen, setCartOpen, removeItem, subtotal } = useCartStore();
+  const { items, isOpen, setCartOpen, removeItem, updateQuantity, subtotal } = useCartStore();
   const navigate = useNavigate();
   const total = subtotal();
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -73,22 +73,56 @@ const CartDrawer = () => {
                   </div>
                 ) : (
                   <ul className="space-y-4">
-                    {items.map((item) => (
-                      <li key={item.id} className="flex items-center gap-4 rounded-lg border border-border bg-muted p-3">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-md bg-accent">
-                          <span className="text-xs text-muted-foreground">WAX</span>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {item.quantity} × ${item.price.toLocaleString()}
-                          </p>
-                        </div>
-                        <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive" aria-label="Eliminar">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </li>
-                    ))}
+                    {items.map((item) => {
+                      const key = `${item.id}::${item.selectedVariant ?? ''}`;
+                      return (
+                        <li key={key} className="flex items-center gap-3 rounded-lg border border-border bg-muted p-3">
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-accent">
+                            {item.image ? (
+                              <img src={item.image} alt={item.title} className="h-full w-full object-cover" />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">WAX</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="truncate text-sm font-semibold text-foreground">{item.title}</p>
+                            {item.selectedVariant && (
+                              <p className="text-xs text-muted-foreground">{item.selectedVariant}</p>
+                            )}
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              ${item.price.toLocaleString()} c/u
+                            </p>
+                            <div className="mt-2 flex items-center gap-2">
+                              <button
+                                onClick={() => updateQuantity(key, item.quantity - 1)}
+                                className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-foreground hover:bg-accent disabled:opacity-50"
+                                aria-label="Disminuir"
+                                disabled={item.quantity <= 1}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </button>
+                              <span className="min-w-[1.5rem] text-center text-sm font-medium text-foreground">
+                                {item.quantity}
+                              </span>
+                              <button
+                                onClick={() => updateQuantity(key, item.quantity + 1)}
+                                className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-foreground hover:bg-accent"
+                                aria-label="Aumentar"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => removeItem(key)}
+                            className="self-start text-muted-foreground hover:text-destructive"
+                            aria-label="Eliminar"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>

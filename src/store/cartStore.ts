@@ -87,8 +87,12 @@ export const useCartStore = create<CartState>()(
           sync();
         },
         removeItem: (id) => {
+          // `id` may be a plain product id OR a composite "id::variant" key.
           set((state) => ({
-            items: state.items.filter((i) => i.id !== id || (i.selectedVariant && `${i.id}-${i.selectedVariant}` !== id)),
+            items: state.items.filter((i) => {
+              const composite = `${i.id}::${i.selectedVariant ?? ''}`;
+              return composite !== id && i.id !== id;
+            }),
           }));
           sync();
         },
@@ -96,8 +100,14 @@ export const useCartStore = create<CartState>()(
           set((state) => ({
             items:
               quantity <= 0
-                ? state.items.filter((i) => i.id !== id)
-                : state.items.map((i) => (i.id === id ? { ...i, quantity } : i)),
+                ? state.items.filter((i) => {
+                    const composite = `${i.id}::${i.selectedVariant ?? ''}`;
+                    return composite !== id && i.id !== id;
+                  })
+                : state.items.map((i) => {
+                    const composite = `${i.id}::${i.selectedVariant ?? ''}`;
+                    return composite === id || i.id === id ? { ...i, quantity } : i;
+                  }),
           }));
           sync();
         },
