@@ -373,7 +373,7 @@ const Checkout = () => {
                           onChange={e => {
                             const v = e.target.value.replace(/\D/g, '').slice(0, 5);
                             setShipping({...shipping, postalCode: v});
-                            if (v.length === 5) lookupPostalCode(v);
+                            if (v.length === 5) scheduleCpLookup(v);
                           }}
                           onBlur={e => lookupPostalCode(e.target.value)}
                           className="bg-muted border-border"
