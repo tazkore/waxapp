@@ -544,30 +544,25 @@ const Checkout = () => {
           <div className="lg:col-span-1">
             <div className="rounded-xl border border-border bg-card p-6 sticky top-24 space-y-4">
               <h3 className="font-bold text-foreground">Resumen del Pedido</h3>
-              <div className="space-y-3 max-h-60 overflow-y-auto">
-                {items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <div>
-                      <p className="text-foreground">{item.title} x{item.quantity}</p>
-                      {item.selectedVariant && <p className="text-xs text-muted-foreground">{item.selectedVariant}</p>}
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                {items.map((item) => {
+                  const k = `${item.id}::${item.selectedVariant ?? ''}`;
+                  return (
+                    <div key={k} className="flex justify-between text-sm">
+                      <div>
+                        <p className="text-foreground">{item.title} x{item.quantity}</p>
+                        {item.selectedVariant && <p className="text-xs text-muted-foreground">{item.selectedVariant}</p>}
+                      </div>
+                      <span className="text-foreground">${(item.price * item.quantity).toLocaleString()}</span>
                     </div>
-                    <span className="text-foreground">${(item.price * item.quantity).toLocaleString()}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              <div className="border-t border-border pt-3 space-y-2 text-sm">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Subtotal</span>
-                  <span>${subtotal().toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Envío</span>
-                  <span>{shippingCost === 0 ? 'Gratis' : `$${shippingCost}`}</span>
-                </div>
-                <div className="flex justify-between text-lg font-bold text-foreground pt-2 border-t border-border">
-                  <span>Total</span>
-                  <span>${total.toLocaleString()} MXN</span>
-                </div>
+              <div className="border-t border-border pt-3">
+                <OrderSummary />
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Envío seleccionado: <strong className="text-foreground">${shippingCost.toLocaleString()} MXN</strong> (paso 2). Total con envío: <strong className="text-foreground">${total.toLocaleString()} MXN</strong>
+                </p>
               </div>
             </div>
           </div>
