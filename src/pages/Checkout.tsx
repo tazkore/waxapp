@@ -283,8 +283,20 @@ const Checkout = () => {
         },
       }).catch(() => {});
 
+      const snapshot = items.map((i) => ({
+        id: i.id,
+        title: i.title,
+        quantity: i.quantity,
+        price: i.price,
+        selectedVariant: i.selectedVariant,
+      }));
+      const finalTotal = serverTotal ?? total;
       clearCart();
-      setConfirmed(true);
+      navigate('/orden-completada', {
+        state: { orderNumber: num, items: snapshot, total: finalTotal, email: shipping.email },
+        replace: true,
+      });
+      return;
     } catch (e: any) {
       console.error('Order/Payment error:', e);
       setPaymentError(e.message || 'Ocurrió un error al procesar tu pedido.');
@@ -293,33 +305,6 @@ const Checkout = () => {
 
     setLoading(false);
   };
-
-  if (confirmed) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[80vh]">
-          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center space-y-6 max-w-md mx-auto p-8">
-            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto">
-              <Check className="h-10 w-10 text-primary" />
-            </div>
-            <h1 className="text-3xl font-display font-bold text-foreground">¡Orden Confirmada!</h1>
-            <p className="text-muted-foreground">Tu pedido ha sido procesado exitosamente.</p>
-            <div className="rounded-xl border border-primary/30 bg-primary/5 p-6">
-              <p className="text-sm text-muted-foreground">Número de orden</p>
-              <p className="text-3xl font-mono font-bold text-primary mt-1">{orderNumber}</p>
-            </div>
-            <p className="text-sm text-muted-foreground">Recibirás un correo de confirmación a <strong className="text-foreground">{shipping.email}</strong></p>
-            <div className="flex gap-3 justify-center pt-4">
-              <Button variant="outline" onClick={() => navigate('/')}>Seguir Comprando</Button>
-              <Button onClick={() => navigate('/mi-cuenta')}>Ver Mis Pedidos</Button>
-            </div>
-          </motion.div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
