@@ -4,16 +4,15 @@ import { X, Trash2, ShoppingBag, HelpCircle, Minus, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useCartStore } from '@/store/cartStore';
+import OrderSummary from './OrderSummary';
 import CartOnboarding, { hasSeenCartOnboarding } from './CartOnboarding';
 
 const MAX_QTY = 99;
 
 const CartDrawer = () => {
-  const { items, isOpen, setCartOpen, removeItem, updateQuantity, addItem, subtotal, totalItems } = useCartStore();
+  const { items, isOpen, setCartOpen, removeItem, updateQuantity, addItem, totalItems } = useCartStore();
   const navigate = useNavigate();
-  const total = subtotal();
   const count = totalItems();
-  const shippingEstimate = items.length > 0 ? 99 : 0;
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
