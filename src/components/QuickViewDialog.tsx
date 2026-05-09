@@ -33,9 +33,9 @@ const QuickViewDialog = ({ product, open, onOpenChange }: QuickViewDialogProps) 
   const img = (product as any).image_url;
 
   const benefitsList = (product.benefits ?? '')
-    .split(/\r?\n|•|\.|·/)
+    .split(/[,\n;•·]+/)
     .map((s) => s.trim())
-    .filter((s) => s.length > 4)
+    .filter((s) => s.length >= 3 && /[a-záéíóúñ]/i.test(s))
     .slice(0, 5);
 
   const add = () => {
@@ -83,8 +83,15 @@ const QuickViewDialog = ({ product, open, onOpenChange }: QuickViewDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl p-0 overflow-hidden bg-card border-border">
-        <button onClick={() => onOpenChange(false)} className="absolute right-3 top-3 z-10 rounded-full bg-background/80 p-1.5 hover:bg-background"><X className="h-4 w-4" /></button>
+      <DialogContent
+        className="max-w-3xl p-0 overflow-hidden bg-card border-border"
+        aria-describedby="quickview-desc"
+      >
+        <button
+          onClick={() => onOpenChange(false)}
+          className="absolute right-3 top-3 z-10 rounded-full bg-background/80 p-1.5 hover:bg-background"
+          aria-label="Cerrar vista rápida del producto"
+        ><X className="h-4 w-4" /></button>
         <div className="grid md:grid-cols-2">
           <div
             ref={imgRef}
@@ -110,7 +117,7 @@ const QuickViewDialog = ({ product, open, onOpenChange }: QuickViewDialogProps) 
           <div className="p-6 flex flex-col max-h-[80vh] overflow-y-auto">
             <span className="text-xs font-semibold uppercase tracking-widest text-primary">{product.category}</span>
             <h2 className="font-display text-2xl font-bold text-foreground mt-1">{product.title}</h2>
-            {product.description && <p className="text-sm text-muted-foreground mt-2">{product.description}</p>}
+            {product.description && <p id="quickview-desc" className="text-sm text-muted-foreground mt-2">{product.description}</p>}
             <div className="text-2xl font-bold text-foreground mt-4">${currentPrice.toLocaleString()} <span className="text-sm text-muted-foreground font-normal">MXN</span></div>
 
             {hasVariants && (
@@ -121,6 +128,8 @@ const QuickViewDialog = ({ product, open, onOpenChange }: QuickViewDialogProps) 
                     <button
                       key={v.name}
                       onClick={() => setVariant(v.name)}
+                      aria-label={`Seleccionar variante ${v.name}`}
+                      aria-pressed={variant === v.name}
                       className={`px-3 py-1.5 rounded-md text-xs border transition ${
                         variant === v.name ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-foreground/30'
                       }`}
