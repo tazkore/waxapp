@@ -153,6 +153,7 @@ export const useCartStore = create<CartState>()(
     },
     {
       name: 'wax-cart-storage',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ items: state.items }),
     }
