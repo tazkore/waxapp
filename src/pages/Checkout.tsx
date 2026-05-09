@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import OrderSummary from '@/components/OrderSummary';
 
 
 
@@ -22,7 +23,7 @@ const steps = [
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, subtotal, clearCart } = useCartStore();
+  const { items, subtotal, clearCart, discountCode, discountAmount, shippingCost: storeShipping, total: storeTotal } = useCartStore();
   const [step, setStep] = useState(1);
   const [confirmed, setConfirmed] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
@@ -132,7 +133,9 @@ const Checkout = () => {
   }
 
   const shippingCost = shippingMethod === 'express' ? 250 : shippingMethod === 'standard' ? 99 : 0;
-  const total = subtotal() + shippingCost;
+  const sub = subtotal();
+  const totalAfterDiscount = Math.max(0, sub - discountAmount);
+  const total = totalAfterDiscount + shippingCost;
 
   if (items.length === 0 && !confirmed) {
     return (
@@ -166,6 +169,8 @@ const Checkout = () => {
             variant: i.selectedVariant,
           })),
           shipping_method: shippingMethod,
+          discount_code: discountCode || undefined,
+          discount_amount: discountAmount || undefined,
         },
       });
 
@@ -279,8 +284,20 @@ const Checkout = () => {
         },
       }).catch(() => {});
 
+      const snapshot = items.map((i) => ({
+        id: i.id,
+        title: i.title,
+        quantity: i.quantity,
+        price: i.price,
+        selectedVariant: i.selectedVariant,
+      }));
+      const finalTotal = serverTotal ?? total;
       clearCart();
-      setConfirmed(true);
+      navigate('/orden-completada', {
+        state: { orderNumber: num, items: snapshot, total: finalTotal, email: shipping.email },
+        replace: true,
+      });
+      return;
     } catch (e: any) {
       console.error('Order/Payment error:', e);
       setPaymentError(e.message || 'Ocurrió un error al procesar tu pedido.');
@@ -289,33 +306,6 @@ const Checkout = () => {
 
     setLoading(false);
   };
-
-  if (confirmed) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[80vh]">
-          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center space-y-6 max-w-md mx-auto p-8">
-            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto">
-              <Check className="h-10 w-10 text-primary" />
-            </div>
-            <h1 className="text-3xl font-display font-bold text-foreground">¡Orden Confirmada!</h1>
-            <p className="text-muted-foreground">Tu pedido ha sido procesado exitosamente.</p>
-            <div className="rounded-xl border border-primary/30 bg-primary/5 p-6">
-              <p className="text-sm text-muted-foreground">Número de orden</p>
-              <p className="text-3xl font-mono font-bold text-primary mt-1">{orderNumber}</p>
-            </div>
-            <p className="text-sm text-muted-foreground">Recibirás un correo de confirmación a <strong className="text-foreground">{shipping.email}</strong></p>
-            <div className="flex gap-3 justify-center pt-4">
-              <Button variant="outline" onClick={() => navigate('/')}>Seguir Comprando</Button>
-              <Button onClick={() => navigate('/mi-cuenta')}>Ver Mis Pedidos</Button>
-            </div>
-          </motion.div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -555,30 +545,25 @@ const Checkout = () => {
           <div className="lg:col-span-1">
             <div className="rounded-xl border border-border bg-card p-6 sticky top-24 space-y-4">
               <h3 className="font-bold text-foreground">Resumen del Pedido</h3>
-              <div className="space-y-3 max-h-60 overflow-y-auto">
-                {items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <div>
-                      <p className="text-foreground">{item.title} x{item.quantity}</p>
-                      {item.selectedVariant && <p className="text-xs text-muted-foreground">{item.selectedVariant}</p>}
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                {items.map((item) => {
+                  const k = `${item.id}::${item.selectedVariant ?? ''}`;
+                  return (
+                    <div key={k} className="flex justify-between text-sm">
+                      <div>
+                        <p className="text-foreground">{item.title} x{item.quantity}</p>
+                        {item.selectedVariant && <p className="text-xs text-muted-foreground">{item.selectedVariant}</p>}
+                      </div>
+                      <span className="text-foreground">${(item.price * item.quantity).toLocaleString()}</span>
                     </div>
-                    <span className="text-foreground">${(item.price * item.quantity).toLocaleString()}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              <div className="border-t border-border pt-3 space-y-2 text-sm">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Subtotal</span>
-                  <span>${subtotal().toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Envío</span>
-                  <span>{shippingCost === 0 ? 'Gratis' : `$${shippingCost}`}</span>
-                </div>
-                <div className="flex justify-between text-lg font-bold text-foreground pt-2 border-t border-border">
-                  <span>Total</span>
-                  <span>${total.toLocaleString()} MXN</span>
-                </div>
+              <div className="border-t border-border pt-3">
+                <OrderSummary />
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Envío seleccionado: <strong className="text-foreground">${shippingCost.toLocaleString()} MXN</strong> (paso 2). Total con envío: <strong className="text-foreground">${total.toLocaleString()} MXN</strong>
+                </p>
               </div>
             </div>
           </div>

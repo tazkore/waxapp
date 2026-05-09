@@ -1,6 +1,68 @@
 import { Product } from '@/store/cartStore';
 
+export const FEATURED_BRANDS = ['Neshika', 'Muha Meds', 'Pulse THC', 'WAXAPP', 'Ace Ultra'] as const;
+
 export const products: Product[] = [
+  {
+    id: 'evp1',
+    title: 'Muha Meds 2gr',
+    category: 'Hardware',
+    brand: 'Muha Meds',
+    price: 420,
+    description: 'Disposable Muha Meds 2gr de extracto premium. Acabado mate y batería recargable.',
+    variants: [
+      { name: 'Sativa', price: 420 },
+      { name: 'Indica', price: 420 },
+    ],
+    benefits: 'Batería recargable USB-C. 2 gramos de extracto premium. Sabor consistente de inicio a fin.',
+    usage: 'Inhala suavemente 2-3 segundos. Recarga al 20%. Almacena vertical y temperatura ambiente.',
+    legal: 'Producto legal con menos de 0.3% THC. Solo mayores de 18 años.',
+  },
+  {
+    id: 'evp2',
+    title: 'Pulse THC Pod',
+    category: 'Hardware',
+    brand: 'Pulse THC',
+    price: 350,
+    description: 'Pod recargable Pulse THC con cerámica de grado médico. Compatible con baterías 510.',
+    variants: [
+      { name: '1g', price: 350 },
+      { name: '2g', price: 620 },
+    ],
+    benefits: 'Bobina cerámica de grado médico. Vapor puro y sabor intenso. Capacidad ajustable.',
+    usage: 'Enroscar en batería 510. Comenzar con voltaje bajo. Caladas de 3-5 segundos.',
+    legal: 'Cumple regulaciones federales aplicables. Uso exclusivo para mayores de 18 años.',
+  },
+  {
+    id: 'evp3',
+    title: 'Neshika Premium Extract',
+    category: 'Nano-Tech',
+    brand: 'Neshika',
+    price: 500,
+    description: 'Extracto premium Neshika con perfil completo de terpenos. Producción artesanal.',
+    variants: [
+      { name: 'Hybrid', price: 500 },
+    ],
+    benefits: 'Extracción a baja temperatura. Perfil completo de terpenos. Sin solventes residuales.',
+    usage: 'Dosis sugerida: cantidad pequeña (rice grain). Calentar dispositivo a 320–360°F.',
+    legal: 'Producto bajo marco legal vigente. Verificar normativa local. +18.',
+  },
+  {
+    id: 'wx1',
+    title: 'Waxapp Nano Drops',
+    category: 'Nano-Tech',
+    brand: 'WAXAPP',
+    price: 950,
+    badge: 'Nuevo',
+    description: 'Gotas nano-tecnológicas WAXAPP con absorción 5x más rápida.',
+    variants: [
+      { name: 'Sleep', price: 950 },
+      { name: 'Focus', price: 950 },
+    ],
+    benefits: 'Nano-emulsión para absorción rápida. Sin sabor residual. Efecto en menos de 15 minutos.',
+    usage: '1ml sublingual, mantener 60s antes de tragar. No exceder 2ml diarios.',
+    legal: 'Producto 100% legal derivado de cáñamo industrial. NOM-051 compliant.',
+  },
   {
     id: '1',
     title: 'Cannesh Sleep Drops',

@@ -20,7 +20,10 @@ export interface Product {
   benefits?: string;
   usage?: string;
   legal?: string;
+  brand?: string;
 }
+
+export const FREE_SHIPPING_THRESHOLD = 1500;
 
 interface CartItem extends Product {
   quantity: number;
@@ -30,6 +33,11 @@ interface CartItem extends Product {
 interface CartState {
   items: CartItem[];
   isOpen: boolean;
+  discountCode: string | null;
+  discountAmount: number;
+  discountType: 'percentage' | 'fixed' | null;
+  discountError: string | null;
+  discountLoading: boolean;
   addItem: (product: Product, quantity?: number, variant?: string) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -38,6 +46,10 @@ interface CartState {
   setCartOpen: (open: boolean) => void;
   totalItems: () => number;
   subtotal: () => number;
+  shippingCost: () => number;
+  total: () => number;
+  applyDiscount: (code: string) => Promise<boolean>;
+  clearDiscount: () => void;
   syncWithServer: (userId: string) => Promise<void>;
   pushToServer: (userId: string) => Promise<void>;
 }
@@ -114,13 +126,58 @@ export const useCartStore = create<CartState>()(
           sync();
         },
         clearCart: () => {
-          set({ items: [] });
+          set({ items: [], discountCode: null, discountAmount: 0, discountType: null, discountError: null });
           sync();
         },
         toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
         setCartOpen: (open) => set({ isOpen: open }),
         totalItems: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
         subtotal: () => get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
+        shippingCost: () => {
+          const sub = get().items.reduce((s, i) => s + i.price * i.quantity, 0);
+          const disc = get().discountAmount || 0;
+          if (sub === 0) return 0;
+          return sub - disc >= FREE_SHIPPING_THRESHOLD ? 0 : 99;
+        },
+        total: () => {
+          const sub = get().items.reduce((s, i) => s + i.price * i.quantity, 0);
+          const disc = get().discountAmount || 0;
+          const ship = sub === 0 ? 0 : (sub - disc >= FREE_SHIPPING_THRESHOLD ? 0 : 99);
+          return Math.max(0, sub - disc) + ship;
+        },
+        discountCode: null,
+        discountAmount: 0,
+        discountType: null,
+        discountError: null,
+        discountLoading: false,
+        applyDiscount: async (code: string) => {
+          const trimmed = (code || '').trim().toUpperCase();
+          if (!trimmed) return false;
+          set({ discountLoading: true, discountError: null });
+          try {
+            const sub = get().items.reduce((s, i) => s + i.price * i.quantity, 0);
+            const { data, error } = await supabase.functions.invoke('validate-discount', {
+              body: { code: trimmed, purchase_total: sub },
+            });
+            if (error) throw error;
+            if (!data?.valid) {
+              set({ discountLoading: false, discountError: data?.error || 'Código inválido', discountCode: null, discountAmount: 0, discountType: null });
+              return false;
+            }
+            set({
+              discountLoading: false,
+              discountError: null,
+              discountCode: trimmed,
+              discountAmount: data.discount_amount,
+              discountType: data.type,
+            });
+            return true;
+          } catch (e: any) {
+            set({ discountLoading: false, discountError: e?.message || 'Error al validar el código' });
+            return false;
+          }
+        },
+        clearDiscount: () => set({ discountCode: null, discountAmount: 0, discountType: null, discountError: null }),
         syncWithServer: async (userId: string) => {
           currentUserId = userId;
           try {
@@ -155,7 +212,7 @@ export const useCartStore = create<CartState>()(
       name: 'wax-cart-storage',
       version: 1,
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ items: state.items }),
+      partialize: (state) => ({ items: state.items, discountCode: state.discountCode, discountAmount: state.discountAmount, discountType: state.discountType }),
     }
   )
 );

@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { FEATURED_BRANDS } from '@/data/products';
+import { Sparkles } from 'lucide-react';
 
 interface DbProduct {
   id: string;
@@ -203,25 +205,54 @@ const ProductGrid = () => {
               ))}
             </div>
 
-            {brands.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setActiveBrand('all')}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition ${
-                    activeBrand === 'all' ? 'bg-foreground text-background' : 'border border-border text-muted-foreground hover:text-foreground'
-                  }`}
-                >Todas las marcas</button>
-                {brands.map((b) => (
-                  <button
-                    key={b.id}
-                    onClick={() => setActiveBrand(b.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition ${
-                      activeBrand === b.id ? 'bg-foreground text-background' : 'border border-border text-muted-foreground hover:text-foreground'
-                    }`}
-                  >{b.name}</button>
-                ))}
-              </div>
-            )}
+            {brands.length > 0 && (() => {
+              const featured = brands.filter((b) =>
+                FEATURED_BRANDS.some((f) => b.name.toLowerCase().includes(f.toLowerCase()))
+              );
+              const others = brands.filter((b) => !featured.includes(b));
+              return (
+                <div className="space-y-2">
+                  {featured.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
+                        <Sparkles className="h-3 w-3" /> Destacadas
+                      </span>
+                      {featured.map((b) => (
+                        <button
+                          key={b.id}
+                          onClick={() => setActiveBrand(b.id)}
+                          className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
+                            activeBrand === b.id
+                              ? 'bg-primary text-primary-foreground'
+                              : 'border border-primary/40 text-primary hover:bg-primary/10'
+                          }`}
+                          style={activeBrand === b.id ? { boxShadow: '0 0 12px rgba(0,230,118,0.45)' } : undefined}
+                        >
+                          {b.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setActiveBrand('all')}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition ${
+                        activeBrand === 'all' ? 'bg-foreground text-background' : 'border border-border text-muted-foreground hover:text-foreground'
+                      }`}
+                    >Todas las marcas</button>
+                    {others.map((b) => (
+                      <button
+                        key={b.id}
+                        onClick={() => setActiveBrand(b.id)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition ${
+                          activeBrand === b.id ? 'bg-foreground text-background' : 'border border-border text-muted-foreground hover:text-foreground'
+                        }`}
+                      >{b.name}</button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {priceRange && maxPrice > minPrice && (
               <div className="pt-2">
