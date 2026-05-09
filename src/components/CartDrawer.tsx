@@ -106,6 +106,7 @@ const CartDrawer = () => {
                         const key = `${item.id}::${item.selectedVariant ?? ''}`;
                         const atMax = item.quantity >= MAX_QTY;
                         const atMin = item.quantity <= 1;
+                        const needsVariant = (item.variants?.length ?? 0) > 0 && !item.selectedVariant;
                         return (
                           <motion.li
                             key={key}
@@ -114,7 +115,7 @@ const CartDrawer = () => {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, x: 40, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }}
                             transition={{ duration: 0.22, ease: 'easeOut' }}
-                            className="flex items-center gap-3 overflow-hidden rounded-lg border border-border bg-muted p-3"
+                            className={`flex items-center gap-3 overflow-hidden rounded-lg border bg-muted p-3 ${needsVariant ? 'border-amber-500/70 bg-amber-500/5' : 'border-border'}`}
                           >
                             <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-accent">
                               {item.image ? (
@@ -125,9 +126,11 @@ const CartDrawer = () => {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="truncate text-sm font-semibold text-foreground">{item.title}</p>
-                              {item.selectedVariant && (
+                              {item.selectedVariant ? (
                                 <p className="text-xs text-muted-foreground">{item.selectedVariant}</p>
-                              )}
+                              ) : needsVariant ? (
+                                <p className="text-xs font-medium" style={{ color: '#FFB300' }}>⚠️ Selecciona variante</p>
+                              ) : null}
                               <p className="mt-0.5 text-xs text-muted-foreground">
                                 ${item.price.toLocaleString()} c/u
                               </p>
