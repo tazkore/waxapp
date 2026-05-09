@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      abandoned_carts: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          items: Json
+          recovered: boolean
+          subtotal: number
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          items?: Json
+          recovered?: boolean
+          subtotal?: number
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          items?: Json
+          recovered?: boolean
+          subtotal?: number
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       accounts_payable: {
         Row: {
           amount: number

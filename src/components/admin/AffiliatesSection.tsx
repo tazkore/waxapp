@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Check, Copy, Link2, Loader2, MousePointerClick, ShoppingCart, TrendingUp, Wallet, X } from 'lucide-react';
+import { CalendarIcon, Check, Copy, Download, FileText, Link2, Loader2, MousePointerClick, ShoppingCart, TrendingUp, Wallet, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { exportAffiliatesCSV, exportAffiliatesPDF, type AffiliateRow } from '@/lib/exportAffiliates';
 
 const PUBLIC_BASE = (typeof window !== 'undefined' ? window.location.origin : 'https://waxapp.mx');
 
@@ -25,6 +26,9 @@ const AffiliatesSection = () => {
   });
   const [selectedAffiliate, setSelectedAffiliate] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   const load = async () => {
     setLoading(true);
@@ -64,9 +68,11 @@ const AffiliatesSection = () => {
 
   const filtered = useMemo(() => {
     const fc = clicks.filter((c) => inRange(c.created_at));
-    const fs = sales.filter((s) => inRange(s.created_at));
+    const fs = sales
+      .filter((s) => inRange(s.created_at))
+      .filter((s) => statusFilter === 'all' ? true : (s.status || 'pending') === statusFilter);
     return { fc, fs };
-  }, [clicks, sales, range.from, range.to]);
+  }, [clicks, sales, range.from, range.to, statusFilter]);
 
   const kpis = useMemo(() => {
     const totalClicks = filtered.fc.length;
@@ -140,20 +146,70 @@ const AffiliatesSection = () => {
             </CardContent>
           </Card>
 
-          <div className="flex items-center gap-3">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn('justify-start text-left font-normal', !range.from && 'text-muted-foreground')}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {range.from && range.to
-                    ? `${format(range.from, 'd MMM', { locale: es })} – ${format(range.to, 'd MMM yyyy', { locale: es })}`
-                    : 'Rango de fechas'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="range" selected={range as any} onSelect={(r: any) => setRange(r ?? {})} numberOfMonths={2} className={cn('p-3 pointer-events-auto')} />
-              </PopoverContent>
-            </Popover>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn('justify-start text-left font-normal', !range.from && 'text-muted-foreground')}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {range.from && range.to
+                      ? `${format(range.from, 'd MMM', { locale: es })} – ${format(range.to, 'd MMM yyyy', { locale: es })}`
+                      : 'Rango de fechas'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="range" selected={range as any} onSelect={(r: any) => { setRange(r ?? {}); setPage(1); }} numberOfMonths={2} className={cn('p-3 pointer-events-auto')} />
+                </PopoverContent>
+              </Popover>
+
+              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+                <SelectTrigger className="w-[170px] bg-muted border-border">
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estados</SelectItem>
+                  <SelectItem value="pending">Pendiente</SelectItem>
+                  <SelectItem value="paid">Pagado</SelectItem>
+                  <SelectItem value="rejected">Rechazado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  const rows: AffiliateRow[] = ranking.map((r, idx) => ({
+                    rank: idx + 1, vendor: r.aff.full_name, email: r.aff.email, code: r.aff.code,
+                    clicks: r.clicks, sales: r.sales, commission: r.commission, status: statusFilter,
+                  }));
+                  exportAffiliatesCSV(rows);
+                }}
+              >
+                <Download className="h-4 w-4" /> Exportar CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  const rows: AffiliateRow[] = ranking.map((r, idx) => ({
+                    rank: idx + 1, vendor: r.aff.full_name, email: r.aff.email, code: r.aff.code,
+                    clicks: r.clicks, sales: r.sales, commission: r.commission, status: statusFilter,
+                  }));
+                  exportAffiliatesPDF(rows, {
+                    ...kpis,
+                    rangeLabel: range.from && range.to
+                      ? `${format(range.from, 'd MMM yyyy', { locale: es })} – ${format(range.to, 'd MMM yyyy', { locale: es })}`
+                      : 'Todo',
+                  });
+                }}
+              >
+                <FileText className="h-4 w-4" /> Exportar PDF
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -176,7 +232,9 @@ const AffiliatesSection = () => {
           </div>
 
           <Card className="bg-card border-border">
-            <CardHeader><CardTitle className="text-foreground text-base">Ranking de vendedores</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-foreground text-base">Ranking de vendedores</CardTitle>
+            </CardHeader>
             <CardContent className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-muted-foreground text-xs">
@@ -191,18 +249,40 @@ const AffiliatesSection = () => {
                 </thead>
                 <tbody>
                   {ranking.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Sin datos en el rango.</td></tr>}
-                  {ranking.map((r, idx) => (
-                    <tr key={r.aff.id} className="border-t border-border">
-                      <td className="p-2 text-foreground font-bold">#{idx + 1}</td>
-                      <td className="p-2 text-foreground">{r.aff.full_name}<div className="text-xs text-muted-foreground">{r.aff.email}</div></td>
-                      <td className="p-2 font-mono text-xs text-muted-foreground">/tienda?ref={r.aff.code}</td>
-                      <td className="p-2 text-right text-foreground">{r.clicks}</td>
-                      <td className="p-2 text-right text-foreground">{r.sales}</td>
-                      <td className="p-2 text-right text-secondary font-bold">${r.commission.toLocaleString()}</td>
-                    </tr>
-                  ))}
+                  {ranking
+                    .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+                    .map((r, localIdx) => {
+                      const idx = (page - 1) * PAGE_SIZE + localIdx;
+                      return (
+                        <tr key={r.aff.id} className="border-t border-border">
+                          <td className="p-2 text-foreground font-bold">#{idx + 1}</td>
+                          <td className="p-2 text-foreground">{r.aff.full_name}<div className="text-xs text-muted-foreground">{r.aff.email}</div></td>
+                          <td className="p-2 font-mono text-xs text-muted-foreground">/tienda?ref={r.aff.code}</td>
+                          <td className="p-2 text-right text-foreground">{r.clicks}</td>
+                          <td className="p-2 text-right text-foreground">{r.sales}</td>
+                          <td className="p-2 text-right text-secondary font-bold">${r.commission.toLocaleString()}</td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
+
+              {ranking.length > PAGE_SIZE && (
+                <div className="flex items-center justify-between gap-2 pt-3 text-xs text-muted-foreground">
+                  <span>
+                    Mostrando {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, ranking.length)} de {ranking.length}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="px-2">Pág. {page} / {Math.ceil(ranking.length / PAGE_SIZE)}</span>
+                    <Button size="sm" variant="outline" disabled={page >= Math.ceil(ranking.length / PAGE_SIZE)} onClick={() => setPage((p) => p + 1)}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

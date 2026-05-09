@@ -30,6 +30,7 @@ import AgeGate from "./components/AgeGate.tsx";
 import AffiliateRefTracker from "./components/AffiliateRefTracker.tsx";
 import AffiliatePortal from "./pages/AffiliatePortal.tsx";
 import AffiliateLogin from "./pages/AffiliateLogin.tsx";
+import PromoCountdownBanner from "./components/PromoCountdownBanner.tsx";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const App = () => (
           <RedirectHandler />
           <AgeGate />
           <AffiliateRefTracker />
+          <PromoCountdownBanner />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/tienda" element={<Index />} />
