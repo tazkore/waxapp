@@ -26,6 +26,14 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   refunded: { label: 'Reembolsado', color: 'bg-destructive/20 text-destructive border-destructive/30' },
 };
 
+const tierColor: Record<string, string> = {
+  Bronze: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  Silver: 'bg-gray-400/20 text-gray-300 border-gray-400/30',
+  Gold: 'bg-secondary/20 text-secondary border-secondary/30',
+  Platinum: 'bg-primary/20 text-primary border-primary/30',
+  VIP: 'bg-primary/20 text-primary border-primary/30',
+};
+
 const ClientDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
