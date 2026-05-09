@@ -168,6 +168,8 @@ const Checkout = () => {
             variant: i.selectedVariant,
           })),
           shipping_method: shippingMethod,
+          discount_code: discountCode || undefined,
+          discount_amount: discountAmount || undefined,
         },
       });
 
