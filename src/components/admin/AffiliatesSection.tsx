@@ -26,6 +26,9 @@ const AffiliatesSection = () => {
   });
   const [selectedAffiliate, setSelectedAffiliate] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   const load = async () => {
     setLoading(true);
