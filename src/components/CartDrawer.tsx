@@ -204,7 +204,7 @@ const CartDrawer = () => {
           </div>
 
           {items.length > 0 && (
-            <SheetFooter className="border-t border-border bg-card p-4 sm:flex-col sm:space-x-0">
+            <SheetFooter className="border-t border-border bg-card p-4 flex-col sm:flex-col sm:space-x-0 sm:justify-start">
               <OrderSummary />
               <Button
                 onClick={() => {
