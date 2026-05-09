@@ -301,6 +301,7 @@ const Checkout = () => {
       }));
       const finalTotal = serverTotal ?? total;
       clearCart();
+      clearLoyaltyPoints();
       navigate('/orden-completada', {
         state: { orderNumber: num, items: snapshot, total: finalTotal, email: shipping.email },
         replace: true,
