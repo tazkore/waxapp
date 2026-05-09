@@ -13,6 +13,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import OrderSummary from '@/components/OrderSummary';
 import LoyaltyRedeemCard from '@/components/LoyaltyRedeemCard';
+import ExitIntentModal from '@/components/cart/ExitIntentModal';
 
 
 
