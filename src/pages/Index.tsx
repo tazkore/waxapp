@@ -1,5 +1,3 @@
-import { useState } from 'react';
-import AgeGate from '@/components/AgeGate';
 import Navbar from '@/components/Navbar';
 import HeroSection from '@/components/HeroSection';
 import TrustSignals from '@/components/TrustSignals';
@@ -19,12 +17,6 @@ import LaboratoriosSection from '@/components/LaboratoriosSection';
 import NeshikaFeatured from '@/components/NeshikaFeatured';
 
 const Index = () => {
-  const [verified, setVerified] = useState(false);
-
-  if (!verified) {
-    return <AgeGate onAccept={() => setVerified(true)} />;
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <WelcomeBanner />
