@@ -24,7 +24,7 @@ const steps = [
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, subtotal, clearCart, discountCode, discountAmount, shippingCost: storeShipping, total: storeTotal, hasInvalidVariants, setCartOpen } = useCartStore();
+  const { items, subtotal, clearCart, discountCode, discountAmount, shippingCost: storeShipping, total: storeTotal, hasInvalidVariants, setCartOpen, loyaltyPointsApplied, clearLoyaltyPoints } = useCartStore();
   const invalidVariants = hasInvalidVariants();
   const [step, setStep] = useState(1);
   const [confirmed, setConfirmed] = useState(false);
