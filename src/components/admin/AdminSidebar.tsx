@@ -36,6 +36,7 @@ const groups: NavGroup[] = [
       { title: 'Pedidos', icon: ClipboardList, key: 'orders' },
       { title: 'Envíos & Paqueterías', icon: Truck, key: 'shipping' },
       { title: 'Clientes & CRM', icon: Users, key: 'clients' },
+      { title: 'Afiliados / Vendedores', icon: Users, key: 'affiliates', adminOnly: true },
       { title: 'Pagos', icon: CreditCard, key: 'payments' },
       { title: 'Pasarelas de Pago', icon: Wallet, key: 'payment-gateways' },
       { title: 'Compras & B2B', icon: ShoppingCart, key: 'purchasing' },
