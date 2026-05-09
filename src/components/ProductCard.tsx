@@ -21,10 +21,16 @@ const ProductCard = ({ product, outOfStock = false }: ProductCardProps) => {
   const addItem = useCartStore((s) => s.addItem);
   const [quickOpen, setQuickOpen] = useState(false);
 
+  const hasVariants = (product.variants?.length ?? 0) > 0;
+
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (outOfStock) return;
+    if (hasVariants) {
+      setQuickOpen(true);
+      return;
+    }
     addItem(product);
     toast.success(`${product.title} agregado al carrito`);
   };
