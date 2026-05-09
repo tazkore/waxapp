@@ -191,6 +191,15 @@ export const useCartStore = create<CartState>()(
           }
         },
         clearDiscount: () => set({ discountCode: null, discountAmount: 0, discountType: null, discountError: null }),
+        loyaltyPointsApplied: 0,
+        setLoyaltyPoints: (n: number) => {
+          const sub = get().items.reduce((s, i) => s + i.price * i.quantity, 0);
+          const disc = get().discountAmount || 0;
+          const max = Math.max(0, sub - disc);
+          const safe = Math.max(0, Math.min(Math.floor(n || 0), max));
+          set({ loyaltyPointsApplied: safe });
+        },
+        clearLoyaltyPoints: () => set({ loyaltyPointsApplied: 0 }),
         syncWithServer: async (userId: string) => {
           currentUserId = userId;
           try {
