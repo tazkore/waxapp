@@ -38,6 +38,7 @@ interface CartState {
   discountType: 'percentage' | 'fixed' | null;
   discountError: string | null;
   discountLoading: boolean;
+  loyaltyPointsApplied: number;
   addItem: (product: Product, quantity?: number, variant?: string) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -52,6 +53,8 @@ interface CartState {
   invalidItemKeys: () => string[];
   applyDiscount: (code: string) => Promise<boolean>;
   clearDiscount: () => void;
+  setLoyaltyPoints: (n: number) => void;
+  clearLoyaltyPoints: () => void;
   syncWithServer: (userId: string) => Promise<void>;
   pushToServer: (userId: string) => Promise<void>;
 }
@@ -128,7 +131,7 @@ export const useCartStore = create<CartState>()(
           sync();
         },
         clearCart: () => {
-          set({ items: [], discountCode: null, discountAmount: 0, discountType: null, discountError: null });
+          set({ items: [], discountCode: null, discountAmount: 0, discountType: null, discountError: null, loyaltyPointsApplied: 0 });
           sync();
         },
         toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
@@ -138,14 +141,16 @@ export const useCartStore = create<CartState>()(
         shippingCost: () => {
           const sub = get().items.reduce((s, i) => s + i.price * i.quantity, 0);
           const disc = get().discountAmount || 0;
+          const pts = get().loyaltyPointsApplied || 0;
           if (sub === 0) return 0;
-          return sub - disc >= FREE_SHIPPING_THRESHOLD ? 0 : 99;
+          return sub - disc - pts >= FREE_SHIPPING_THRESHOLD ? 0 : 99;
         },
         total: () => {
           const sub = get().items.reduce((s, i) => s + i.price * i.quantity, 0);
           const disc = get().discountAmount || 0;
-          const ship = sub === 0 ? 0 : (sub - disc >= FREE_SHIPPING_THRESHOLD ? 0 : 99);
-          return Math.max(0, sub - disc) + ship;
+          const pts = get().loyaltyPointsApplied || 0;
+          const ship = sub === 0 ? 0 : (sub - disc - pts >= FREE_SHIPPING_THRESHOLD ? 0 : 99);
+          return Math.max(0, sub - disc - pts) + ship;
         },
         hasInvalidVariants: () =>
           get().items.some((i) => (i.variants?.length ?? 0) > 0 && !i.selectedVariant),
@@ -186,6 +191,15 @@ export const useCartStore = create<CartState>()(
           }
         },
         clearDiscount: () => set({ discountCode: null, discountAmount: 0, discountType: null, discountError: null }),
+        loyaltyPointsApplied: 0,
+        setLoyaltyPoints: (n: number) => {
+          const sub = get().items.reduce((s, i) => s + i.price * i.quantity, 0);
+          const disc = get().discountAmount || 0;
+          const max = Math.max(0, sub - disc);
+          const safe = Math.max(0, Math.min(Math.floor(n || 0), max));
+          set({ loyaltyPointsApplied: safe });
+        },
+        clearLoyaltyPoints: () => set({ loyaltyPointsApplied: 0 }),
         syncWithServer: async (userId: string) => {
           currentUserId = userId;
           try {

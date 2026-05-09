@@ -1,96 +1,59 @@
-# Plan: Estabilidad + Lealtad + Afiliados
+# Plan: E2E Testing, Affiliate Tracking & Loyalty Redemption
 
-Mantengo Dark Mode Tech (#0A0A0A / #00E676 / #FFB300), Space Grotesk + Inter, y NO toco rutas existentes.
+Aditivo: no se borra ni renombra ninguna ruta o tabla existente. Se reutiliza el módulo de Afiliados ya creado y la columna `loyalty_points` de `clients`.
 
-## 1. Age Gate global persistente
+## 1. Motor de tracking `?ref`
 
-- Mover `<AgeGate />` de `Index.tsx` a `App.tsx`, **fuera de `<Routes>`** pero dentro de `BrowserRouter`, para que cubra `/tienda`, `/checkout`, `/orden-completada` y todas las rutas públicas.
-- Excluir rutas administrativas (`/admin*`, `/cliente`, `/portal-vendedores`) y la página `/reset-password` mediante chequeo de `useLocation().pathname`.
-- Persistencia: leer `localStorage.getItem('waxapp_age_verified') === 'true'` al montar; al hacer clic en "Tengo +18", `localStorage.setItem('waxapp_age_verified', 'true')` y ocultar.
-- Limpiar el estado local de `Index.tsx` (ya no renderiza AgeGate).
+Hoy `src/pages/Index.tsx` ya guarda `waxapp_affiliate_ref` y dispara `track-affiliate-click`, pero solo en `/`. Lo movemos a nivel global:
 
-## 2. Validación estricta de variantes (Carrito + Checkout)
+- Crear `src/components/AffiliateRefTracker.tsx`: componente "headless" con `useEffect` + `useLocation` que escucha cambios de URL y persiste `?ref=CODE` en `localStorage` (con timestamp + TTL 30 días). Llama a `track-affiliate-click` solo la primera vez por código.
+- Montarlo en `App.tsx` dentro de `<BrowserRouter>` junto a `<AgeGate />` para que funcione en `/`, `/tienda`, `/marcas`, `/s/:slug`, etc.
+- Quitar el `useEffect` duplicado de `Index.tsx` (queda el global).
+- En `Checkout.tsx` → `handleConfirm`, agregar al body de `create-order`:
+  - `affiliate_code: localStorage.getItem('waxapp_affiliate_ref') ?? null`
+- En la edge function `create-order`: aceptar `affiliate_code`, buscar en `affiliates` (status=approved) y guardar `affiliate_id` en la orden + insertar fila en `affiliate_sales` (pending). Esto cierra el loop de comisiones.
 
-- En `cartStore.ts`: helper `hasInvalidVariants()` que devuelve `true` si algún item con `product.variants?.length > 0` no tiene `selectedVariant`.
-- En `Checkout.tsx`:
-  - Calcular `invalid = useCartStore(s => s.hasInvalidVariants())`.
-  - Si `invalid`, mostrar banner ámbar (`#FFB300`, `border-amber-500 bg-amber-500/10`) en el paso 3 con texto: *"Error: Hay productos en tu carrito sin una variante o sabor seleccionado. Por favor, edita tu carrito."* y un botón "Editar carrito" que abre el `CartDrawer`.
-  - `disabled={invalid || loading}` en el botón "Pagar / Completar Orden".
-- En `CartDrawer`: marcar la fila inválida con borde ámbar + ícono ⚠️ y CTA inline "Selecciona variante" que abre el `QuickViewDialog` correspondiente.
-- Confirmar que la clave compuesta `${id}::${selectedVariant ?? ''}` ya se usa en el resto del flujo (ya verificado).
+## 2. Redención de WAX Points en Checkout
 
-## 3. UI Fixes & Accesibilidad
+Solo UI/lógica de presentación + cálculo del descuento; el descuento real lo validará el server más adelante.
 
-- **QuickViewDialog – parsing de beneficios**: reemplazar el regex actual por:
-  ```ts
-  const benefitsList = (product.benefits ?? '')
-    .split(/[,\n;•·]/)
-    .map(s => s.trim())
-    .filter(s => s.length >= 3 && /[a-záéíóúñ]/i.test(s))
-    .slice(0, 5);
-  ```
-  Esto evita cortes por puntos dentro de palabras y descarta tokens vacíos/numéricos.
-- **A11y CartDrawer & QuickViewDialog**:
-  - Ambos ya usan `Sheet`/`Dialog` de shadcn (Radix) → focus trap y ESC ya activos por defecto, pero verificar que **no** se pase `onEscapeKeyDown={e => e.preventDefault()}` o `modal={false}`.
-  - Añadir `aria-label="Cerrar carrito"` al botón X del `SheetContent` y `aria-label="Cerrar vista rápida"` en el `DialogContent`.
-  - `aria-describedby` apuntando al título del producto en QuickView.
-  - `role="alert"` en el banner ámbar de variantes inválidas.
-  - Verificar que cada `RadioGroupItem` de variante tenga `aria-label` con el nombre.
+- Cargar saldo real: `useEffect` que consulta `clients.loyalty_points where email = session.email` (fallback 0 si no existe). Mostrar saldo bajo el bloque de cupón en `OrderSummary` o en una nueva tarjeta dentro del paso 3 del checkout.
+- Componente nuevo `src/components/LoyaltyRedeemCard.tsx`:
+  - `Switch` "Usar mis WAX Points" (shadcn `switch.tsx`).
+  - `Input` numérico con máximo = `min(saldo, totalAfterDiscount)` (1 punto = $1 MXN).
+  - Botón "Aplicar máximo".
+- Estado nuevo en `cartStore`: `loyaltyPointsApplied: number`, acciones `setLoyaltyPoints(n)` y `clearLoyaltyPoints()`. Recalcular `total()` restando puntos.
+- Desglose en `OrderSummary`: añadir línea "Descuento puntos −$X" cuando aplique.
+- Texto dinámico bajo el total: `"Acumularás +{Math.floor(total/10)} WAX Points con esta compra"`.
+- En `handleConfirm` enviar `loyalty_points_used` al edge `create-order` (server descontará del saldo).
 
-## 4. Módulo Lealtad — WAX Points
+## 3. Dashboard `/admin/afiliados/dashboard`
 
-**Backend (migración):**
-- Tabla `wax_referrals` (`referrer_email`, `invitee_email`, `code`, `status`, `created_at`) — RLS: cliente solo ve los suyos por email; admin ve todo.
-- La tabla `clients` ya tiene `loyalty_points`. Regla `1 pt por cada $10 MXN` ya implementada en trigger `on_order_confirmed` (verificado).
-- Edge Function `award-referral-points`: al confirmar la primera orden de un invitee, suma 100 pts al referrer (idempotente por `wax_referrals.id`).
+Aprovechamos la `AffiliatesSection` existente y añadimos pestañas:
 
-**Cliente `/mi-cuenta` (`ClientDashboard.tsx`):**
-- Card "Mis WAX Points" con saldo actual (`loyalty_points`), tier, equivalencia ("≈ $X MXN de descuento").
-- Botón "Generar link de invitación" → genera código `WAX-${userIdShort}`, guarda en `wax_referrals` (status `pending`) y copia `${origin}/tienda?ref=CODE` al portapapeles con `toast.success('Link copiado')`.
-- Tabla mini de últimas 5 invitaciones con su estado.
+- Refactor `AffiliatesSection.tsx` con `Tabs`: **Solicitudes / Vendedores / Dashboard**.
+- Tab Dashboard:
+  - **Generador de links**: `Select` con afiliados aprobados → genera `https://waxapp.mx/tienda?ref={code}` con botón Copiar (`navigator.clipboard`).
+  - **Date Range Picker** (shadcn `Calendar` + `Popover`, `mode="range"`, `pointer-events-auto`).
+  - **Cards** (4): Clics totales, Ventas (count), Conversión %, Comisiones generadas $. Datos: agregaciones sobre `affiliate_clicks` y `affiliate_sales` filtrando por rango.
+  - **Tabla rendimiento por vendedor**: ranking por ganancia con columnas Rango / Nombre / Link / Visitas / Ventas / Comisión.
+- Sin nueva ruta — vive dentro del panel admin (`/admin` → sidebar "Afiliados"), ya que Admin es SPA single-route. El "deep link" `/admin/afiliados/dashboard` se resuelve con un parámetro `?section=affiliates&tab=dashboard` opcional.
 
-**Admin `/admin/clientes` (`ClientsSection.tsx`):**
-- Nueva columna "Puntos WAX" editable inline (input numérico + botón guardar) que hace `update clients set loyalty_points = X where id`. Solo `super_admin`/`admin`.
-- Audit log opcional vía tabla `client_notifications` existente.
+## 4. Infraestructura E2E con Playwright
 
-## 5. Módulo Afiliados / Vendedores
+El proyecto ya tiene `playwright.config.ts` y `playwright-fixture.ts`. Solo falta la suite:
 
-**Backend (migración):**
-- Tabla `affiliates`: `user_id`, `code` (único), `status` ('pending'|'approved'|'rejected'), `commission_pct numeric default 15`, `total_clicks`, `total_sales`, `pending_payout numeric`.
-- Tabla `affiliate_clicks`: `affiliate_id`, `landing_path`, `ip`, `ua`, `created_at`.
-- Tabla `affiliate_sales`: `affiliate_id`, `order_id`, `gross`, `shipping`, `tax`, `net_profit`, `commission`, `status` ('pending'|'paid').
-- RLS: el afiliado solo ve sus propios clicks/sales; admin ve todo.
-- Edge Function `track-affiliate-click` (público) y `assign-affiliate-to-order` (server, llamada desde `create-order` cuando hay cookie/param `?ref=CODE`).
+- Crear `playwright-tests/e2e.spec.ts` con 3 tests:
+  1. **Public flow**: `goto /` → click "Tienda" → click primer `ProductCard` "Agregar" → abrir `CartDrawer` → click "Checkout" → assert URL `/checkout` o redirect a `/cliente`.
+  2. **Affiliate flow**: `goto /?ref=TEST123` → assert `localStorage.waxapp_affiliate_ref === 'TEST123'` → navegar a `/tienda` → assert que persiste tras navegación SPA.
+  3. **Admin flow**: `goto /admin/login` → llenar credenciales (vía `process.env.E2E_ADMIN_EMAIL/PASSWORD`) → assert que cargan métricas del Overview.
+- Comentarios al inicio explicando: `npx playwright test` local, variables de entorno requeridas, `--ui` para modo interactivo.
+- README rápido en `playwright-tests/README.md` con setup.
 
-**Frontend ruta `/portal-vendedores`:**
-- Login simulado independiente reutilizando `supabase.auth` pero con guard `requireRole('affiliate')` (rol agregado al enum `app_role` o tabla `user_roles` existente).
-- Dashboard con:
-  - Card "Mi link único": `${origin}/tienda?ref=${code}` + botón copiar.
-  - 3 KPI cards: **Clics**, **Ventas cerradas**, **Comisiones por cobrar**.
-  - Tabla "Mis Ventas Generadas" con columnas: Pedido | Total | Envío | Impuestos | **Utilidad Neta** | **Comisión 15%** | Estado. Fórmula visible en encabezado: `Utilidad = Total − Envío − Impuestos`, `Comisión = Utilidad × 15%`.
+## Archivos
 
-**Admin `/admin/afiliados` (nueva sección en `AdminSidebar`):**
-- Tabla "Solicitudes" con botón Aprobar / Rechazar (cambia `status`).
-- Tabla "Pagos pendientes" con `pending_payout` por afiliado y botón "Marcar como pagado" (mueve `affiliate_sales.status` a `paid`).
+**Crear**: `src/components/AffiliateRefTracker.tsx`, `src/components/LoyaltyRedeemCard.tsx`, `playwright-tests/e2e.spec.ts`, `playwright-tests/README.md`.
 
-## Detalles técnicos
+**Editar**: `src/App.tsx`, `src/pages/Index.tsx` (limpiar), `src/pages/Checkout.tsx`, `src/components/OrderSummary.tsx`, `src/store/cartStore.ts`, `src/components/admin/AffiliatesSection.tsx`, `supabase/functions/create-order/index.ts`.
 
-**Archivos a modificar:**
-- `src/App.tsx` — montar AgeGate global con whitelist de rutas.
-- `src/components/AgeGate.tsx` — añadir persistencia interna + `aria-modal`.
-- `src/pages/Index.tsx` — quitar AgeGate local.
-- `src/store/cartStore.ts` — `hasInvalidVariants()`.
-- `src/pages/Checkout.tsx` — banner ámbar + disable.
-- `src/components/CartDrawer.tsx` — fila inválida + a11y.
-- `src/components/QuickViewDialog.tsx` — fix parsing + a11y.
-- `src/pages/ClientDashboard.tsx` — card WAX Points + invitaciones.
-- `src/components/admin/ClientsSection.tsx` — columna puntos editable.
-
-**Archivos a crear:**
-- `src/pages/AffiliatePortal.tsx`, `src/pages/AffiliateLogin.tsx`.
-- `src/components/admin/AffiliatesSection.tsx`.
-- Edge Functions: `award-referral-points`, `track-affiliate-click`, `assign-affiliate-to-order`.
-
-**Migraciones SQL:** `wax_referrals`, `affiliates`, `affiliate_clicks`, `affiliate_sales` con RLS + rol `affiliate` en `app_role`.
-
-**Sin cambios a:** sistema de diseño, Dark Mode tokens, rutas existentes, lógica de Clip/Resend, `create-order` (solo añade hook opcional al final).
+**Sin cambios de schema DB** (usamos columnas/tablas existentes). Si `create-order` necesita una columna `affiliate_id` en `orders` se añadirá vía migration en ese momento.

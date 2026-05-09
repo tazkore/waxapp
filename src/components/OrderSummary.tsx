@@ -20,6 +20,7 @@ const OrderSummary = ({ showCoupon = true, compact = false }: Props) => {
     discountAmount,
     discountError,
     discountLoading,
+    loyaltyPointsApplied,
     applyDiscount,
     clearDiscount,
   } = useCartStore();
@@ -28,7 +29,8 @@ const OrderSummary = ({ showCoupon = true, compact = false }: Props) => {
   const sub = subtotal();
   const ship = shippingCost();
   const grand = total();
-  const remainingForFree = Math.max(0, FREE_SHIPPING_THRESHOLD - (sub - discountAmount));
+  const remainingForFree = Math.max(0, FREE_SHIPPING_THRESHOLD - (sub - discountAmount - (loyaltyPointsApplied || 0)));
+  const pointsToEarn = Math.floor(grand / 10);
 
   const handleApply = async () => {
     if (!code.trim()) return;
@@ -118,6 +120,17 @@ const OrderSummary = ({ showCoupon = true, compact = false }: Props) => {
           </motion.div>
         )}
 
+        {(loyaltyPointsApplied || 0) > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-between text-primary"
+          >
+            <span>Descuento WAX Points</span>
+            <span className="font-medium">−${(loyaltyPointsApplied || 0).toLocaleString()} MXN</span>
+          </motion.div>
+        )}
+
         <div className="flex justify-between text-muted-foreground">
           <span>Envío</span>
           <motion.span
@@ -149,6 +162,11 @@ const OrderSummary = ({ showCoupon = true, compact = false }: Props) => {
             ${grand.toLocaleString()} MXN
           </motion.span>
         </div>
+        {grand > 0 && (
+          <p className="text-[11px] text-primary/80 text-right">
+            Acumularás +{pointsToEarn.toLocaleString()} WAX Points con esta compra
+          </p>
+        )}
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ import { toast } from '@/hooks/use-toast';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import OrderSummary from '@/components/OrderSummary';
+import LoyaltyRedeemCard from '@/components/LoyaltyRedeemCard';
 
 
 
@@ -23,7 +24,7 @@ const steps = [
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, subtotal, clearCart, discountCode, discountAmount, shippingCost: storeShipping, total: storeTotal, hasInvalidVariants, setCartOpen } = useCartStore();
+  const { items, subtotal, clearCart, discountCode, discountAmount, shippingCost: storeShipping, total: storeTotal, hasInvalidVariants, setCartOpen, loyaltyPointsApplied, clearLoyaltyPoints } = useCartStore();
   const invalidVariants = hasInvalidVariants();
   const [step, setStep] = useState(1);
   const [confirmed, setConfirmed] = useState(false);
@@ -176,6 +177,8 @@ const Checkout = () => {
           shipping_method: shippingMethod,
           discount_code: discountCode || undefined,
           discount_amount: discountAmount || undefined,
+          loyalty_points_used: loyaltyPointsApplied || 0,
+          affiliate_code: localStorage.getItem('waxapp_affiliate_ref') || undefined,
         },
       });
 
@@ -298,6 +301,7 @@ const Checkout = () => {
       }));
       const finalTotal = serverTotal ?? total;
       clearCart();
+      clearLoyaltyPoints();
       navigate('/orden-completada', {
         state: { orderNumber: num, items: snapshot, total: finalTotal, email: shipping.email },
         replace: true,
@@ -589,7 +593,8 @@ const Checkout = () => {
                   );
                 })}
               </div>
-              <div className="border-t border-border pt-3">
+              <div className="border-t border-border pt-3 space-y-3">
+                <LoyaltyRedeemCard email={shipping.email} />
                 <OrderSummary />
                 <p className="mt-2 text-[11px] text-muted-foreground">
                   Envío seleccionado: <strong className="text-foreground">${shippingCost.toLocaleString()} MXN</strong> (paso 2). Total con envío: <strong className="text-foreground">${total.toLocaleString()} MXN</strong>
