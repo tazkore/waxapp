@@ -22,7 +22,7 @@ const steps = [
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, subtotal, clearCart } = useCartStore();
+  const { items, subtotal, clearCart, discountCode, discountAmount, shippingCost: storeShipping, total: storeTotal } = useCartStore();
   const [step, setStep] = useState(1);
   const [confirmed, setConfirmed] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
@@ -132,7 +132,9 @@ const Checkout = () => {
   }
 
   const shippingCost = shippingMethod === 'express' ? 250 : shippingMethod === 'standard' ? 99 : 0;
-  const total = subtotal() + shippingCost;
+  const sub = subtotal();
+  const totalAfterDiscount = Math.max(0, sub - discountAmount);
+  const total = totalAfterDiscount + shippingCost;
 
   if (items.length === 0 && !confirmed) {
     return (
