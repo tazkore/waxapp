@@ -120,6 +120,17 @@ const OrderSummary = ({ showCoupon = true, compact = false }: Props) => {
           </motion.div>
         )}
 
+        {(loyaltyPointsApplied || 0) > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-between text-primary"
+          >
+            <span>Descuento WAX Points</span>
+            <span className="font-medium">−${(loyaltyPointsApplied || 0).toLocaleString()} MXN</span>
+          </motion.div>
+        )}
+
         <div className="flex justify-between text-muted-foreground">
           <span>Envío</span>
           <motion.span
