@@ -20,6 +20,7 @@ const OrderSummary = ({ showCoupon = true, compact = false }: Props) => {
     discountAmount,
     discountError,
     discountLoading,
+    loyaltyPointsApplied,
     applyDiscount,
     clearDiscount,
   } = useCartStore();
@@ -28,7 +29,8 @@ const OrderSummary = ({ showCoupon = true, compact = false }: Props) => {
   const sub = subtotal();
   const ship = shippingCost();
   const grand = total();
-  const remainingForFree = Math.max(0, FREE_SHIPPING_THRESHOLD - (sub - discountAmount));
+  const remainingForFree = Math.max(0, FREE_SHIPPING_THRESHOLD - (sub - discountAmount - (loyaltyPointsApplied || 0)));
+  const pointsToEarn = Math.floor(grand / 10);
 
   const handleApply = async () => {
     if (!code.trim()) return;
