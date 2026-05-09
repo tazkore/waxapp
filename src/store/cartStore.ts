@@ -48,6 +48,8 @@ interface CartState {
   subtotal: () => number;
   shippingCost: () => number;
   total: () => number;
+  hasInvalidVariants: () => boolean;
+  invalidItemKeys: () => string[];
   applyDiscount: (code: string) => Promise<boolean>;
   clearDiscount: () => void;
   syncWithServer: (userId: string) => Promise<void>;
@@ -145,6 +147,12 @@ export const useCartStore = create<CartState>()(
           const ship = sub === 0 ? 0 : (sub - disc >= FREE_SHIPPING_THRESHOLD ? 0 : 99);
           return Math.max(0, sub - disc) + ship;
         },
+        hasInvalidVariants: () =>
+          get().items.some((i) => (i.variants?.length ?? 0) > 0 && !i.selectedVariant),
+        invalidItemKeys: () =>
+          get().items
+            .filter((i) => (i.variants?.length ?? 0) > 0 && !i.selectedVariant)
+            .map((i) => `${i.id}::${i.selectedVariant ?? ''}`),
         discountCode: null,
         discountAmount: 0,
         discountType: null,

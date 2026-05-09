@@ -23,7 +23,8 @@ const steps = [
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, subtotal, clearCart, discountCode, discountAmount, shippingCost: storeShipping, total: storeTotal } = useCartStore();
+  const { items, subtotal, clearCart, discountCode, discountAmount, shippingCost: storeShipping, total: storeTotal, hasInvalidVariants, setCartOpen } = useCartStore();
+  const invalidVariants = hasInvalidVariants();
   const [step, setStep] = useState(1);
   const [confirmed, setConfirmed] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
@@ -150,6 +151,10 @@ const Checkout = () => {
   }
 
   const handleConfirm = async () => {
+    if (invalidVariants) {
+      toast({ title: 'Variantes faltantes', description: 'Hay productos sin variante seleccionada.', variant: 'destructive' });
+      return;
+    }
     setLoading(true);
     setPaymentError('');
 
@@ -436,6 +441,31 @@ const Checkout = () => {
               {step === 3 && (
                 <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                   <h2 className="text-xl font-bold text-foreground mb-6">Método de Pago</h2>
+
+                  {invalidVariants && (
+                    <div
+                      role="alert"
+                      className="rounded-lg border p-4 flex items-start gap-3"
+                      style={{ borderColor: '#FFB300', backgroundColor: 'rgba(255,179,0,0.08)' }}
+                    >
+                      <span className="text-xl" style={{ color: '#FFB300' }}>⚠️</span>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold" style={{ color: '#FFB300' }}>
+                          Error: Hay productos en tu carrito sin una variante o sabor seleccionado.
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">Por favor, edita tu carrito antes de continuar.</p>
+                        <button
+                          type="button"
+                          onClick={() => setCartOpen(true)}
+                          className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium underline"
+                          style={{ color: '#FFB300' }}
+                        >
+                          Editar carrito →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-3">
                     {[
                       { value: 'card', label: 'Tarjeta de Crédito/Débito', desc: 'Visa, Mastercard, Amex' },
@@ -530,7 +560,7 @@ const Checkout = () => {
                     </Button>
                     <Button
                       onClick={handleConfirm}
-                      disabled={loading || (paymentMethod === 'card' && (!cardData.number || !cardData.name || !cardData.expMonth || !cardData.expYear || !cardData.cvv))}
+                      disabled={invalidVariants || loading || (paymentMethod === 'card' && (!cardData.number || !cardData.name || !cardData.expMonth || !cardData.expYear || !cardData.cvv))}
                       className="gap-2 bg-primary text-primary-foreground px-8"
                     >
                       {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Procesando...</> : `Pagar $${total.toLocaleString()} MXN`}

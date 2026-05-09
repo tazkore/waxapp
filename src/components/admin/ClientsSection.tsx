@@ -33,6 +33,35 @@ const emptyForm = {
   membership_tier: 'Bronze',
 };
 
+/* Inline editor for WAX Points (admin can manually adjust per client) */
+const InlinePointsEditor = ({ client, onUpdate }: { client: Client; onUpdate: (n: number) => void }) => {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(String(client.loyalty_points));
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    const n = Math.max(0, parseInt(value) || 0);
+    setSaving(true);
+    const { error } = await supabase.from('clients').update({ loyalty_points: n }).eq('id', client.id);
+    setSaving(false);
+    if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    else { onUpdate(n); setEditing(false); toast({ title: 'WAX Points actualizados' }); }
+  };
+  if (!editing) return (
+    <button onClick={() => { setValue(String(client.loyalty_points)); setEditing(true); }} className="text-secondary font-semibold hover:underline">
+      {client.loyalty_points.toLocaleString()}
+    </button>
+  );
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <Input type="number" min={0} value={value} onChange={e => setValue(e.target.value)} className="h-7 w-20 text-right text-xs bg-muted border-border" />
+      <Button size="icon" variant="ghost" className="h-7 w-7 text-primary" onClick={save} disabled={saving} title="Guardar">
+        {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : '✓'}
+      </Button>
+      <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={() => setEditing(false)} title="Cancelar">✕</Button>
+    </div>
+  );
+};
+
 const ClientsSection = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -338,7 +367,12 @@ const ClientsSection = () => {
                 <TableCell className="text-muted-foreground">{c.email}</TableCell>
                 <TableCell className="text-muted-foreground">{c.phone ?? '—'}</TableCell>
                 <TableCell className="text-right text-foreground font-semibold">${Number(c.total_spent).toLocaleString()}</TableCell>
-                <TableCell className="text-right text-secondary font-semibold">{c.loyalty_points.toLocaleString()}</TableCell>
+                <TableCell className="text-right">
+                  <InlinePointsEditor
+                    client={c}
+                    onUpdate={(newPts) => setClients(prev => prev.map(x => x.id === c.id ? { ...x, loyalty_points: newPts } : x))}
+                  />
+                </TableCell>
                 <TableCell>
                   <Badge className={tierColor[c.membership_tier] ?? ''}>{c.membership_tier}</Badge>
                 </TableCell>
