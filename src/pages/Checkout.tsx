@@ -177,6 +177,8 @@ const Checkout = () => {
           shipping_method: shippingMethod,
           discount_code: discountCode || undefined,
           discount_amount: discountAmount || undefined,
+          loyalty_points_used: loyaltyPointsApplied || 0,
+          affiliate_code: localStorage.getItem('waxapp_affiliate_ref') || undefined,
         },
       });
 
