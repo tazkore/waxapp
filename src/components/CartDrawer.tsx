@@ -179,39 +179,10 @@ const CartDrawer = () => {
 
               {items.length > 0 && (
                 <div className="border-t border-border p-4">
-                  <div className="mb-3 space-y-1.5 text-sm">
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Subtotal ({count} {count === 1 ? 'item' : 'items'})</span>
-                      <motion.span
-                        key={total}
-                        initial={{ opacity: 0.5 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.2 }}
-                        className="font-medium text-foreground"
-                      >
-                        ${total.toLocaleString()} MXN
-                      </motion.span>
-                    </div>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Envío estimado</span>
-                      <span>${shippingEstimate.toLocaleString()} MXN</span>
-                    </div>
-                    <div className="flex justify-between border-t border-border pt-2 text-base font-bold text-foreground">
-                      <span>Total</span>
-                      <motion.span
-                        key={total + shippingEstimate}
-                        initial={{ scale: 0.95 }}
-                        animate={{ scale: 1 }}
-                        transition={{ duration: 0.18 }}
-                      >
-                        ${(total + shippingEstimate).toLocaleString()} MXN
-                      </motion.span>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">Envío final calculado en checkout.</p>
-                  </div>
+                  <OrderSummary />
                   <button
                     onClick={() => { setCartOpen(false); navigate('/checkout'); }}
-                    className="w-full rounded-lg bg-primary py-3 font-semibold text-primary-foreground transition-all hover:neon-glow hover:brightness-110"
+                    className="mt-4 w-full rounded-lg bg-primary py-3 font-semibold text-primary-foreground transition-all hover:neon-glow hover:brightness-110"
                   >
                     Proceder al Pago Seguro
                   </button>
