@@ -182,6 +182,14 @@ const ClientDashboard = () => {
             <Package className="h-4 w-4 inline mr-2" />Mis Pedidos
           </button>
           <button
+            onClick={() => setActiveTab('rewards')}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              activeTab === 'rewards' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Sparkles className="h-4 w-4 inline mr-2" />WAX Points
+          </button>
+          <button
             onClick={() => setActiveTab('profile')}
             className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
               activeTab === 'profile' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -190,6 +198,55 @@ const ClientDashboard = () => {
             <User className="h-4 w-4 inline mr-2" />Mis Datos
           </button>
         </div>
+
+        {activeTab === 'rewards' && (
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-foreground text-base flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" /> Mis WAX Points
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 text-center">
+                <p className="text-xs uppercase tracking-widest text-muted-foreground">Saldo actual</p>
+                <p className="font-display text-5xl font-bold text-primary mt-1">{(client?.loyalty_points ?? 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Equivale a <span className="text-foreground font-semibold">${(client?.loyalty_points ?? 0).toLocaleString()} MXN</span> de descuento futuro
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1">Nivel: <Badge className={tierColor[client?.membership_tier ?? 'Bronze'] ?? ''}>{client?.membership_tier ?? 'Bronze'}</Badge></p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
+                <p className="text-sm font-semibold text-foreground flex items-center gap-2"><Gift className="h-4 w-4 text-secondary" /> Invita y gana</p>
+                <p className="text-xs text-muted-foreground">Por cada amigo que complete su primera compra obtienes <strong className="text-foreground">100 WAX Points extra</strong>.</p>
+                <Button onClick={generateInviteLink} disabled={generatingCode} className="w-full gap-2 mt-2">
+                  {generatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+                  Generar link de invitación
+                </Button>
+              </div>
+              {referrals.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Últimas invitaciones</p>
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50">
+                        <tr><th className="text-left p-2 text-muted-foreground">Código</th><th className="text-left p-2 text-muted-foreground">Estado</th><th className="text-left p-2 text-muted-foreground">Fecha</th></tr>
+                      </thead>
+                      <tbody>
+                        {referrals.map((r) => (
+                          <tr key={r.id} className="border-t border-border">
+                            <td className="p-2 font-mono text-foreground">{r.code}</td>
+                            <td className="p-2 text-muted-foreground capitalize">{r.status}</td>
+                            <td className="p-2 text-muted-foreground">{new Date(r.created_at).toLocaleDateString('es-MX')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {activeTab === 'orders' && (
           <div className="space-y-4">
