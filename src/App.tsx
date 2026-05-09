@@ -44,6 +44,7 @@ const App = () => (
           <RedirectHandler />
           <AgeGate />
           <AffiliateRefTracker />
+        <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/tienda" element={<Index />} />
           <Route path="/shop" element={<Navigate to="/tienda" replace />} />
