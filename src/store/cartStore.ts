@@ -33,6 +33,11 @@ interface CartItem extends Product {
 interface CartState {
   items: CartItem[];
   isOpen: boolean;
+  discountCode: string | null;
+  discountAmount: number;
+  discountType: 'percentage' | 'fixed' | null;
+  discountError: string | null;
+  discountLoading: boolean;
   addItem: (product: Product, quantity?: number, variant?: string) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -41,6 +46,10 @@ interface CartState {
   setCartOpen: (open: boolean) => void;
   totalItems: () => number;
   subtotal: () => number;
+  shippingCost: () => number;
+  total: () => number;
+  applyDiscount: (code: string) => Promise<boolean>;
+  clearDiscount: () => void;
   syncWithServer: (userId: string) => Promise<void>;
   pushToServer: (userId: string) => Promise<void>;
 }
