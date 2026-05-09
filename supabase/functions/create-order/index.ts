@@ -108,6 +108,63 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Redeem loyalty points (deduct from balance)
+    if (pointsToRedeem > 0) {
+      try {
+        const { data: clientRow } = await supabase
+          .from("clients")
+          .select("id, loyalty_points")
+          .eq("email", customer_email.trim().toLowerCase())
+          .maybeSingle();
+        if (clientRow) {
+          await supabase
+            .from("clients")
+            .update({ loyalty_points: Math.max(0, Number(clientRow.loyalty_points) - pointsToRedeem) })
+            .eq("id", clientRow.id);
+        }
+      } catch (e) {
+        console.error("loyalty redeem error:", e);
+      }
+    }
+
+    // Link to affiliate (track sale)
+    if (affiliate_code && typeof affiliate_code === "string") {
+      try {
+        const { data: aff } = await supabase
+          .from("affiliates")
+          .select("id, commission_pct, total_sales, pending_payout")
+          .eq("code", affiliate_code)
+          .eq("status", "approved")
+          .maybeSingle();
+        if (aff) {
+          const gross = Number(total);
+          const tax = +(gross * 0.16).toFixed(2);
+          const netProfit = +(gross - shippingCost - tax).toFixed(2);
+          const commission = +(netProfit * (Number(aff.commission_pct) / 100)).toFixed(2);
+          await supabase.from("affiliate_sales").insert({
+            affiliate_id: aff.id,
+            order_id: data.id,
+            order_number: orderNumber,
+            gross,
+            shipping: shippingCost,
+            tax,
+            net_profit: netProfit,
+            commission,
+            status: "pending",
+          });
+          await supabase
+            .from("affiliates")
+            .update({
+              total_sales: Number(aff.total_sales) + gross,
+              pending_payout: Number(aff.pending_payout) + commission,
+            })
+            .eq("id", aff.id);
+        }
+      } catch (e) {
+        console.error("affiliate link error:", e);
+      }
+    }
+
     // Send admin notification email (fire-and-forget)
     try {
       const { data: adminRoles } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
