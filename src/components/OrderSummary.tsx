@@ -162,6 +162,11 @@ const OrderSummary = ({ showCoupon = true, compact = false }: Props) => {
             ${grand.toLocaleString()} MXN
           </motion.span>
         </div>
+        {grand > 0 && (
+          <p className="text-[11px] text-primary/80 text-right">
+            Acumularás +{pointsToEarn.toLocaleString()} WAX Points con esta compra
+          </p>
+        )}
       </div>
     </div>
   );
