@@ -38,6 +38,7 @@ interface CartState {
   discountType: 'percentage' | 'fixed' | null;
   discountError: string | null;
   discountLoading: boolean;
+  loyaltyPointsApplied: number;
   addItem: (product: Product, quantity?: number, variant?: string) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -52,6 +53,8 @@ interface CartState {
   invalidItemKeys: () => string[];
   applyDiscount: (code: string) => Promise<boolean>;
   clearDiscount: () => void;
+  setLoyaltyPoints: (n: number) => void;
+  clearLoyaltyPoints: () => void;
   syncWithServer: (userId: string) => Promise<void>;
   pushToServer: (userId: string) => Promise<void>;
 }
