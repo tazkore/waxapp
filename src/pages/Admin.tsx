@@ -40,6 +40,7 @@ import DomainsSection from '@/components/admin/DomainsSection';
 import AppsSection from '@/components/admin/AppsSection';
 import ChannelsSection from '@/components/admin/ChannelsSection';
 import SubStoreAdminPanel from '@/components/admin/SubStoreAdminPanel';
+import AffiliatesSection from '@/components/admin/AffiliatesSection';
 import Copyright from '@/components/Copyright';
 import { useOnboardingStatus } from '@/hooks/useOnboardingStatus';
 import { useEffect } from 'react';
@@ -78,6 +79,7 @@ const Admin = () => {
       case 'warehouses': return <WarehousesSection />;
       case 'shipping': return <ShippingSection />;
       case 'clients': return <ClientsSection />;
+      case 'affiliates': return isAdmin ? <AffiliatesSection /> : <OverviewSection onNavigate={setActive} />;
       case 'marketing': return <MarketingSection />;
       case 'payments': return <PaymentsSection />;
       case 'payment-gateways': return <PaymentsSection />;
