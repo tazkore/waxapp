@@ -27,6 +27,7 @@ import SeoHead from "./components/SeoHead.tsx";
 import RedirectHandler from "./components/RedirectHandler.tsx";
 import ThemeProvider from "./components/ThemeProvider.tsx";
 import AgeGate from "./components/AgeGate.tsx";
+import AffiliateRefTracker from "./components/AffiliateRefTracker.tsx";
 import AffiliatePortal from "./pages/AffiliatePortal.tsx";
 import AffiliateLogin from "./pages/AffiliateLogin.tsx";
 
