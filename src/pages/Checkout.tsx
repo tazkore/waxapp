@@ -127,6 +127,49 @@ const Checkout = () => {
     });
   }, []);
 
+  // ============ Exit-intent + inactividad (carrito abandonado) ============
+  const [exitOpen, setExitOpen] = useState(false);
+  const triggeredRef = useRef(false);
+  useEffect(() => {
+    if (!shipping.email || !/.+@.+\..+/.test(shipping.email)) return;
+    if (triggeredRef.current) return;
+
+    let lastActivity = Date.now();
+    const bump = () => { lastActivity = Date.now(); };
+    const events = ['mousemove', 'keydown', 'click', 'scroll'];
+    events.forEach((e) => window.addEventListener(e, bump));
+
+    const fire = (reason: string) => {
+      if (triggeredRef.current) return;
+      triggeredRef.current = true;
+      const sub = subtotal();
+      supabase.functions.invoke('track-abandoned-cart', {
+        body: {
+          email: shipping.email,
+          subtotal: sub,
+          items: items.map((i) => ({ id: i.id, title: i.title, qty: i.quantity, price: i.price })),
+          reason,
+        },
+      }).catch(() => {});
+      setExitOpen(true);
+    };
+
+    const inactivityId = setInterval(() => {
+      if (Date.now() - lastActivity > 180_000) fire('inactivity_3min');
+    }, 15_000);
+
+    const onMouseLeave = (e: MouseEvent) => {
+      if (e.clientY < 0) fire('mouse_leave_top');
+    };
+    document.addEventListener('mouseleave', onMouseLeave);
+
+    return () => {
+      clearInterval(inactivityId);
+      events.forEach((e) => window.removeEventListener(e, bump));
+      document.removeEventListener('mouseleave', onMouseLeave);
+    };
+  }, [shipping.email, items, subtotal]);
+
   if (!authChecked || !isAuthed) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
