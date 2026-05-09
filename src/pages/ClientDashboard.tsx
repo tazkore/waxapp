@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, LogOut, User, Save, ArrowLeft, Package, Truck } from 'lucide-react';
+import { Loader2, LogOut, User, Save, ArrowLeft, Package, Truck, Sparkles, Copy, Gift } from 'lucide-react';
+import { toast as sonnerToast } from 'sonner';
 
 const countries = [
   'México', 'Estados Unidos', 'España', 'Colombia', 'Argentina', 'Chile',
@@ -30,8 +31,11 @@ const ClientDashboard = () => {
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'profile' | 'orders'>('orders');
+  const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'rewards'>('orders');
   const [form, setForm] = useState({ full_name: '', phone: '', country: '', address: '', city: '', state: '', postal_code: '' });
+  const [client, setClient] = useState<any>(null);
+  const [referrals, setReferrals] = useState<any[]>([]);
+  const [generatingCode, setGeneratingCode] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -62,12 +66,51 @@ const ClientDashboard = () => {
           .eq('customer_email', user.email)
           .order('created_at', { ascending: false });
         setOrders(orderData ?? []);
+
+        // Fetch loyalty points (from clients table) and referrals
+        const { data: clientRow } = await supabase
+          .from('clients').select('*').eq('email', user.email).maybeSingle();
+        setClient(clientRow);
+
+        const { data: refRows } = await supabase
+          .from('wax_referrals').select('*')
+          .eq('referrer_user_id', user.id)
+          .order('created_at', { ascending: false }).limit(5);
+        setReferrals(refRows ?? []);
       }
 
       setLoading(false);
     };
     load();
   }, [navigate]);
+
+  const generateInviteLink = async () => {
+    setGeneratingCode(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No autenticado');
+      const code = `WAX-${user.id.slice(0, 8).toUpperCase()}`;
+      // Idempotent insert
+      await supabase.from('wax_referrals').upsert({
+        referrer_user_id: user.id,
+        referrer_email: user.email!,
+        code,
+        status: 'pending',
+      } as any, { onConflict: 'code' });
+      const url = `${window.location.origin}/tienda?ref=${code}`;
+      await navigator.clipboard.writeText(url);
+      sonnerToast.success('Link de invitación copiado', { description: url });
+      const { data: refRows } = await supabase
+        .from('wax_referrals').select('*')
+        .eq('referrer_user_id', user.id)
+        .order('created_at', { ascending: false }).limit(5);
+      setReferrals(refRows ?? []);
+    } catch (e: any) {
+      sonnerToast.error(e?.message || 'No se pudo generar el link');
+    } finally {
+      setGeneratingCode(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!form.phone || !form.country || !form.full_name) {
