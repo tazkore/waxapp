@@ -68,9 +68,11 @@ const AffiliatesSection = () => {
 
   const filtered = useMemo(() => {
     const fc = clicks.filter((c) => inRange(c.created_at));
-    const fs = sales.filter((s) => inRange(s.created_at));
+    const fs = sales
+      .filter((s) => inRange(s.created_at))
+      .filter((s) => statusFilter === 'all' ? true : (s.status || 'pending') === statusFilter);
     return { fc, fs };
-  }, [clicks, sales, range.from, range.to]);
+  }, [clicks, sales, range.from, range.to, statusFilter]);
 
   const kpis = useMemo(() => {
     const totalClicks = filtered.fc.length;
