@@ -67,7 +67,20 @@ Deno.serve(async (req) => {
     // Calculate total server-side from item prices
     const subtotal = items.reduce((sum: number, item: any) => sum + item.price * item.qty, 0);
     const shippingCost = shipping_method === "express" ? 250 : shipping_method === "standard" ? 99 : 0;
-    const total = subtotal + shippingCost;
+
+    // Apply loyalty points (1 pt = $1 MXN), capped at subtotal and at user's available balance
+    let pointsToRedeem = 0;
+    if (Number.isInteger(loyalty_points_used) && loyalty_points_used > 0) {
+      const { data: clientRow } = await supabase
+        .from("clients")
+        .select("id, loyalty_points")
+        .eq("email", customer_email.trim().toLowerCase())
+        .maybeSingle();
+      const available = Number(clientRow?.loyalty_points ?? 0);
+      pointsToRedeem = Math.min(loyalty_points_used, available, subtotal);
+    }
+
+    const total = Math.max(0, subtotal - pointsToRedeem) + shippingCost;
 
     if (total <= 0) {
       return new Response(JSON.stringify({ error: "Total must be greater than 0" }), {
