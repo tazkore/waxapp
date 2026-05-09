@@ -1,43 +1,93 @@
-## Mejoras al Carrito y Checkout
+# Plan de actualización pre-producción
 
-Cambios enfocados en presentación y consistencia del carrito, sin tocar lógica de negocio del servidor.
+Mantengo el Dark Mode Tech (#0A0A0A / #00E676 / #FFB300), tipografía Space Grotesk + Inter, y no elimino componentes existentes. Solo inyecto/reparo.
 
-### 1. Resumen reactivo en el drawer (`CartDrawer.tsx`)
-- Agregar bloque visible con **subtotal**, **envío estimado** (placeholder "Calculado en checkout") y **total**.
-- Derivar valores directamente desde `useCartStore` para que se actualicen al instante con cada cambio.
-- Mostrar contador de items totales en el header del drawer.
+## 1. Routing `/tienda` (fix 404)
 
-### 2. Validación de cantidades (`cartStore.ts` + `CartDrawer.tsx`)
-- En `updateQuantity`: clamp con `Math.max(1, Math.floor(quantity))` cuando se llama desde botones (cantidades < 1 solo permiten eliminación explícita vía `removeItem`).
-- Agregar un tope superior razonable (ej. 99) para evitar inputs absurdos.
-- Deshabilitar botón "−" cuando `quantity === 1` (ya existe) y "+" cuando llega al tope.
-- Prevenir doble click con guard local mientras se procesa el cambio.
+- En `src/App.tsx` añadir, antes del catch-all `*` y del `/:slug`:
+  - `<Route path="/tienda" element={<Index />} />`
+  - Reutilizo `Index` (que ya contiene `ProductGrid`) para no duplicar UI.
+- Añadir también alias `/shop` → `<Navigate to="/tienda" replace />` por compatibilidad.
+- Actualizar enlaces internos de Navbar/Footer que apunten a `#productos` para que vayan a `/tienda`.
 
-### 3. Clave compuesta en Checkout (`Checkout.tsx`)
-- Auditar todos los puntos donde se itera `items` para construir el pedido y calcular precios.
-- Usar `${item.id}::${item.selectedVariant ?? ''}` como identificador en líneas de pedido enviadas al edge function `create-order`.
-- Asegurar que el subtotal del checkout coincida con `subtotal()` del store (mismo cálculo).
+## 2. Modal de producto con variantes (composite key)
 
-### 4. Persistencia (verificar)
-- `cartStore.ts` ya usa `persist` con `localStorage` y `partialize` por `items`. Confirmar que `selectedVariant` y `quantity` se restauran correctamente al recargar.
-- Sin cambios salvo agregar `version` y migración no-op por seguridad para futuros refactors.
+- Ya existe `QuickViewDialog.tsx`. Lo extiendo en lugar de crear uno nuevo:
+  - Galería simple (imagen principal + thumbnails si `images[]` existe).
+  - Lista de beneficios (`product.benefits` parseado por saltos de línea / viñetas).
+  - Selector de variantes con `RadioGroup` shadcn (Sabor / Gramos / Mg) leído de `product.variants`.
+  - Botón "Agregar al carrito" deshabilitado hasta seleccionar variante (si hay variantes).
+- En `ProductCard.tsx`: el click sobre la tarjeta abre el modal en vez de agregar directo. El botón "Agregar" del card también abre el modal cuando el producto tiene variantes; sin variantes mantiene el add directo.
+- Identificador en el carrito: ya existe la convención `${id}::${variant ?? ''}`. Confirmo que `addItem` en `cartStore` la respete (ya lo hace) y la uso en el modal al disparar `addItem(product, 1, variantSeleccionada)`.
+- Toast: usar `sonner` con `toast.success('Agregado al carrito exitosamente')` envuelto en un `motion.div` (fade + slide) vía `toast.custom` para la micro-animación verde neón.
 
-### 5. Notificaciones y micro-animaciones (`CartDrawer.tsx`)
-- `sonner` toasts:
-  - Eliminar: `toast.success("Producto eliminado", { description: item.title, action: { label: "Deshacer", onClick: ... } })` con restauración del item.
-  - Cambio de cantidad: toast sutil opcional o solo animación.
-- Animaciones con `framer-motion`:
-  - `AnimatePresence` + `layout` en la lista para entrada/salida suave.
-  - Pulse en el contador de cantidad al cambiar.
-  - Fade+slide al remover item.
+## 3. Cupones y checkout reactivo
 
-### Detalles técnicos
-- Mantener API actual del store (`removeItem(id)`, `updateQuantity(id, qty)` aceptando clave compuesta o plain id).
-- No modificar edge functions ni esquema DB.
-- Mantener tokens semánticos (sin colores hardcoded).
-- "Deshacer" reinserta el item con `addItem(product, qty, variant)` desde un snapshot guardado antes de eliminar.
+- Estado global ligero en `cartStore`:
+  - Campos: `discountCode: string | null`, `discountAmount: number`, `discountType: 'percent'|'fixed'|null`.
+  - Acciones: `applyDiscount(code)` (llama edge function existente `validate-discount`), `clearDiscount()`.
+- En `CartDrawer.tsx` y en `Checkout.tsx` (paso 3) añadir:
+  - Input "Código de descuento" + botón "Aplicar" + botón "Quitar" si hay uno activo.
+  - Estados visuales: loading, error (código inválido), éxito (chip verde con código).
+- Desglose reactivo (componente compartido `OrderSummary`):
+  ```text
+  Subtotal:            $X
+  Descuento (CODIGO): -$Y
+  Envío:               $Z   (Gratis si subtotal - descuento >= 1500 MXN)
+  ─────────────────────────
+  Total:               $W
+  ```
+- El umbral de envío gratis (1500 MXN) se define como constante exportada `FREE_SHIPPING_THRESHOLD` para reusar en drawer y checkout.
+- En `Checkout.tsx` el cuerpo del pedido enviado a `create-order` incluye `discount_code`, `discount_amount` y `shipping_cost` ya recalculados (la lógica final de validación sigue server-side, sin cambios en edge functions).
 
-### Archivos a editar
-- `src/store/cartStore.ts` — clamp en updateQuantity, version en persist.
-- `src/components/CartDrawer.tsx` — resumen, animaciones, toasts con undo.
-- `src/pages/Checkout.tsx` — clave compuesta en construcción del pedido.
+## 4. Pantalla `/orden-completada`
+
+- Nuevo archivo `src/pages/OrderComplete.tsx`:
+  - Lee `orderNumber` desde `location.state` o query `?folio=WX-XXXX`.
+  - Si no hay folio, genera uno aleatorio `WX-` + 4 dígitos como fallback visual.
+  - Diseño centrado:
+    - Círculo con `Check` gigante (96px) color `#00E676` con glow.
+    - H1 "¡Pedido confirmado!" (Space Grotesk).
+    - Folio destacado.
+    - Resumen de artículos (lee snapshot pasado en `state.items` con variantes correctas — usamos la composite key como `key`).
+    - Texto: "Tu orden está siendo preparada. Recibirás tu guía de envío por correo."
+    - CTAs: "Volver a la tienda" → `/tienda`, "Ver mi cuenta" → `/mi-cuenta`.
+- Registrar la ruta en `App.tsx`: `<Route path="/orden-completada" element={<OrderComplete />} />`.
+- En `Checkout.tsx`, tras `create-order` exitoso, en lugar de mostrar el bloque inline `confirmed`, hacer:
+  ```tsx
+  navigate('/orden-completada', { state: { orderNumber, items: snapshot, total } });
+  clearCart();
+  ```
+
+## 5. Marcas destacadas + seed de productos
+
+- En `BrandsStrip.tsx` (carrusel ya existente): marcar `is_featured` visual para Neshika, Muha Meds, Pulse THC, WAXAPP, Ace Ultra → orden prioritario y borde neón sutil + glow `#00E676` al hover.
+- En `ProductGrid.tsx`: añadir filtro chip por marca con esas 5 marcas como pills destacadas arriba del grid.
+- Datos base: actualizar `src/data/products.ts` (catálogo local de fallback usado cuando la tabla `products` viene vacía) añadiendo los items del JSON pedido, adaptados al tipo `Product` existente:
+  ```ts
+  { id: 'evp1', title: 'Muha Meds 2gr', category: 'Hardware', brand: 'Muha Meds',
+    price: 420, variants: [{name:'Sativa',price:420},{name:'Indica',price:420}], image: '/placeholders/muha.jpg' },
+  // evp2, evp3, wx1 análogos
+  ```
+- Extender la interfaz `Product` en `cartStore.ts` con `brand?: string` (opcional, no rompe nada).
+- Si la tabla `products` de Supabase está vacía, `ProductGrid` ya hace fallback a estos datos locales, así que la tienda se puebla al instante.
+
+## Detalles técnicos
+
+- Sin cambios de DB ni edge functions nuevos. Reuso `validate-discount` y `create-order` ya desplegados.
+- Persistencia de cupón: dentro del mismo `persist` del cart store (campo nuevo en `partialize`).
+- Sin alterar tokens del design system; los nuevos elementos usan clases existentes (`bg-primary`, `text-primary`) o `style` con `#00E676`/`#FFB300` cuando ya se hace en componentes vecinos.
+- Tests: no añado tests automatizados; verifico manualmente las 5 áreas en preview tras implementar.
+
+## Archivos a tocar
+
+- `src/App.tsx` — rutas `/tienda`, `/shop`, `/orden-completada`.
+- `src/components/QuickViewDialog.tsx` — selector de variantes + add-to-cart.
+- `src/components/ProductCard.tsx` — abrir modal en click.
+- `src/components/CartDrawer.tsx` — input de cupón + summary reactivo.
+- `src/components/OrderSummary.tsx` — nuevo, compartido drawer/checkout.
+- `src/store/cartStore.ts` — estado de descuento + `brand` en `Product`.
+- `src/pages/Checkout.tsx` — usar OrderSummary, redirigir a `/orden-completada`.
+- `src/pages/OrderComplete.tsx` — nueva página.
+- `src/components/BrandsStrip.tsx` y `src/components/ProductGrid.tsx` — destacar/filtrar marcas.
+- `src/data/products.ts` — seed evp1-evp3, wx1.
