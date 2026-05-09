@@ -204,7 +204,7 @@ const CartDrawer = () => {
           </div>
 
           {items.length > 0 && (
-            <SheetFooter className="border-t border-border bg-card p-4 flex-col sm:flex-col sm:space-x-0 sm:justify-start">
+            <div className="border-t border-border bg-card p-4">
               <OrderSummary />
               <Button
                 onClick={() => {
@@ -224,7 +224,7 @@ const CartDrawer = () => {
                   <span className="rounded bg-muted px-1.5 py-0.5 text-[9px]">AMEX</span>
                 </span>
               </div>
-            </SheetFooter>
+            </div>
           )}
         </SheetContent>
       </Sheet>
