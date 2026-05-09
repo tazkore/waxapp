@@ -1,59 +1,144 @@
-# Plan: E2E Testing, Affiliate Tracking & Loyalty Redemption
+# Plan: Cart UX, Retención y Panel de Afiliados v2
 
-Aditivo: no se borra ni renombra ninguna ruta o tabla existente. Se reutiliza el módulo de Afiliados ya creado y la columna `loyalty_points` de `clients`.
+Trabajo incremental sobre 8 módulos. Mantenemos diseño Dark Mode Tech (#0A0A0A / #00E676), tokens semánticos HSL y la lógica `id::variante` ya existente en `cartStore`.
 
-## 1. Motor de tracking `?ref`
+---
 
-Hoy `src/pages/Index.tsx` ya guarda `waxapp_affiliate_ref` y dispara `track-affiliate-click`, pero solo en `/`. Lo movemos a nivel global:
+## 1. Estado global del carrito (bug del contador)
 
-- Crear `src/components/AffiliateRefTracker.tsx`: componente "headless" con `useEffect` + `useLocation` que escucha cambios de URL y persiste `?ref=CODE` en `localStorage` (con timestamp + TTL 30 días). Llama a `track-affiliate-click` solo la primera vez por código.
-- Montarlo en `App.tsx` dentro de `<BrowserRouter>` junto a `<AgeGate />` para que funcione en `/`, `/tienda`, `/marcas`, `/s/:slug`, etc.
-- Quitar el `useEffect` duplicado de `Index.tsx` (queda el global).
-- En `Checkout.tsx` → `handleConfirm`, agregar al body de `create-order`:
-  - `affiliate_code: localStorage.getItem('waxapp_affiliate_ref') ?? null`
-- En la edge function `create-order`: aceptar `affiliate_code`, buscar en `affiliates` (status=approved) y guardar `affiliate_id` en la orden + insertar fila en `affiliate_sales` (pending). Esto cierra el loop de comisiones.
+**Archivos:** `src/store/cartStore.ts`, `src/components/Navbar.tsx`
 
-## 2. Redención de WAX Points en Checkout
+- `totalItems()` ya hace `reduce(qty)` — auditar Navbar para que use `useCartStore(s => s.totalItems())` (selector reactivo) en vez de `items.length`.
+- Confirmar inmutabilidad en `removeItem`, `updateQuantity`, `clearCart` (todas usan `.filter`/`.map`, ✅).
+- En el badge: ocultar burbuja si `count === 0` (`{count > 0 && <Badge>{count}</Badge>}`).
 
-Solo UI/lógica de presentación + cálculo del descuento; el descuento real lo validará el server más adelante.
+## 2. Drawer del carrito con shadcn `Sheet`
 
-- Cargar saldo real: `useEffect` que consulta `clients.loyalty_points where email = session.email` (fallback 0 si no existe). Mostrar saldo bajo el bloque de cupón en `OrderSummary` o en una nueva tarjeta dentro del paso 3 del checkout.
-- Componente nuevo `src/components/LoyaltyRedeemCard.tsx`:
-  - `Switch` "Usar mis WAX Points" (shadcn `switch.tsx`).
-  - `Input` numérico con máximo = `min(saldo, totalAfterDiscount)` (1 punto = $1 MXN).
-  - Botón "Aplicar máximo".
-- Estado nuevo en `cartStore`: `loyaltyPointsApplied: number`, acciones `setLoyaltyPoints(n)` y `clearLoyaltyPoints()`. Recalcular `total()` restando puntos.
-- Desglose en `OrderSummary`: añadir línea "Descuento puntos −$X" cuando aplique.
-- Texto dinámico bajo el total: `"Acumularás +{Math.floor(total/10)} WAX Points con esta compra"`.
-- En `handleConfirm` enviar `loyalty_points_used` al edge `create-order` (server descontará del saldo).
+**Archivos:** `src/components/CartDrawer.tsx` (refactor)
 
-## 3. Dashboard `/admin/afiliados/dashboard`
+- Reemplazar `motion.aside` actual por `<Sheet open={isOpen} onOpenChange={setCartOpen}>` + `<SheetContent side="right" className="w-full max-w-md flex flex-col p-0">`.
+- Conserva animación nativa de Radix (slide-in-from-right) y accesibilidad (focus trap, ESC).
+- **Estado vacío**: ícono `ShoppingBag` grande gris, título "Tu carrito está esperando", botón verde `bg-primary` "Explorar Productos" → `setCartOpen(false); navigate('/tienda')`.
 
-Aprovechamos la `AffiliatesSection` existente y añadimos pestañas:
+## 3. Lista de productos + barra de envío + upsell
 
-- Refactor `AffiliatesSection.tsx` con `Tabs`: **Solicitudes / Vendedores / Dashboard**.
-- Tab Dashboard:
-  - **Generador de links**: `Select` con afiliados aprobados → genera `https://waxapp.mx/tienda?ref={code}` con botón Copiar (`navigator.clipboard`).
-  - **Date Range Picker** (shadcn `Calendar` + `Popover`, `mode="range"`, `pointer-events-auto`).
-  - **Cards** (4): Clics totales, Ventas (count), Conversión %, Comisiones generadas $. Datos: agregaciones sobre `affiliate_clicks` y `affiliate_sales` filtrando por rango.
-  - **Tabla rendimiento por vendedor**: ranking por ganancia con columnas Rango / Nombre / Link / Visitas / Ventas / Comisión.
-- Sin nueva ruta — vive dentro del panel admin (`/admin` → sidebar "Afiliados"), ya que Admin es SPA single-route. El "deep link" `/admin/afiliados/dashboard` se resuelve con un parámetro `?section=affiliates&tab=dashboard` opcional.
+**Archivos:** `CartDrawer.tsx`, nuevo `src/components/cart/FreeShippingBar.tsx`, nuevo `src/components/cart/UpsellStrip.tsx`
 
-## 4. Infraestructura E2E con Playwright
+- Items: ya tienen miniatura, nombre, variante en muted, precio, `[-][qty][+]` y papelera ✅ (mantener layout actual).
+- **FreeShippingBar** (sticky top del drawer): usa `FREE_SHIPPING_THRESHOLD = 1500` ya exportado. `<Progress value={(subtotal/1500)*100} />` con texto dinámico:
+  - `subtotal < 1500` → "Te faltan $X para Envío Gratis" (tono normal).
+  - `subtotal >= 1500` → "¡Felicidades! Tienes Envío Gratis" + barra llena verde neón con glow.
+- **UpsellStrip**: query Supabase `products` filtrando por categoría `accesorios` o `baterías`, `price < 300`, `limit 2`. Card mini horizontal con botón "+ Agregar" (`addItem`).
 
-El proyecto ya tiene `playwright.config.ts` y `playwright-fixture.ts`. Solo falta la suite:
+## 4. Banner top con countdown evergreen
 
-- Crear `playwright-tests/e2e.spec.ts` con 3 tests:
-  1. **Public flow**: `goto /` → click "Tienda" → click primer `ProductCard` "Agregar" → abrir `CartDrawer` → click "Checkout" → assert URL `/checkout` o redirect a `/cliente`.
-  2. **Affiliate flow**: `goto /?ref=TEST123` → assert `localStorage.waxapp_affiliate_ref === 'TEST123'` → navegar a `/tienda` → assert que persiste tras navegación SPA.
-  3. **Admin flow**: `goto /admin/login` → llenar credenciales (vía `process.env.E2E_ADMIN_EMAIL/PASSWORD`) → assert que cargan métricas del Overview.
-- Comentarios al inicio explicando: `npx playwright test` local, variables de entorno requeridas, `--ui` para modo interactivo.
-- README rápido en `playwright-tests/README.md` con setup.
+**Archivos:** nuevo `src/components/PromoCountdownBanner.tsx`, integrar en `src/components/Navbar.tsx` o `App.tsx`
 
-## Archivos
+- Timer de 15 min persistido en `localStorage` (`wax_promo_deadline`). Si expira, reinicia a +15 min (evergreen).
+- Render `MM:SS` en color `#FFB300` con animación `animate-pulse` cada segundo final.
+- Texto: "🎁 15% OFF de bienvenida — Válido por: **14:59**".
+- `useEffect` con `setInterval(1000)` + cleanup.
 
-**Crear**: `src/components/AffiliateRefTracker.tsx`, `src/components/LoyaltyRedeemCard.tsx`, `playwright-tests/e2e.spec.ts`, `playwright-tests/README.md`.
+## 5. Carrito abandonado (Exit Intent)
 
-**Editar**: `src/App.tsx`, `src/pages/Index.tsx` (limpiar), `src/pages/Checkout.tsx`, `src/components/OrderSummary.tsx`, `src/store/cartStore.ts`, `src/components/admin/AffiliatesSection.tsx`, `supabase/functions/create-order/index.ts`.
+**Archivos:** `src/pages/Checkout.tsx`, nuevo `src/components/cart/ExitIntentModal.tsx`, nueva edge function `supabase/functions/track-abandoned-cart/index.ts`
 
-**Sin cambios de schema DB** (usamos columnas/tablas existentes). Si `create-order` necesita una columna `affiliate_id` en `orders` se añadirá vía migration en ese momento.
+- En Checkout, watcher con dos triggers:
+  1. **Inactividad email**: cuando `email` válido + `Date.now() - lastActivity > 180_000` → dispara una vez.
+  2. **Mouseleave**: `document.addEventListener('mouseleave', e => { if (e.clientY < 0) trigger() })` (solo desktop, una vez por sesión).
+- Trigger: `supabase.functions.invoke('track-abandoned-cart', { body: { email, items, total } })` + abrir `ExitIntentModal`.
+- Modal: "¡Espera! Tu carrito está guardado. Finaliza ahora y llévate un regalo sorpresa" + botón verde "Continuar mi compra" (cierra modal) y botón secundario "Más tarde".
+- Edge function: inserta en tabla nueva `abandoned_carts` (email, items jsonb, total, recovered bool, created_at). Migración incluida.
+
+## 6. Sticky footer financiero
+
+**Archivos:** `CartDrawer.tsx`, `src/components/OrderSummary.tsx`
+
+- Mover `<OrderSummary />` + botón a `<SheetFooter className="sticky bottom-0 border-t bg-card p-4">`.
+- Mantener input de cupones + `LoyaltyRedeemCard` (compact mode prop).
+- Reactividad: ya usa selectores Zustand ✅.
+- Bajo el botón añadir fila pequeña: iconos Visa/MC/Amex (lucide o SVG inline) + "🔒 Checkout 100% encriptado" en `text-xs text-muted-foreground`.
+
+## 7. Panel de Afiliados v2 (paginación, filtros, export)
+
+**Archivos:** `src/components/admin/AffiliatesSection.tsx` (extender Tab "Vendedores"/"Dashboard"), nuevas utilidades `src/lib/exportAffiliates.ts`
+
+- **Paginación**: `<Pagination>` de shadcn, page size 25, server-side via `.range(from, to)`.
+- **Filtros**: `DateRangePicker` (popover + Calendar shadcn con `pointer-events-auto`) + `<Select>` de estado (todos/pendiente/pagado/rechazado). Aplicados en queries a `affiliate_sales`.
+- **Tabla**: columnas Vendedor · Clics · Conversiones · Ranking (calculado por ventas) · Comisión $ · Estado · Acciones.
+- **Export**:
+  - `📥 CSV`: `Papa.unparse()` (ya tenemos papaparse) → blob download.
+  - `📄 PDF`: `jspdf` + `jspdf-autotable` (agregar deps) con header KPIs y tabla filtrada.
+
+## 8. Playwright E2E — Lealtad + Afiliados
+
+**Archivos:** nuevo `playwright-tests/checkout-affiliate.spec.js`
+
+- **Caso 1 (Lealtad)**:
+  1. Visit `/tienda`, `addItem` (click producto → "Agregar").
+  2. `/checkout`, registrar y hacer login con cliente seed con ≥500 puntos.
+  3. Capturar subtotal inicial, abrir `LoyaltyRedeemCard`, ingresar `500`, "Aplicar".
+  4. Assert nuevo total = inicial − 500.
+  5. Interceptar `**/functions/v1/create-order` con `page.route`, capturar payload, validar `loyalty_points_used === 500` y `total` correcto.
+
+- **Caso 2 (Afiliados)**:
+  1. `goto('/?ref=VENDEDOR123')`.
+  2. Esperar y assert `localStorage.getItem('waxapp_affiliate_ref')` con `{code, expires}` y `expires > Date.now() + 29*86400_000`.
+  3. Interceptar `**/functions/v1/track-affiliate-click` y validar disparo (status 200, body con `code:'VENDEDOR123'`).
+  4. Flujo de compra → interceptar `create-order` y validar `affiliate_code` en payload (proxy de `affiliate_sales` server-side).
+
+- Comentarios en cabecera: ejecutar con `npx playwright test playwright-tests/checkout-affiliate.spec.js`.
+
+---
+
+## Detalles técnicos
+
+### Migración SQL (módulo 5)
+```sql
+CREATE TABLE public.abandoned_carts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text NOT NULL,
+  items jsonb NOT NULL,
+  subtotal numeric NOT NULL,
+  recovered boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.abandoned_carts ENABLE ROW LEVEL SECURITY;
+-- Solo admins leen; edge function inserta con service role.
+CREATE POLICY "admins_read" ON public.abandoned_carts FOR SELECT
+  USING (public.has_role(auth.uid(), 'super_admin'));
+```
+
+### Dependencias nuevas
+- `jspdf`, `jspdf-autotable` (export PDF en módulo 7).
+- `papaparse` ya presente (verificar).
+
+### Tokens / clases
+- Verde neón: `bg-primary` / `text-primary` (mapeado a `#00E676` en `index.css`).
+- Ámbar countdown: extender `index.css` con `--warning: 38 100% 50%` y usar `text-warning`.
+- Nada de colores hex sueltos en componentes.
+
+### Archivos nuevos
+```
+src/components/cart/FreeShippingBar.tsx
+src/components/cart/UpsellStrip.tsx
+src/components/cart/ExitIntentModal.tsx
+src/components/PromoCountdownBanner.tsx
+src/lib/exportAffiliates.ts
+supabase/functions/track-abandoned-cart/index.ts
+supabase/migrations/<ts>_abandoned_carts.sql
+playwright-tests/checkout-affiliate.spec.js
+```
+
+### Archivos modificados
+```
+src/store/cartStore.ts        (selector + ocultar badge si 0)
+src/components/Navbar.tsx     (badge condicional + montar PromoCountdownBanner)
+src/components/CartDrawer.tsx (refactor a Sheet + sticky footer + barras)
+src/components/OrderSummary.tsx (logos Visa/MC + candado)
+src/pages/Checkout.tsx        (watcher inactividad + mouseleave)
+src/components/admin/AffiliatesSection.tsx (paginación + filtros + export)
+package.json                  (jspdf deps)
+```
+
+Sin cambios al sistema de diseño existente, sin remover rutas, sin tocar `create-order` (ya soporta loyalty/affiliate).
