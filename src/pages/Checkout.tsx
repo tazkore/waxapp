@@ -649,6 +649,11 @@ const Checkout = () => {
         </div>
       </div>
       <Footer />
+      <ExitIntentModal
+        open={exitOpen}
+        onOpenChange={setExitOpen}
+        onContinue={() => setExitOpen(false)}
+      />
     </div>
   );
 };
