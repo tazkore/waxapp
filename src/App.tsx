@@ -26,6 +26,9 @@ import SubStorePage from "./pages/SubStorePage.tsx";
 import SeoHead from "./components/SeoHead.tsx";
 import RedirectHandler from "./components/RedirectHandler.tsx";
 import ThemeProvider from "./components/ThemeProvider.tsx";
+import AgeGate from "./components/AgeGate.tsx";
+import AffiliatePortal from "./pages/AffiliatePortal.tsx";
+import AffiliateLogin from "./pages/AffiliateLogin.tsx";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +41,7 @@ const App = () => (
         <BrowserRouter>
           <SeoHead />
           <RedirectHandler />
+          <AgeGate />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/tienda" element={<Index />} />
@@ -58,6 +62,8 @@ const App = () => (
           <Route path="/marcas" element={<MarcasPage />} />
           <Route path="/neshika" element={<NeshikaPage />} />
           <Route path="/s/:slug" element={<SubStorePage />} />
+          <Route path="/portal-vendedores/login" element={<AffiliateLogin />} />
+          <Route path="/portal-vendedores" element={<AffiliatePortal />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="/:slug" element={<CustomPage />} />
           <Route path="*" element={<NotFound />} />
