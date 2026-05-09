@@ -12,6 +12,7 @@ import { toast } from '@/hooks/use-toast';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import OrderSummary from '@/components/OrderSummary';
+import LoyaltyRedeemCard from '@/components/LoyaltyRedeemCard';
 
 
 
