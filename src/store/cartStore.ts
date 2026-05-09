@@ -97,16 +97,18 @@ export const useCartStore = create<CartState>()(
           sync();
         },
         updateQuantity: (id, quantity) => {
+          const safeQty = Number.isFinite(quantity) ? Math.floor(quantity) : 0;
           set((state) => ({
             items:
-              quantity <= 0
+              safeQty <= 0
                 ? state.items.filter((i) => {
                     const composite = `${i.id}::${i.selectedVariant ?? ''}`;
                     return composite !== id && i.id !== id;
                   })
                 : state.items.map((i) => {
                     const composite = `${i.id}::${i.selectedVariant ?? ''}`;
-                    return composite === id || i.id === id ? { ...i, quantity } : i;
+                    const clamped = Math.min(99, Math.max(1, safeQty));
+                    return composite === id || i.id === id ? { ...i, quantity: clamped } : i;
                   }),
           }));
           sync();
@@ -151,6 +153,7 @@ export const useCartStore = create<CartState>()(
     },
     {
       name: 'wax-cart-storage',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ items: state.items }),
     }

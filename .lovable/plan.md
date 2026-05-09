@@ -1,56 +1,43 @@
-## Objetivo
+## Mejoras al Carrito y Checkout
 
-En la sección **Productos** del admin, exponer una barra de acciones unificada con todos los flujos que pediste y reparar el scraping para que no falle en silencio cuando un proveedor está caído o sin créditos.
+Cambios enfocados en presentación y consistencia del carrito, sin tocar lógica de negocio del servidor.
 
-## 1. Toolbar de acciones en Productos
+### 1. Resumen reactivo en el drawer (`CartDrawer.tsx`)
+- Agregar bloque visible con **subtotal**, **envío estimado** (placeholder "Calculado en checkout") y **total**.
+- Derivar valores directamente desde `useCartStore` para que se actualicen al instante con cada cambio.
+- Mostrar contador de items totales en el header del drawer.
 
-En `src/components/admin/ProductsSection.tsx`, junto al botón "Nuevo producto", agregar un grupo de botones (responsive, agrupados en un dropdown "Más" cuando no quepan):
+### 2. Validación de cantidades (`cartStore.ts` + `CartDrawer.tsx`)
+- En `updateQuantity`: clamp con `Math.max(1, Math.floor(quantity))` cuando se llama desde botones (cantidades < 1 solo permiten eliminación explícita vía `removeItem`).
+- Agregar un tope superior razonable (ej. 99) para evitar inputs absurdos.
+- Deshabilitar botón "−" cuando `quantity === 1` (ya existe) y "+" cuando llega al tope.
+- Prevenir doble click con guard local mientras se procesa el cambio.
 
-- **Plantilla CSV** — descarga `productos-plantilla.csv` generado en cliente con headers exactos: `name,price,sku,image_url,description,category,gtin,brand_name,stock` (y una fila de ejemplo). Usa `Blob` + `URL.createObjectURL`.
-- **Importar CSV** — atajo que cambia a la pestaña `csv` (ya existe `CsvImporter`).
-- **Importar de URL (IA)** — atajo que cambia a la pestaña `import` y preselecciona modo "Individual" en `ScrapeInputPanel`.
-- **Importar desde sitio web (IA)** — atajo a pestaña `import` modo "Mapeo de dominio".
-- **Exportar CSV** — descarga el catálogo actual filtrado (`filtered`) como CSV con las mismas columnas que la plantilla + `slug,is_active`. Escape correcto de comas/comillas.
-- **Nuevo producto** — se mantiene.
+### 3. Clave compuesta en Checkout (`Checkout.tsx`)
+- Auditar todos los puntos donde se itera `items` para construir el pedido y calcular precios.
+- Usar `${item.id}::${item.selectedVariant ?? ''}` como identificador en líneas de pedido enviadas al edge function `create-order`.
+- Asegurar que el subtotal del checkout coincida con `subtotal()` del store (mismo cálculo).
 
-Agregar también el banner ya solicitado:
-> 💡 Descarga la plantilla CSV, llena los campos y súbela en "Importar CSV". Los nombres de columna deben mantenerse igual.
+### 4. Persistencia (verificar)
+- `cartStore.ts` ya usa `persist` con `localStorage` y `partialize` por `items`. Confirmar que `selectedVariant` y `quantity` se restauran correctamente al recargar.
+- Sin cambios salvo agregar `version` y migración no-op por seguridad para futuros refactors.
 
-Se renderiza como `Alert` arriba de los Tabs cuando `tab === "csv"`.
+### 5. Notificaciones y micro-animaciones (`CartDrawer.tsx`)
+- `sonner` toasts:
+  - Eliminar: `toast.success("Producto eliminado", { description: item.title, action: { label: "Deshacer", onClick: ... } })` con restauración del item.
+  - Cambio de cantidad: toast sutil opcional o solo animación.
+- Animaciones con `framer-motion`:
+  - `AnimatePresence` + `layout` en la lista para entrada/salida suave.
+  - Pulse en el contador de cantidad al cambiar.
+  - Fade+slide al remover item.
 
-## 2. Reparar el scraping
+### Detalles técnicos
+- Mantener API actual del store (`removeItem(id)`, `updateQuantity(id, qty)` aceptando clave compuesta o plain id).
+- No modificar edge functions ni esquema DB.
+- Mantener tokens semánticos (sin colores hardcoded).
+- "Deshacer" reinserta el item con `addItem(product, qty, variant)` desde un snapshot guardado antes de eliminar.
 
-Síntomas típicos: Firecrawl devuelve 402 (sin créditos) o 500, y el flujo aborta sin productos. Cambios:
-
-### Edge function `firecrawl-scrape-products`
-- Cuando `provider === "firecrawl"` y `providerScrape` lanza error, **reintentar automáticamente con `jina`** (gratis, sin key) antes de marcar la URL como fallida. Loggear `provider_used` en cada producto y en `failures[].used_provider`.
-- Mejorar `failures` para devolver `reason` más legible (status HTTP + primera línea del body) y propagarla en la respuesta.
-- Si TODAS las URLs fallan, devolver `error.code = "PROVIDER_FAIL"` con el primer mensaje (hoy a veces devuelve 200 con `extracted: 0` y el front solo muestra "Sin productos extraídos").
-
-### Edge function `firecrawl-map`
-- Mismo patrón: si `firecrawl` falla, intentar `jina` map alternativo (Jina no mapea, así que cuando Firecrawl falle devolver mensaje claro "Mapeo requiere Firecrawl con créditos. Usa Importar Individual o cambia de proveedor.").
-
-### Front `ProductImporter.tsx`
-- En `extractUrls`, mostrar en el toast el `provider_used` real cuando hubo fallback ("Extraído con Jina (fallback)").
-- Si `data.failures` viene con elementos, mostrarlos en un `Alert` colapsable bajo el panel de input con la URL y la razón, para que el usuario sepa por qué no se extrajo.
-- Si `extracted === 0`, sugerir explícitamente: "Cambia el motor a 'Jina Reader (gratis)' o 'Microlink-style' y reintenta".
-
-### `ScrapeInputPanel.tsx`
-- Reordenar `PROVIDERS` para que **Jina** y **Readability** (gratis, sin key) aparezcan primero junto a Firecrawl, con badge "Gratis". Esto reduce los fallos por créditos agotados.
-
-## 3. Detalles técnicos
-
-- No se requiere migración de DB.
-- No se requieren nuevos secrets.
-- Cambios contenidos en:
-  - `src/components/admin/ProductsSection.tsx` (toolbar, banner, helpers `downloadTemplate`, `exportCsv`)
-  - `src/components/admin/products/ProductImporter.tsx` (mostrar failures, prop opcional para preseleccionar tab interno)
-  - `src/components/admin/products/ScrapeInputPanel.tsx` (orden de proveedores + badge "Gratis", aceptar `initialMode` opcional)
-  - `supabase/functions/firecrawl-scrape-products/index.ts` (fallback a Jina, mejores errores)
-  - `supabase/functions/firecrawl-map/index.ts` (mensaje claro cuando Firecrawl falla)
-
-## Resultado esperado
-
-- Una barra superior visible con: Plantilla CSV · Importar CSV · Importar de URL (IA) · Importar desde sitio web (IA) · Exportar CSV · Nuevo.
-- Banner informativo en pestaña CSV.
-- Scraping que ya no se queda mudo: si Firecrawl falla, automáticamente cae a Jina y muestra qué proveedor se usó; si todo falla, lista las URLs problemáticas con el motivo y sugiere cambiar de proveedor.
+### Archivos a editar
+- `src/store/cartStore.ts` — clamp en updateQuantity, version en persist.
+- `src/components/CartDrawer.tsx` — resumen, animaciones, toasts con undo.
+- `src/pages/Checkout.tsx` — clave compuesta en construcción del pedido.

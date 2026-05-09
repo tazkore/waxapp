@@ -2,22 +2,44 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Trash2, ShoppingBag, HelpCircle, Minus, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useCartStore } from '@/store/cartStore';
 import CartOnboarding, { hasSeenCartOnboarding } from './CartOnboarding';
 
+const MAX_QTY = 99;
+
 const CartDrawer = () => {
-  const { items, isOpen, setCartOpen, removeItem, updateQuantity, subtotal } = useCartStore();
+  const { items, isOpen, setCartOpen, removeItem, updateQuantity, addItem, subtotal, totalItems } = useCartStore();
   const navigate = useNavigate();
   const total = subtotal();
+  const count = totalItems();
+  const shippingEstimate = items.length > 0 ? 99 : 0;
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // Auto-open onboarding on first time the cart is opened
   useEffect(() => {
     if (isOpen && !hasSeenCartOnboarding()) {
       const t = setTimeout(() => setShowOnboarding(true), 350);
       return () => clearTimeout(t);
     }
   }, [isOpen]);
+
+  const handleRemove = (item: typeof items[number], key: string) => {
+    const snapshot = { ...item };
+    removeItem(key);
+    toast.success('Producto eliminado', {
+      description: item.title,
+      action: {
+        label: 'Deshacer',
+        onClick: () => addItem(snapshot, snapshot.quantity, snapshot.selectedVariant),
+      },
+    });
+  };
+
+  const handleQty = (key: string, current: number, delta: number) => {
+    const next = current + delta;
+    if (next < 1 || next > MAX_QTY) return;
+    updateQuantity(key, next);
+  };
 
   return (
     <>
@@ -39,7 +61,14 @@ const CartDrawer = () => {
               className="fixed right-0 top-0 z-[70] flex h-full w-full max-w-md flex-col border-l border-border bg-card"
             >
               <div className="flex items-center justify-between border-b border-border p-4">
-                <h2 className="font-display text-lg font-bold text-foreground">Tu Carrito</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-display text-lg font-bold text-foreground">Tu Carrito</h2>
+                  {count > 0 && (
+                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
+                      {count}
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setShowOnboarding(true)}
@@ -72,66 +101,114 @@ const CartDrawer = () => {
                     </button>
                   </div>
                 ) : (
-                  <ul className="space-y-4">
-                    {items.map((item) => {
-                      const key = `${item.id}::${item.selectedVariant ?? ''}`;
-                      return (
-                        <li key={key} className="flex items-center gap-3 rounded-lg border border-border bg-muted p-3">
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-accent">
-                            {item.image ? (
-                              <img src={item.image} alt={item.title} className="h-full w-full object-cover" />
-                            ) : (
-                              <span className="text-xs text-muted-foreground">WAX</span>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="truncate text-sm font-semibold text-foreground">{item.title}</p>
-                            {item.selectedVariant && (
-                              <p className="text-xs text-muted-foreground">{item.selectedVariant}</p>
-                            )}
-                            <p className="mt-0.5 text-xs text-muted-foreground">
-                              ${item.price.toLocaleString()} c/u
-                            </p>
-                            <div className="mt-2 flex items-center gap-2">
-                              <button
-                                onClick={() => updateQuantity(key, item.quantity - 1)}
-                                className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-foreground hover:bg-accent disabled:opacity-50"
-                                aria-label="Disminuir"
-                                disabled={item.quantity <= 1}
-                              >
-                                <Minus className="h-3 w-3" />
-                              </button>
-                              <span className="min-w-[1.5rem] text-center text-sm font-medium text-foreground">
-                                {item.quantity}
-                              </span>
-                              <button
-                                onClick={() => updateQuantity(key, item.quantity + 1)}
-                                className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-foreground hover:bg-accent"
-                                aria-label="Aumentar"
-                              >
-                                <Plus className="h-3 w-3" />
-                              </button>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => removeItem(key)}
-                            className="self-start text-muted-foreground hover:text-destructive"
-                            aria-label="Eliminar"
+                  <ul className="space-y-3">
+                    <AnimatePresence initial={false}>
+                      {items.map((item) => {
+                        const key = `${item.id}::${item.selectedVariant ?? ''}`;
+                        const atMax = item.quantity >= MAX_QTY;
+                        const atMin = item.quantity <= 1;
+                        return (
+                          <motion.li
+                            key={key}
+                            layout
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, x: 40, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }}
+                            transition={{ duration: 0.22, ease: 'easeOut' }}
+                            className="flex items-center gap-3 overflow-hidden rounded-lg border border-border bg-muted p-3"
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </li>
-                      );
-                    })}
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-accent">
+                              {item.image ? (
+                                <img src={item.image} alt={item.title} className="h-full w-full object-cover" />
+                              ) : (
+                                <span className="text-xs text-muted-foreground">WAX</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="truncate text-sm font-semibold text-foreground">{item.title}</p>
+                              {item.selectedVariant && (
+                                <p className="text-xs text-muted-foreground">{item.selectedVariant}</p>
+                              )}
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                ${item.price.toLocaleString()} c/u
+                              </p>
+                              <div className="mt-2 flex items-center gap-2">
+                                <button
+                                  onClick={() => handleQty(key, item.quantity, -1)}
+                                  className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+                                  aria-label="Disminuir"
+                                  disabled={atMin}
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </button>
+                                <motion.span
+                                  key={item.quantity}
+                                  initial={{ scale: 0.8, opacity: 0.6 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  transition={{ duration: 0.15 }}
+                                  className="min-w-[1.5rem] text-center text-sm font-medium text-foreground"
+                                >
+                                  {item.quantity}
+                                </motion.span>
+                                <button
+                                  onClick={() => handleQty(key, item.quantity, 1)}
+                                  className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+                                  aria-label="Aumentar"
+                                  disabled={atMax}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </button>
+                                <span className="ml-auto text-sm font-semibold text-foreground">
+                                  ${(item.price * item.quantity).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleRemove(item, key)}
+                              className="self-start text-muted-foreground transition-colors hover:text-destructive"
+                              aria-label="Eliminar"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </motion.li>
+                        );
+                      })}
+                    </AnimatePresence>
                   </ul>
                 )}
               </div>
 
               {items.length > 0 && (
                 <div className="border-t border-border p-4">
-                  <div className="mb-4 flex justify-between text-lg font-bold text-foreground">
-                    <span>Subtotal</span>
-                    <span>${total.toLocaleString()} MXN</span>
+                  <div className="mb-3 space-y-1.5 text-sm">
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Subtotal ({count} {count === 1 ? 'item' : 'items'})</span>
+                      <motion.span
+                        key={total}
+                        initial={{ opacity: 0.5 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2 }}
+                        className="font-medium text-foreground"
+                      >
+                        ${total.toLocaleString()} MXN
+                      </motion.span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Envío estimado</span>
+                      <span>${shippingEstimate.toLocaleString()} MXN</span>
+                    </div>
+                    <div className="flex justify-between border-t border-border pt-2 text-base font-bold text-foreground">
+                      <span>Total</span>
+                      <motion.span
+                        key={total + shippingEstimate}
+                        initial={{ scale: 0.95 }}
+                        animate={{ scale: 1 }}
+                        transition={{ duration: 0.18 }}
+                      >
+                        ${(total + shippingEstimate).toLocaleString()} MXN
+                      </motion.span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Envío final calculado en checkout.</p>
                   </div>
                   <button
                     onClick={() => { setCartOpen(false); navigate('/checkout'); }}

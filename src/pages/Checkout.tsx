@@ -157,7 +157,14 @@ const Checkout = () => {
           customer_name: shipping.name,
           customer_email: shipping.email,
           shipping_address: `${shipping.address}${shipping.address2 ? ', ' + shipping.address2 : ''}, ${shipping.city}, ${shipping.state} ${shipping.postalCode}, ${shipping.country}`,
-          items: items.map(i => ({ title: i.title, qty: i.quantity, price: i.price, variant: i.selectedVariant })),
+          items: items.map(i => ({
+            id: i.id,
+            key: `${i.id}::${i.selectedVariant ?? ''}`,
+            title: i.title,
+            qty: i.quantity,
+            price: i.price,
+            variant: i.selectedVariant,
+          })),
           shipping_method: shippingMethod,
         },
       });
