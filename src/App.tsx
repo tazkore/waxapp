@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,6 +11,7 @@ import AdminLogin from "./pages/AdminLogin.tsx";
 import ClientAuth from "./pages/ClientAuth.tsx";
 import ClientDashboard from "./pages/ClientDashboard.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import OrderComplete from "./pages/OrderComplete.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import Blog from "./pages/Blog.tsx";
@@ -39,6 +40,9 @@ const App = () => (
           <RedirectHandler />
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/tienda" element={<Index />} />
+          <Route path="/shop" element={<Navigate to="/tienda" replace />} />
+          <Route path="/orden-completada" element={<OrderComplete />} />
           <Route path="/producto/:id" element={<ProductDetail />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/cliente" element={<ClientAuth />} />
