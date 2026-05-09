@@ -20,7 +20,10 @@ export interface Product {
   benefits?: string;
   usage?: string;
   legal?: string;
+  brand?: string;
 }
+
+export const FREE_SHIPPING_THRESHOLD = 1500;
 
 interface CartItem extends Product {
   quantity: number;
