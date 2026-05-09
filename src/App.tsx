@@ -43,7 +43,7 @@ const App = () => (
           <SeoHead />
           <RedirectHandler />
           <AgeGate />
-        <Routes>
+          <AffiliateRefTracker />
           <Route path="/" element={<Index />} />
           <Route path="/tienda" element={<Index />} />
           <Route path="/shop" element={<Navigate to="/tienda" replace />} />
