@@ -590,7 +590,8 @@ const Checkout = () => {
                   );
                 })}
               </div>
-              <div className="border-t border-border pt-3">
+              <div className="border-t border-border pt-3 space-y-3">
+                <LoyaltyRedeemCard email={shipping.email} />
                 <OrderSummary />
                 <p className="mt-2 text-[11px] text-muted-foreground">
                   Envío seleccionado: <strong className="text-foreground">${shippingCost.toLocaleString()} MXN</strong> (paso 2). Total con envío: <strong className="text-foreground">${total.toLocaleString()} MXN</strong>
