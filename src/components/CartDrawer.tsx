@@ -78,6 +78,7 @@ const CartDrawer = () => {
       <Sheet open={isOpen} onOpenChange={setCartOpen}>
         <SheetContent
           side="right"
+          aria-keyshortcuts="Escape"
           className="w-full max-w-md flex flex-col p-0 bg-card border-l border-border"
         >
           <SheetHeader className="border-b border-border p-4 text-left space-y-0">
@@ -111,7 +112,8 @@ const CartDrawer = () => {
                 role="region"
                 aria-label="Carrito vacío"
                 aria-live="polite"
-                className="flex flex-col items-center gap-5 px-6 py-10 text-center"
+                tabIndex={-1}
+                className="flex flex-col items-center gap-5 px-6 py-10 text-center focus:outline-none"
               >
                 <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
                   <ShoppingBag className="h-10 w-10 text-muted-foreground" aria-hidden="true" />
