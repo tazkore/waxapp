@@ -128,18 +128,54 @@ const SiteImporterSection = () => {
     }
   };
 
-  const importProducts = async () => {
+  const importProducts = async (overwrite = false) => {
     if (!jobId || selectedProducts.size === 0) return;
     setBusy("import");
     try {
       const list = Array.from(selectedProducts).map((i) => products[i]);
       const { data, error } = await supabase.functions.invoke("import-products", {
-        body: { job_id: jobId, products: list },
+        body: { job_id: jobId, products: list, overwrite },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setImportedIds(data.product_ids || []);
-      toast({ title: "Importación completa", description: `${data.imported} productos importados (inactivos)` });
+
+      // Handle duplicates: prompt to overwrite
+      if (!overwrite && Array.isArray(data?.duplicates) && data.duplicates.length > 0) {
+        const sample = data.duplicates.slice(0, 5).map((d: any) => `• ${d.name} (${d.reason})`).join("\n");
+        const more = data.duplicates.length > 5 ? `\n…y ${data.duplicates.length - 5} más` : "";
+        const ok = window.confirm(
+          `Se detectaron ${data.duplicates.length} producto(s) duplicado(s):\n\n${sample}${more}\n\n¿Quieres sobrescribir los existentes con los datos importados?\n\n(Cancelar para mantener los productos originales y solo crear los nuevos)`
+        );
+        if (ok) {
+          // Re-invoke ONLY for the duplicate items with overwrite=true
+          const dupIndexes: number[] = data.duplicates.map((d: any) => d.index);
+          const dupList = dupIndexes.map((i) => list[i]);
+          const { data: data2, error: err2 } = await supabase.functions.invoke("import-products", {
+            body: { job_id: jobId, products: dupList, overwrite: true },
+          });
+          if (err2) throw err2;
+          const totalImported = (data.imported ?? 0) + (data2?.imported ?? 0);
+          const totalUpdated = (data.updated ?? 0) + (data2?.updated ?? 0);
+          setImportedIds([...(data.product_ids || []), ...(data2?.product_ids || [])]);
+          toast({
+            title: "Importación completa",
+            description: `${totalImported} nuevos · ${totalUpdated} sobrescritos`,
+          });
+        } else {
+          setImportedIds(data.product_ids || []);
+          toast({
+            title: "Importación parcial",
+            description: `${data.imported ?? 0} nuevos · ${data.duplicates.length} duplicados omitidos`,
+          });
+        }
+      } else {
+        setImportedIds(data.product_ids || []);
+        toast({
+          title: "Importación completa",
+          description: `${data.imported ?? 0} nuevos${data.updated ? ` · ${data.updated} actualizados` : ""}`,
+        });
+      }
+
       // Auto-suggest store name from URL
       try {
         const u = new URL(url);
@@ -368,7 +404,7 @@ const SiteImporterSection = () => {
               ))}
             </div>
             {products.length > 0 && (
-              <Button onClick={importProducts} disabled={selectedProducts.size === 0 || busy !== null}>
+              <Button onClick={() => importProducts(false)} disabled={selectedProducts.size === 0 || busy !== null}>
                 {busy === "import" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
                 Importar {selectedProducts.size} productos
               </Button>
