@@ -11,7 +11,8 @@ import CartDrawer from '@/components/CartDrawer';
 import Footer from '@/components/Footer';
 import ProductJsonLd from '@/components/ProductJsonLd';
 import { supabase } from '@/integrations/supabase/client';
-
+import useCurrentSite from '@/hooks/useCurrentSite';
+import { rewriteDescription } from '@/lib/seoVariant';
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
