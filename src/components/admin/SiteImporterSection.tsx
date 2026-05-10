@@ -8,8 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Globe, Wand2, Download, Palette, AlertCircle, Store } from "lucide-react";
+import { Loader2, Globe, Wand2, Download, Palette, AlertCircle, Store, FileText, FileSpreadsheet, ScanSearch } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import DuplicatesReviewDialog from "./DuplicatesReviewDialog";
+import {
+  downloadImportReportCSV,
+  downloadImportReportPDF,
+  type ImportDuplicate,
+  type ImportReportData,
+} from "@/lib/exportImportReport";
 
 type Provider = "firecrawl" | "jina" | "scrapingbee";
 
@@ -40,6 +47,16 @@ const SiteImporterSection = () => {
   const [importedIds, setImportedIds] = useState<string[]>([]);
   const [storeName, setStoreName] = useState("");
   const [storeSlug, setStoreSlug] = useState("");
+
+  // Dry-run + duplicates flow
+  const [dryRun, setDryRun] = useState<{
+    would_create: number;
+    would_skip: number;
+    duplicates: ImportDuplicate[];
+  } | null>(null);
+  const [showDupes, setShowDupes] = useState(false);
+  const [lastReport, setLastReport] = useState<ImportReportData | null>(null);
+
   const { toast } = useToast();
 
   const fail = (e: any, ctx: string) => {
@@ -128,60 +145,77 @@ const SiteImporterSection = () => {
     }
   };
 
-  const importProducts = async (overwrite = false) => {
-    if (!jobId || selectedProducts.size === 0) return;
-    setBusy("import");
+  /** Step 1: dry-run analysis */
+  const analyzeDuplicates = async () => {
+    if (selectedProducts.size === 0) return;
+    setBusy("analyze");
+    setDryRun(null);
     try {
       const list = Array.from(selectedProducts).map((i) => products[i]);
       const { data, error } = await supabase.functions.invoke("import-products", {
-        body: { job_id: jobId, products: list, overwrite },
+        body: { job_id: jobId, products: list, dry_run: true },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const duplicates = (data?.duplicates ?? []) as ImportDuplicate[];
+      setDryRun({
+        would_create: data?.would_create ?? 0,
+        would_skip: duplicates.length,
+        duplicates,
+      });
+      if (duplicates.length === 0) {
+        toast({
+          title: "Sin duplicados",
+          description: `Listo para importar ${data?.would_create ?? 0} productos nuevos.`,
+        });
+      } else {
+        setShowDupes(true);
+      }
+    } catch (e: any) {
+      fail(e, "Error al analizar duplicados");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** Step 2: real import (after dry-run, with optional overwrite list) */
+  const runImport = async (overwriteIndexes: number[] = []) => {
+    if (!jobId || selectedProducts.size === 0) return;
+    setBusy("import");
+    setShowDupes(false);
+    try {
+      const list = Array.from(selectedProducts).map((i) => products[i]);
+      const { data, error } = await supabase.functions.invoke("import-products", {
+        body: {
+          job_id: jobId,
+          products: list,
+          overwrite_indexes: overwriteIndexes,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Handle duplicates: prompt to overwrite
-      if (!overwrite && Array.isArray(data?.duplicates) && data.duplicates.length > 0) {
-        const sample = data.duplicates.slice(0, 5).map((d: any) => `• ${d.name} (${d.reason})`).join("\n");
-        const more = data.duplicates.length > 5 ? `\n…y ${data.duplicates.length - 5} más` : "";
-        const ok = window.confirm(
-          `Se detectaron ${data.duplicates.length} producto(s) duplicado(s):\n\n${sample}${more}\n\n¿Quieres sobrescribir los existentes con los datos importados?\n\n(Cancelar para mantener los productos originales y solo crear los nuevos)`
-        );
-        if (ok) {
-          // Re-invoke ONLY for the duplicate items with overwrite=true
-          const dupIndexes: number[] = data.duplicates.map((d: any) => d.index);
-          const dupList = dupIndexes.map((i) => list[i]);
-          const { data: data2, error: err2 } = await supabase.functions.invoke("import-products", {
-            body: { job_id: jobId, products: dupList, overwrite: true },
-          });
-          if (err2) throw err2;
-          const totalImported = (data.imported ?? 0) + (data2?.imported ?? 0);
-          const totalUpdated = (data.updated ?? 0) + (data2?.updated ?? 0);
-          setImportedIds([...(data.product_ids || []), ...(data2?.product_ids || [])]);
-          toast({
-            title: "Importación completa",
-            description: `${totalImported} nuevos · ${totalUpdated} sobrescritos`,
-          });
-        } else {
-          setImportedIds(data.product_ids || []);
-          toast({
-            title: "Importación parcial",
-            description: `${data.imported ?? 0} nuevos · ${data.duplicates.length} duplicados omitidos`,
-          });
-        }
-      } else {
-        setImportedIds(data.product_ids || []);
-        toast({
-          title: "Importación completa",
-          description: `${data.imported ?? 0} nuevos${data.updated ? ` · ${data.updated} actualizados` : ""}`,
-        });
-      }
+      const report: ImportReportData = {
+        imported: data?.imported ?? 0,
+        updated: data?.updated ?? 0,
+        errors: data?.errors ?? [],
+        duplicates: data?.duplicates ?? [],
+        product_ids: data?.product_ids ?? [],
+        source_url: url,
+        origin_domain: typeof window !== "undefined" ? window.location.hostname : undefined,
+        products: list,
+      };
+      setLastReport(report);
+      setImportedIds(report.product_ids);
+      toast({
+        title: "Importación completa",
+        description: `${report.imported} nuevos · ${report.updated} actualizados · ${report.duplicates.length} omitidos`,
+      });
 
-      // Auto-suggest store name from URL
       try {
         const u = new URL(url);
         const host = u.hostname.replace(/^www\./, "").split(".")[0];
-        const niceName = host.charAt(0).toUpperCase() + host.slice(1);
-        setStoreName(niceName);
+        setStoreName(host.charAt(0).toUpperCase() + host.slice(1));
         setStoreSlug(host.toLowerCase());
       } catch {}
       setStep("store");
@@ -191,7 +225,6 @@ const SiteImporterSection = () => {
       setBusy(null);
     }
   };
-
   const createSubStore = async () => {
     if (!storeName.trim() || !storeSlug.trim()) return;
     setBusy("substore");
@@ -266,6 +299,9 @@ const SiteImporterSection = () => {
     setImportedIds([]);
     setStoreName("");
     setStoreSlug("");
+    setDryRun(null);
+    setLastReport(null);
+    setShowDupes(false);
   };
 
   return (
@@ -404,10 +440,58 @@ const SiteImporterSection = () => {
               ))}
             </div>
             {products.length > 0 && (
-              <Button onClick={() => importProducts(false)} disabled={selectedProducts.size === 0 || busy !== null}>
-                {busy === "import" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-                Importar {selectedProducts.size} productos
-              </Button>
+              <div className="space-y-3 pt-2 border-t border-border">
+                {/* Dry-run summary */}
+                {dryRun && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/30 p-3">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground mr-1">Análisis:</span>
+                    <Badge className="bg-primary/15 text-primary border-primary/40 hover:bg-primary/15">
+                      {dryRun.would_create} se crearán
+                    </Badge>
+                    <Badge variant="outline" className="border-[hsl(var(--accent))]/40 text-[hsl(var(--accent))]">
+                      {dryRun.would_skip} duplicados
+                    </Badge>
+                    {dryRun.duplicates.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="ml-auto h-7"
+                        onClick={() => setShowDupes(true)}
+                      >
+                        Revisar duplicados
+                      </Button>
+                    )}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={analyzeDuplicates}
+                    disabled={selectedProducts.size === 0 || busy !== null}
+                  >
+                    {busy === "analyze" ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <ScanSearch className="h-4 w-4 mr-2" />
+                    )}
+                    Analizar ({selectedProducts.size})
+                  </Button>
+                  <Button
+                    onClick={() => runImport([])}
+                    disabled={selectedProducts.size === 0 || busy !== null}
+                  >
+                    {busy === "import" ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-2" />
+                    )}
+                    Importar {selectedProducts.size} productos
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Tip: usa <strong>Analizar</strong> para ver cuántos productos se crearán o duplicarán antes de importar.
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -450,6 +534,44 @@ const SiteImporterSection = () => {
         </Card>
       )}
 
+      {(step === "done" || (step === "store" && lastReport)) && lastReport && (
+        <Card className="border-border">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" /> Reporte de importación
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Creados</p>
+                <p className="text-2xl font-bold text-primary">{lastReport.imported}</p>
+              </div>
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Actualizados</p>
+                <p className="text-2xl font-bold text-primary">{lastReport.updated}</p>
+              </div>
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Omitidos</p>
+                <p className="text-2xl font-bold text-[hsl(var(--accent))]">{lastReport.duplicates.length}</p>
+              </div>
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Errores</p>
+                <p className="text-2xl font-bold text-destructive">{lastReport.errors.length}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => downloadImportReportCSV(lastReport)}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" /> Descargar CSV
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => downloadImportReportPDF(lastReport)}>
+                <FileText className="h-4 w-4 mr-2" /> Descargar PDF
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {step === "done" && (
         <Card className="border-primary">
           <CardContent className="py-6 text-center space-y-3">
@@ -462,6 +584,14 @@ const SiteImporterSection = () => {
           </CardContent>
         </Card>
       )}
+
+      <DuplicatesReviewDialog
+        open={showDupes}
+        onOpenChange={setShowDupes}
+        duplicates={dryRun?.duplicates ?? []}
+        loading={busy === "import"}
+        onApply={(idx) => runImport(idx)}
+      />
     </div>
   );
 };
