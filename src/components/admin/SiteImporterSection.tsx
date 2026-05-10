@@ -531,6 +531,44 @@ const SiteImporterSection = () => {
         </Card>
       )}
 
+      {(step === "done" || (step === "store" && lastReport)) && lastReport && (
+        <Card className="border-border">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" /> Reporte de importación
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Creados</p>
+                <p className="text-2xl font-bold text-primary">{lastReport.imported}</p>
+              </div>
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Actualizados</p>
+                <p className="text-2xl font-bold text-primary">{lastReport.updated}</p>
+              </div>
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Omitidos</p>
+                <p className="text-2xl font-bold text-[hsl(var(--accent))]">{lastReport.duplicates.length}</p>
+              </div>
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Errores</p>
+                <p className="text-2xl font-bold text-destructive">{lastReport.errors.length}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => downloadImportReportCSV(lastReport)}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" /> Descargar CSV
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => downloadImportReportPDF(lastReport)}>
+                <FileText className="h-4 w-4 mr-2" /> Descargar PDF
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {step === "done" && (
         <Card className="border-primary">
           <CardContent className="py-6 text-center space-y-3">
@@ -543,6 +581,14 @@ const SiteImporterSection = () => {
           </CardContent>
         </Card>
       )}
+
+      <DuplicatesReviewDialog
+        open={showDupes}
+        onOpenChange={setShowDupes}
+        duplicates={dryRun?.duplicates ?? []}
+        loading={busy === "import"}
+        onApply={(idx) => runImport(idx)}
+      />
     </div>
   );
 };
