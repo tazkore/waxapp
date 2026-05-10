@@ -83,6 +83,7 @@ const groups: NavGroup[] = [
     items: [
       { title: 'Tema', icon: Palette, key: 'theme' },
       { title: 'Dominios', icon: Globe, key: 'domains', adminOnly: true },
+      { title: 'Resumen Dominios', icon: Globe, key: 'domains-overview', adminOnly: true },
       { title: 'Staff & Usuarios', icon: UserCog, key: 'staff', adminOnly: true },
       { title: 'API & Conexiones', icon: KeyRound, key: 'api-keys', adminOnly: true },
       { title: 'Conexiones de Entorno', icon: Network, key: 'env-connections', adminOnly: true },

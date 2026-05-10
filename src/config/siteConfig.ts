@@ -25,6 +25,7 @@ export type SiteIdentity = {
   canonicalBase: string;        // e.g. "https://vapewax.com.mx"
   colors: SiteColors;
   seoVariant: 'A' | 'B';        // controls description rewriting to avoid duplicate-content penalties
+  hreflang: string;             // BCP 47 language tag, e.g. 'es-MX'
 };
 
 const DEFAULT_SITE: SiteIdentity = {
@@ -38,6 +39,7 @@ const DEFAULT_SITE: SiteIdentity = {
   ogImage: '/placeholder.svg',
   canonicalBase: 'https://waxapp.mx',
   seoVariant: 'A',
+  hreflang: 'es-MX',
   colors: {
     primary: '142 90% 45%',       // neon green
     secondary: '38 100% 50%',     // amber
@@ -60,6 +62,7 @@ const SITES: SiteIdentity[] = [
     ogImage: '/placeholder.svg',
     canonicalBase: 'https://www.waxapp.mx',
     seoVariant: 'A',
+    hreflang: 'es-MX',
     colors: DEFAULT_SITE.colors,
   },
   {
@@ -73,6 +76,7 @@ const SITES: SiteIdentity[] = [
     ogImage: '/placeholder.svg',
     canonicalBase: 'https://vapewax.com.mx',
     seoVariant: 'B',
+    hreflang: 'es-MX',
     colors: {
       primary: '142 90% 45%',     // neon green
       secondary: '38 100% 50%',
@@ -92,6 +96,7 @@ const SITES: SiteIdentity[] = [
     ogImage: '/placeholder.svg',
     canonicalBase: 'https://extraccionwax.com',
     seoVariant: 'B',
+    hreflang: 'es-MX',
     colors: {
       primary: '210 100% 56%',    // electric blue
       secondary: '38 100% 50%',
@@ -111,5 +116,13 @@ export const getSiteByHost = (hostname: string | undefined | null): SiteIdentity
     DEFAULT_SITE
   );
 };
+
+/**
+ * Domains that share the same content and should declare each other as hreflang
+ * alternates (excludes www.* aliases to avoid duplicate alternates).
+ */
+export const HREFLANG_ALTERNATES: SiteIdentity[] = SITES.filter(
+  (s) => !s.hostname.startsWith('www.')
+);
 
 export { DEFAULT_SITE, SITES };

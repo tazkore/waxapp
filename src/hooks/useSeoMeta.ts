@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { getSiteByHost } from '@/config/siteConfig';
+import { getSiteByHost, HREFLANG_ALTERNATES, DEFAULT_SITE } from '@/config/siteConfig';
 
 interface SeoData {
   meta_title: string | null;
@@ -68,6 +68,19 @@ const useSeoMeta = () => {
         document.head.appendChild(canonical);
       }
       canonical.setAttribute('href', canonicalHref);
+
+      // hreflang alternates — declare each sister domain as alternate language version.
+      document.querySelectorAll('link[data-hreflang="1"]').forEach((el) => el.remove());
+      const addAlt = (lang: string, href: string) => {
+        const link = document.createElement('link');
+        link.setAttribute('rel', 'alternate');
+        link.setAttribute('hreflang', lang);
+        link.setAttribute('href', href);
+        link.setAttribute('data-hreflang', '1');
+        document.head.appendChild(link);
+      };
+      HREFLANG_ALTERNATES.forEach((s) => addAlt(s.hreflang, `${s.canonicalBase}${pathname}`));
+      addAlt('x-default', `${DEFAULT_SITE.canonicalBase}${pathname}`);
 
       // Open Graph
       setMeta('og:title', d?.meta_title || DEFAULT_TITLE, 'property');

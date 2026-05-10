@@ -1,3 +1,7 @@
+# robots.txt — fallback estático multi-dominio.
+# El archivo dinámico (Edge Function generate-robots-txt) emite el Sitemap correcto
+# por dominio cuando se accede vía /robots.txt en cada hostname.
+
 User-agent: Googlebot
 Allow: /
 
@@ -12,5 +16,14 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /cliente
+Disallow: /mi-cuenta
+Disallow: /checkout
+Disallow: /reset-password
 
+Sitemap: https://waxapp.mx/sitemap.xml
+Sitemap: https://vapewax.com.mx/sitemap.xml
+Sitemap: https://extraccionwax.com/sitemap.xml
 Sitemap: https://nammhqyeletjuwgkceir.supabase.co/functions/v1/generate-sitemap
