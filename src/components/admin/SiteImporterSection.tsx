@@ -145,60 +145,77 @@ const SiteImporterSection = () => {
     }
   };
 
-  const importProducts = async (overwrite = false) => {
-    if (!jobId || selectedProducts.size === 0) return;
-    setBusy("import");
+  /** Step 1: dry-run analysis */
+  const analyzeDuplicates = async () => {
+    if (selectedProducts.size === 0) return;
+    setBusy("analyze");
+    setDryRun(null);
     try {
       const list = Array.from(selectedProducts).map((i) => products[i]);
       const { data, error } = await supabase.functions.invoke("import-products", {
-        body: { job_id: jobId, products: list, overwrite },
+        body: { job_id: jobId, products: list, dry_run: true },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const duplicates = (data?.duplicates ?? []) as ImportDuplicate[];
+      setDryRun({
+        would_create: data?.would_create ?? 0,
+        would_skip: duplicates.length,
+        duplicates,
+      });
+      if (duplicates.length === 0) {
+        toast({
+          title: "Sin duplicados",
+          description: `Listo para importar ${data?.would_create ?? 0} productos nuevos.`,
+        });
+      } else {
+        setShowDupes(true);
+      }
+    } catch (e: any) {
+      fail(e, "Error al analizar duplicados");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** Step 2: real import (after dry-run, with optional overwrite list) */
+  const runImport = async (overwriteIndexes: number[] = []) => {
+    if (!jobId || selectedProducts.size === 0) return;
+    setBusy("import");
+    setShowDupes(false);
+    try {
+      const list = Array.from(selectedProducts).map((i) => products[i]);
+      const { data, error } = await supabase.functions.invoke("import-products", {
+        body: {
+          job_id: jobId,
+          products: list,
+          overwrite_indexes: overwriteIndexes,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Handle duplicates: prompt to overwrite
-      if (!overwrite && Array.isArray(data?.duplicates) && data.duplicates.length > 0) {
-        const sample = data.duplicates.slice(0, 5).map((d: any) => `• ${d.name} (${d.reason})`).join("\n");
-        const more = data.duplicates.length > 5 ? `\n…y ${data.duplicates.length - 5} más` : "";
-        const ok = window.confirm(
-          `Se detectaron ${data.duplicates.length} producto(s) duplicado(s):\n\n${sample}${more}\n\n¿Quieres sobrescribir los existentes con los datos importados?\n\n(Cancelar para mantener los productos originales y solo crear los nuevos)`
-        );
-        if (ok) {
-          // Re-invoke ONLY for the duplicate items with overwrite=true
-          const dupIndexes: number[] = data.duplicates.map((d: any) => d.index);
-          const dupList = dupIndexes.map((i) => list[i]);
-          const { data: data2, error: err2 } = await supabase.functions.invoke("import-products", {
-            body: { job_id: jobId, products: dupList, overwrite: true },
-          });
-          if (err2) throw err2;
-          const totalImported = (data.imported ?? 0) + (data2?.imported ?? 0);
-          const totalUpdated = (data.updated ?? 0) + (data2?.updated ?? 0);
-          setImportedIds([...(data.product_ids || []), ...(data2?.product_ids || [])]);
-          toast({
-            title: "Importación completa",
-            description: `${totalImported} nuevos · ${totalUpdated} sobrescritos`,
-          });
-        } else {
-          setImportedIds(data.product_ids || []);
-          toast({
-            title: "Importación parcial",
-            description: `${data.imported ?? 0} nuevos · ${data.duplicates.length} duplicados omitidos`,
-          });
-        }
-      } else {
-        setImportedIds(data.product_ids || []);
-        toast({
-          title: "Importación completa",
-          description: `${data.imported ?? 0} nuevos${data.updated ? ` · ${data.updated} actualizados` : ""}`,
-        });
-      }
+      const report: ImportReportData = {
+        imported: data?.imported ?? 0,
+        updated: data?.updated ?? 0,
+        errors: data?.errors ?? [],
+        duplicates: data?.duplicates ?? [],
+        product_ids: data?.product_ids ?? [],
+        source_url: url,
+        origin_domain: typeof window !== "undefined" ? window.location.hostname : undefined,
+        products: list,
+      };
+      setLastReport(report);
+      setImportedIds(report.product_ids);
+      toast({
+        title: "Importación completa",
+        description: `${report.imported} nuevos · ${report.updated} actualizados · ${report.duplicates.length} omitidos`,
+      });
 
-      // Auto-suggest store name from URL
       try {
         const u = new URL(url);
         const host = u.hostname.replace(/^www\./, "").split(".")[0];
-        const niceName = host.charAt(0).toUpperCase() + host.slice(1);
-        setStoreName(niceName);
+        setStoreName(host.charAt(0).toUpperCase() + host.slice(1));
         setStoreSlug(host.toLowerCase());
       } catch {}
       setStep("store");
@@ -208,7 +225,6 @@ const SiteImporterSection = () => {
       setBusy(null);
     }
   };
-
   const createSubStore = async () => {
     if (!storeName.trim() || !storeSlug.trim()) return;
     setBusy("substore");
