@@ -37,6 +37,7 @@ import SiteImporterSection from '@/components/admin/SiteImporterSection';
 import ImportedProductsPreviewSection from '@/components/admin/ImportedProductsPreviewSection';
 import ThemeImporterSection from '@/components/admin/ThemeImporterSection';
 import DomainsSection from '@/components/admin/DomainsSection';
+import DomainsOverviewSection from '@/components/admin/DomainsOverviewSection';
 import AppsSection from '@/components/admin/AppsSection';
 import ChannelsSection from '@/components/admin/ChannelsSection';
 import SubStoreAdminPanel from '@/components/admin/SubStoreAdminPanel';
@@ -89,6 +90,7 @@ const Admin = () => {
       case 'media': return <MediaSection />;
       case 'brands': return <BrandsSection />;
       case 'domains': return isAdmin ? <DomainsSection /> : <OverviewSection onNavigate={setActive} />;
+      case 'domains-overview': return isAdmin ? <DomainsOverviewSection /> : <OverviewSection onNavigate={setActive} />;
       case 'banners': return <BannersSection />;
       case 'blog': return <BlogSection />;
       case 'operations': return <OperationsSection />;
