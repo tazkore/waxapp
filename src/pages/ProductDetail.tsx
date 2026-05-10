@@ -18,6 +18,8 @@ const ProductDetail = () => {
   const navigate = useNavigate();
   const product = products.find((p) => p.id === id);
   const addItem = useCartStore((s) => s.addItem);
+  const { site } = useCurrentSite();
+  const displayDescription = rewriteDescription(product?.description, site.seoVariant, site.siteName);
 
   const [dbVariants, setDbVariants] = useState<ProductVariant[] | null>(null);
   const [loadingVariants, setLoadingVariants] = useState(true);
