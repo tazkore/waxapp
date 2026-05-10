@@ -39,6 +39,7 @@ const DEFAULT_SITE: SiteIdentity = {
   ogImage: '/placeholder.svg',
   canonicalBase: 'https://waxapp.mx',
   seoVariant: 'A',
+  hreflang: 'es-MX',
   colors: {
     primary: '142 90% 45%',       // neon green
     secondary: '38 100% 50%',     // amber
