@@ -43,8 +43,27 @@ Deno.serve(async (req) => {
     const product_ids: string[] = [];
     const duplicates: Array<{ index: number; name: string; sku: string | null; existing_id: string; reason: string }> = [];
 
-    for (const p of products) {
+    for (let pi = 0; pi < products.length; pi++) {
+      const p = products[pi];
       try {
+        // Check for existing product by sku (case-insensitive) or by exact name
+        let existingId: string | null = null;
+        let existingReason = "";
+        if (p.sku) {
+          const skuTrim = String(p.sku).slice(0, 60);
+          const { data: dupSku } = await admin.from("products").select("id").ilike("sku", skuTrim).limit(1).maybeSingle();
+          if (dupSku?.id) { existingId = dupSku.id; existingReason = `SKU "${skuTrim}" ya existe`; }
+        }
+        if (!existingId && p.name) {
+          const { data: dupName } = await admin.from("products").select("id").eq("name", String(p.name).slice(0, 200)).limit(1).maybeSingle();
+          if (dupName?.id) { existingId = dupName.id; existingReason = `nombre "${p.name}" ya existe`; }
+        }
+
+        if (existingId && !overwrite) {
+          duplicates.push({ index: pi, name: p.name, sku: p.sku ?? null, existing_id: existingId, reason: existingReason });
+          continue;
+        }
+
         // download first image
         let image_url: string | null = null;
         const firstImg = (p.images || [])[0];
@@ -67,39 +86,55 @@ Deno.serve(async (req) => {
           }
         }
 
-        const insert = {
+        const payload: any = {
           name: String(p.name).slice(0, 200),
           description: p.description ? String(p.description).slice(0, 4000) : null,
           price: Number.isFinite(p.price) ? Number(p.price) : 0,
-          stock: 0,
           category: p.category || null,
           sku: p.sku ? String(p.sku).slice(0, 60) : null,
-          image_url,
-          slug: slugify(p.name),
-          is_active: false,
         };
-        const { data: ins, error: insErr } = await admin.from("products").insert(insert).select("id").single();
-        if (insErr) {
-          errors.push(`${p.name}: ${insErr.message}`);
+        if (image_url) payload.image_url = image_url;
+
+        if (existingId && overwrite) {
+          // Update existing — preserve slug/stock/is_active
+          const { error: updErr } = await admin.from("products").update(payload).eq("id", existingId);
+          if (updErr) {
+            errors.push(`${p.name}: ${updErr.message}`);
+          } else {
+            updated++;
+            product_ids.push(existingId);
+          }
         } else {
-          imported++;
-          if (ins?.id) product_ids.push(ins.id);
+          const insertRow = { ...payload, stock: 0, slug: slugify(p.name), is_active: false, image_url };
+          const { data: ins, error: insErr } = await admin.from("products").insert(insertRow).select("id").single();
+          if (insErr) {
+            // Race condition or other duplicate: surface as duplicate if 23505
+            if ((insErr as any).code === "23505") {
+              duplicates.push({ index: pi, name: p.name, sku: p.sku ?? null, existing_id: "", reason: insErr.message });
+            } else {
+              errors.push(`${p.name}: ${insErr.message}`);
+            }
+          } else {
+            imported++;
+            if (ins?.id) product_ids.push(ins.id);
+          }
         }
       } catch (e) {
         errors.push(`${p.name}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 
+    const hasAnySuccess = imported + updated > 0;
     await admin
       .from("import_jobs")
       .update({
-        status: errors.length && imported === 0 ? "failed" : "completed",
-        products_imported: imported,
+        status: !hasAnySuccess && (errors.length || duplicates.length) ? "failed" : "completed",
+        products_imported: imported + updated,
         error: errors.length ? errors.slice(0, 20).join("\n") : null,
       })
       .eq("id", job_id);
 
-    return new Response(JSON.stringify({ imported, errors, product_ids }), {
+    return new Response(JSON.stringify({ imported, updated, errors, duplicates, product_ids }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
