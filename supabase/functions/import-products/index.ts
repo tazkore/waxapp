@@ -32,14 +32,16 @@ Deno.serve(async (req) => {
     if (!roles?.some((r: any) => r.role === "super_admin"))
       return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const { job_id, products } = await req.json();
+    const { job_id, products, overwrite = false } = await req.json();
     if (!job_id || !Array.isArray(products)) throw new Error("job_id and products[] required");
 
     await admin.from("import_jobs").update({ status: "importing" }).eq("id", job_id);
 
     let imported = 0;
+    let updated = 0;
     const errors: string[] = [];
     const product_ids: string[] = [];
+    const duplicates: Array<{ index: number; name: string; sku: string | null; existing_id: string; reason: string }> = [];
 
     for (const p of products) {
       try {
