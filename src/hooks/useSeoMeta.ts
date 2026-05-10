@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { getSiteByHost } from '@/config/siteConfig';
 
 interface SeoData {
   meta_title: string | null;
@@ -9,9 +10,6 @@ interface SeoData {
   keywords: string[];
   is_indexed: boolean;
 }
-
-const DEFAULT_TITLE = 'WAXAPP - CBD Premium & Nano Tecnología';
-const DEFAULT_DESCRIPTION = 'Descubre los mejores productos de CBD con nanotecnología.';
 
 const useSeoMeta = () => {
   const { pathname } = useLocation();
