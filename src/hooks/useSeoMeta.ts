@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { getSiteByHost } from '@/config/siteConfig';
+import { getSiteByHost, HREFLANG_ALTERNATES, DEFAULT_SITE } from '@/config/siteConfig';
 
 interface SeoData {
   meta_title: string | null;
