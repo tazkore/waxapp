@@ -19,6 +19,10 @@ const useSeoMeta = () => {
     let cancelled = false;
 
     const apply = async () => {
+      const site = getSiteByHost(typeof window !== 'undefined' ? window.location.hostname : '');
+      const DEFAULT_TITLE = site.seoTitle;
+      const DEFAULT_DESCRIPTION = site.seoDescription;
+
       // Try exact match first, then partial
       const { data } = await supabase
         .from('seo_pages')
@@ -55,28 +59,30 @@ const useSeoMeta = () => {
       // Robots
       setMeta('robots', d?.is_indexed === false ? 'noindex, nofollow' : 'index, follow');
 
-      // Open Graph
-      setMeta('og:title', d?.meta_title || DEFAULT_TITLE, 'property');
-      setMeta('og:description', d?.meta_description || DEFAULT_DESCRIPTION, 'property');
-      setMeta('og:url', window.location.href, 'property');
-      setMeta('og:type', 'website', 'property');
-      if (d?.og_image_url) {
-        setMeta('og:image', d.og_image_url, 'property');
-      }
-
-      // Twitter
-      setMeta('twitter:card', 'summary_large_image');
-      setMeta('twitter:title', d?.meta_title || DEFAULT_TITLE);
-      setMeta('twitter:description', d?.meta_description || DEFAULT_DESCRIPTION);
-
-      // Canonical
+      // Canonical (per-domain authority)
+      const canonicalHref = `${site.canonicalBase}${pathname}`;
       let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
       if (!canonical) {
         canonical = document.createElement('link');
         canonical.setAttribute('rel', 'canonical');
         document.head.appendChild(canonical);
       }
-      canonical.setAttribute('href', window.location.origin + pathname);
+      canonical.setAttribute('href', canonicalHref);
+
+      // Open Graph
+      setMeta('og:title', d?.meta_title || DEFAULT_TITLE, 'property');
+      setMeta('og:description', d?.meta_description || DEFAULT_DESCRIPTION, 'property');
+      setMeta('og:url', canonicalHref, 'property');
+      setMeta('og:type', 'website', 'property');
+      setMeta('og:site_name', site.siteName, 'property');
+      if (d?.og_image_url || site.ogImage) {
+        setMeta('og:image', d?.og_image_url || site.ogImage, 'property');
+      }
+
+      // Twitter
+      setMeta('twitter:card', 'summary_large_image');
+      setMeta('twitter:title', d?.meta_title || DEFAULT_TITLE);
+      setMeta('twitter:description', d?.meta_description || DEFAULT_DESCRIPTION);
     };
 
     apply();
