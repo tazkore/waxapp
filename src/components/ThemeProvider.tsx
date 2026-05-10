@@ -1,13 +1,35 @@
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getSiteByHost } from '@/config/siteConfig';
 
 /**
- * Loads active theme_settings and applies them to <html> as CSS variables,
- * <link rel="icon"> and <title>. No re-render of the app tree needed.
+ * Applies the white-label site identity (siteConfig) immediately, then merges
+ * the active theme_settings on top. The site identity wins for hostnames listed
+ * in siteConfig (white-label strict).
  */
 const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let cancelled = false;
+
+    // 1) Apply white-label identity from hostname FIRST.
+    const site = getSiteByHost(typeof window !== 'undefined' ? window.location.hostname : '');
+    const root = document.documentElement;
+    root.style.setProperty('--primary', site.colors.primary);
+    root.style.setProperty('--secondary', site.colors.secondary);
+    root.style.setProperty('--accent', site.colors.accent);
+    root.style.setProperty('--background', site.colors.background);
+    root.style.setProperty('--foreground', site.colors.foreground);
+    root.style.setProperty('--ring', site.colors.primary);
+    if (!document.title) document.title = site.seoTitle;
+    if (site.faviconUrl) {
+      let link = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = site.faviconUrl;
+    }
 
     const apply = (t: any) => {
       if (!t || cancelled) return;
