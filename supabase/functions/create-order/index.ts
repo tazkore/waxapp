@@ -99,6 +99,9 @@ Deno.serve(async (req) => {
       total,
       items,
       status: "pending",
+      origin_domain: typeof origin_domain === "string" && origin_domain.length > 0 && origin_domain.length <= 255
+        ? origin_domain.toLowerCase()
+        : null,
     }).select().single();
 
     if (error) {
