@@ -1,76 +1,97 @@
-## Plan: Resumen por dominio + hreflang + sitemap multi-dominio
+## Objetivo
 
-Tres mejoras complementarias al sistema multi-dominio ya implementado.
-
----
-
-### 1. Vista resumen por dominio en el admin
-
-**Crear** `src/components/admin/DomainsOverviewSection.tsx`:
-- Consulta `orders` con `select('total, status, origin_domain, created_at')`.
-- Agrupa en cliente por `origin_domain` (los nulos se muestran como "Sin dominio") y calcula:
-  - **Pedidos totales** y **ventas totales (MXN)**
-  - **Ticket promedio** = ventas / pedidos
-  - **Desglose por estado** (pending / packed / shipped / delivered / refunded) con badges de color
-  - **% del total** (share de ventas vs todos los dominios)
-- Tabla responsiva con orden por ventas desc, cabecera con los chips de filtro (rango: 7d / 30d / 90d / todo).
-- Card "Top dominio" arriba con el de mayor venta.
-- Empty state cuando no hay `origin_domain` registrado todavía.
-- Usa los tokens semánticos existentes (sin colores hardcodeados).
-
-**Editar** `src/components/admin/AdminSidebar.tsx` y `src/pages/Admin.tsx`:
-- Añadir entrada de menú "Dominios" (icono `Globe` de lucide) que monte `DomainsOverviewSection`.
-
-### 2. Etiquetas hreflang entre dominios
-
-**Editar** `src/config/siteConfig.ts`:
-- Añadir a cada `SiteIdentity` un campo opcional `hreflang: string` (ej. `'es-MX'`, `'es-419'`, `'x-default'`).
-- Definir un grupo `HREFLANG_ALTERNATES`: lista de los dominios que comparten contenido (todos los del array `SITES` salvo aliases `www.*`), para que cada página declare sus alternates.
-
-**Editar** `src/hooks/useSeoMeta.ts`:
-- Después de fijar el canonical, eliminar todos los `<link rel="alternate" data-hreflang="1">` previos e insertar uno por cada dominio alterno: `<link rel="alternate" hreflang="<lang>" href="<canonicalBase><pathname>" data-hreflang="1">`.
-- Incluir `hreflang="x-default"` apuntando al dominio principal (waxapp.mx).
-- Marca con `data-hreflang="1"` para limpieza determinista en navegaciones SPA.
-
-### 3. Sitemap por dominio + robots multi-dominio
-
-**Editar** `supabase/functions/generate-sitemap/index.ts`:
-- Aceptar query param `?host=<hostname>` (o leerlo del header `x-forwarded-host` cuando proxiado).
-- Resolver la base URL con `getSiteByHost`-equivalente embebido (mapa duplicado mínimo en el edge function: hostname → canonicalBase) — no podemos importar el archivo TS del frontend, así que se replica un mapa pequeño.
-- Reemplazar `SITE_URL` por la `canonicalBase` resuelta del host. Fallback al env `SITE_URL` o `https://waxapp.mx`.
-- Para cada `<url>`: añadir bloque `<xhtml:link rel="alternate" hreflang="<lang>" href="<base+path>"/>` por cada dominio del grupo. Declarar el namespace `xmlns:xhtml="http://www.w3.org/1999/xhtml"` en `<urlset>`.
-
-**Editar** `supabase/functions/generate-robots-txt/index.ts`:
-- Resolver host desde `?host=` o `x-forwarded-host` y emitir el `Sitemap:` apuntando al dominio correcto: `https://<host>/sitemap.xml` (que a su vez se reescribe vía `_redirects`/proxy de Lovable a la edge function — actualmente ya hay redirección desde `/sitemap.xml`).
-- Añadir línea `Host: <host>` (norma extendida que algunos crawlers respetan).
-
-**Editar** `public/robots.txt`:
-- Quedará como fallback estático genérico; añadir comentario indicando que el robots dinámico (edge function) provee el sitemap por dominio.
-- Listar todos los sitemaps de los dominios conocidos (uno por línea):
-  ```
-  Sitemap: https://waxapp.mx/sitemap.xml
-  Sitemap: https://vapewax.com.mx/sitemap.xml
-  Sitemap: https://extraccionwax.com/sitemap.xml
-  ```
+Mejorar el flujo de importación de productos con un reporte descargable, vista previa "dry run", manejo granular de duplicados con diálogo Dark Mode Tech, y reemplazar el badge "Facturación CFDI" por "Producto 100%" con modales informativos en `TrustSignals`.
 
 ---
 
-### Archivos creados
-- `src/components/admin/DomainsOverviewSection.tsx`
+## 1. Modo Dry Run (vista previa antes de importar)
 
-### Archivos editados
-- `src/config/siteConfig.ts` (añade `hreflang` y export `HREFLANG_ALTERNATES`)
-- `src/hooks/useSeoMeta.ts` (inyectar `<link rel="alternate" hreflang>`)
-- `src/components/admin/AdminSidebar.tsx`, `src/pages/Admin.tsx` (entrada "Dominios")
-- `supabase/functions/generate-sitemap/index.ts` (host-aware + xhtml:link alternates)
-- `supabase/functions/generate-robots-txt/index.ts` (host-aware Sitemap:)
-- `public/robots.txt` (lista los sitemaps de cada dominio)
+**Edge Function `import-products`:**
+- Aceptar nuevo campo `dry_run: boolean` en el body.
+- Cuando `dry_run = true`: ejecutar solo la detección por SKU/nombre, **no insertar/actualizar nada**, **no descargar imágenes**, **no tocar `import_jobs`**.
+- Devolver: `{ would_create, would_update, would_skip, duplicates: [{ index, name, sku, existing_id, existing_name, reason }] }` con detalles para cada producto.
 
-### Sin cambios
-- DB: la columna `orders.origin_domain` ya existe (creada en el plan anterior).
-- No se requieren nuevos secrets ni migraciones.
+**UI `SiteImporterSection`:**
+- Antes del botón "Importar X productos" añadir un nuevo paso: botón **"Analizar duplicados"** que invoca `dry_run`.
+- Mostrar un panel resumen con 3 chips Dark Mode Tech:
+  - Verde neón: `X se crearán`
+  - Ámbar: `Y duplicados`
+  - Gris: `Z se actualizarán` (si el usuario decide sobrescribir)
+- Si hay duplicados → desbloquear el botón "Revisar duplicados".
 
-### Notas
-- El admin "Dominios" lee directo de `orders` con la RLS existente (admin/mod) — nada nuevo del lado de seguridad.
-- hreflang declarado tanto en `<head>` (SPA) como en `sitemap.xml` (refuerzo para crawlers que cachean).
-- Si en el futuro se añade un dominio a `siteConfig.ts`, automáticamente aparece en hreflang, sitemap alternates y robots fallback.
+---
+
+## 2. Diálogo de duplicados con selección granular
+
+**Nuevo componente `DuplicatesReviewDialog.tsx`** (en `src/components/admin/`):
+- `Dialog` de shadcn con `bg-background border-primary/30`, header con ícono `AlertTriangle` ámbar.
+- Tabla scrollable con columnas: `Checkbox | Producto importado | Coincidencia existente | Razón (SKU/nombre) | Acción`.
+- Cada fila representa un duplicado; checkbox marca si se debe sobrescribir.
+- Acciones globales arriba: "Sobrescribir todos", "Omitir todos", "Invertir selección".
+- Footer: dos botones — `Cancelar` (ghost) y `Aplicar (N sobrescribir, M omitir)` (primario neón).
+- Estilos: usar tokens semánticos (`text-primary`, `bg-card`, `border-border`, `ring-primary/40`); nada de colores hardcoded.
+
+**Edge Function ajuste:**
+- Aceptar `overwrite_ids: string[]` (índices o SKUs de los productos a sobrescribir). Los duplicados que NO estén en la lista se omiten; los nuevos siempre se insertan.
+
+**UI flujo:**
+1. Usuario selecciona productos → click "Analizar duplicados" (dry-run).
+2. Si hay duplicados → abre `DuplicatesReviewDialog` con la lista.
+3. Usuario marca cuáles sobrescribir → click "Aplicar".
+4. Se invoca `import-products` real con `overwrite_ids`.
+5. Eliminar el `window.confirm` actual.
+
+---
+
+## 3. Reporte descargable (CSV + PDF)
+
+**Nuevo helper `src/lib/exportImportReport.ts`:**
+- `downloadImportReportCSV(result)` — genera CSV con secciones:
+  - Resumen (creados, actualizados, omitidos, errores, fecha, dominio origen).
+  - Detalle por producto (nombre, SKU, acción, ID resultante, mensaje).
+- `downloadImportReportPDF(result)` — usa `jsPDF` (ya disponible si no, agregar) con header marca WAX, tabla simple, paleta dark.
+
+**UI:**
+- Tras finalizar la importación (estado `done`), añadir card "Reporte de importación" con dos botones: `Descargar CSV` y `Descargar PDF`.
+- El edge function ya devuelve `imported`, `updated`, `errors`, `duplicates`, `product_ids`. Mantener estos datos en estado (`lastImportResult`) para el reporte.
+
+---
+
+## 4. TrustSignals: "Producto 100%" + modales informativos
+
+**`src/components/TrustSignals.tsx`:**
+- Reemplazar el item `{ icon: FileText, text: 'Facturación CFDI' }` por:
+  ```
+  { icon: BadgeCheck, text: 'Producto 100% Original',
+    info: { title, description, points[] } }
+  ```
+- Añadir el campo `info` a los **4 signals** con contenido relevante (no solo al nuevo).
+- Hacer cada `motion.div` clickeable (`button`, `cursor-pointer`, `hover:scale-105`, `focus-visible:ring-primary`).
+- Al click → abre un `Dialog` de shadcn con:
+  - Ícono grande del signal en neón verde.
+  - Título y descripción.
+  - Lista con bullets.
+  - Botón "Entendido" primario.
+- Estilos Dark Mode Tech: `bg-card`, borde `border-primary/20`, glow sutil.
+
+**Contenido propuesto (editable):**
+- Efecto en < 5 Minutos → "Absorción nano-emulsión rápida..."
+- Legal y Certificado → "Cumplimos con regulación COFEPRIS..."
+- **Producto 100% Original** → "Garantía de autenticidad. Trazabilidad por lote, sellos de seguridad..."
+- Envíos Asegurados → "Cobertura total contra pérdida o daño..."
+
+---
+
+## Archivos a crear/modificar
+
+**Crear:**
+- `src/components/admin/DuplicatesReviewDialog.tsx`
+- `src/components/TrustSignalInfoDialog.tsx` (o inline en TrustSignals)
+- `src/lib/exportImportReport.ts`
+
+**Modificar:**
+- `supabase/functions/import-products/index.ts` — añadir `dry_run` y `overwrite_ids`.
+- `src/components/admin/SiteImporterSection.tsx` — flujo dry-run, integración del diálogo, eliminar `window.confirm`, panel de reporte.
+- `src/components/TrustSignals.tsx` — nuevo signal y handler de modal.
+
+**Sin cambios de DB ni nuevos secrets.**
