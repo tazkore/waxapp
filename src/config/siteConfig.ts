@@ -62,6 +62,7 @@ const SITES: SiteIdentity[] = [
     ogImage: '/placeholder.svg',
     canonicalBase: 'https://www.waxapp.mx',
     seoVariant: 'A',
+    hreflang: 'es-MX',
     colors: DEFAULT_SITE.colors,
   },
   {
@@ -75,6 +76,7 @@ const SITES: SiteIdentity[] = [
     ogImage: '/placeholder.svg',
     canonicalBase: 'https://vapewax.com.mx',
     seoVariant: 'B',
+    hreflang: 'es-MX',
     colors: {
       primary: '142 90% 45%',     // neon green
       secondary: '38 100% 50%',
