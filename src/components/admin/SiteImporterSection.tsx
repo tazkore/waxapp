@@ -299,6 +299,9 @@ const SiteImporterSection = () => {
     setImportedIds([]);
     setStoreName("");
     setStoreSlug("");
+    setDryRun(null);
+    setLastReport(null);
+    setShowDupes(false);
   };
 
   return (
