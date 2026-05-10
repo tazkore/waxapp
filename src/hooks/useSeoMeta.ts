@@ -69,6 +69,19 @@ const useSeoMeta = () => {
       }
       canonical.setAttribute('href', canonicalHref);
 
+      // hreflang alternates — declare each sister domain as alternate language version.
+      document.querySelectorAll('link[data-hreflang="1"]').forEach((el) => el.remove());
+      const addAlt = (lang: string, href: string) => {
+        const link = document.createElement('link');
+        link.setAttribute('rel', 'alternate');
+        link.setAttribute('hreflang', lang);
+        link.setAttribute('href', href);
+        link.setAttribute('data-hreflang', '1');
+        document.head.appendChild(link);
+      };
+      HREFLANG_ALTERNATES.forEach((s) => addAlt(s.hreflang, `${s.canonicalBase}${pathname}`));
+      addAlt('x-default', `${DEFAULT_SITE.canonicalBase}${pathname}`);
+
       // Open Graph
       setMeta('og:title', d?.meta_title || DEFAULT_TITLE, 'property');
       setMeta('og:description', d?.meta_description || DEFAULT_DESCRIPTION, 'property');
