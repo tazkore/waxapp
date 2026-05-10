@@ -31,8 +31,21 @@ import AffiliateRefTracker from "./components/AffiliateRefTracker.tsx";
 import AffiliatePortal from "./pages/AffiliatePortal.tsx";
 import AffiliateLogin from "./pages/AffiliateLogin.tsx";
 import PromoCountdownBanner from "./components/PromoCountdownBanner.tsx";
+import { useEffect } from "react";
+import { useCartStore } from "./store/cartStore";
 
 const queryClient = new QueryClient();
+
+const CartResetOnEntry = () => {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!sessionStorage.getItem('wax_cart_reset')) {
+      useCartStore.getState().clearCart();
+      sessionStorage.setItem('wax_cart_reset', '1');
+    }
+  }, []);
+  return null;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -43,6 +56,7 @@ const App = () => (
         <BrowserRouter>
           <SeoHead />
           <RedirectHandler />
+          <CartResetOnEntry />
           <AgeGate />
           <AffiliateRefTracker />
           <PromoCountdownBanner />
