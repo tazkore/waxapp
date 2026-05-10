@@ -43,6 +43,7 @@ const OrdersSection = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [domainFilter, setDomainFilter] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
@@ -77,12 +78,18 @@ const OrdersSection = () => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  const filteredOrders = orders.filter(o =>
-    search === '' ||
-    o.order_number.toLowerCase().includes(search.toLowerCase()) ||
-    o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
-    o.customer_email.toLowerCase().includes(search.toLowerCase())
-  );
+  const availableDomains = Array.from(
+    new Set(orders.map((o) => (o as any).origin_domain).filter((d): d is string => !!d))
+  ).sort();
+
+  const filteredOrders = orders.filter(o => {
+    const matchesSearch = search === '' ||
+      o.order_number.toLowerCase().includes(search.toLowerCase()) ||
+      o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
+      o.customer_email.toLowerCase().includes(search.toLowerCase());
+    const matchesDomain = domainFilter === 'all' || (o as any).origin_domain === domainFilter;
+    return matchesSearch && matchesDomain;
+  });
 
   const fetchStatusHistory = async (orderId: string) => {
     setHistoryLoading(true);
@@ -278,9 +285,22 @@ const OrdersSection = () => {
         </div>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Buscar por orden, cliente o email..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10 bg-muted border-border" />
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative max-w-md flex-1 min-w-[240px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Buscar por orden, cliente o email..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10 bg-muted border-border" />
+        </div>
+        <Select value={domainFilter} onValueChange={setDomainFilter}>
+          <SelectTrigger className="w-[220px] bg-muted border-border">
+            <SelectValue placeholder="Filtrar por dominio" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los dominios</SelectItem>
+            {availableDomains.map((d) => (
+              <SelectItem key={d} value={d}>{d}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="rounded-lg border border-border overflow-hidden">

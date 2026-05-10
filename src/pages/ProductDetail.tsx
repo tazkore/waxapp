@@ -11,12 +11,15 @@ import CartDrawer from '@/components/CartDrawer';
 import Footer from '@/components/Footer';
 import ProductJsonLd from '@/components/ProductJsonLd';
 import { supabase } from '@/integrations/supabase/client';
-
+import useCurrentSite from '@/hooks/useCurrentSite';
+import { rewriteDescription } from '@/lib/seoVariant';
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const product = products.find((p) => p.id === id);
   const addItem = useCartStore((s) => s.addItem);
+  const { site } = useCurrentSite();
+  const displayDescription = rewriteDescription(product?.description, site.seoVariant, site.siteName);
 
   const [dbVariants, setDbVariants] = useState<ProductVariant[] | null>(null);
   const [loadingVariants, setLoadingVariants] = useState(true);
@@ -95,7 +98,7 @@ const ProductDetail = () => {
       <CartDrawer />
       <ProductJsonLd
         name={product.title}
-        description={product.description}
+        description={displayDescription}
         price={currentPrice}
         sku={product.id}
         availability="InStock"
@@ -151,7 +154,7 @@ const ProductDetail = () => {
               <h1 className="text-3xl lg:text-4xl font-display font-bold text-foreground mt-2">
                 {product.title}
               </h1>
-              <p className="text-muted-foreground mt-3 leading-relaxed">{product.description}</p>
+              <p className="text-muted-foreground mt-3 leading-relaxed">{displayDescription}</p>
             </div>
 
             <div className="text-3xl font-bold text-foreground">

@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { customer_name, customer_email, shipping_address, items, shipping_method, affiliate_code, loyalty_points_used } = body;
+    const { customer_name, customer_email, shipping_address, items, shipping_method, affiliate_code, loyalty_points_used, origin_domain } = body;
 
     // Input validation
     if (!customer_name || typeof customer_name !== "string" || customer_name.trim().length === 0 || customer_name.length > 200) {
@@ -99,6 +99,9 @@ Deno.serve(async (req) => {
       total,
       items,
       status: "pending",
+      origin_domain: typeof origin_domain === "string" && origin_domain.length > 0 && origin_domain.length <= 255
+        ? origin_domain.toLowerCase()
+        : null,
     }).select().single();
 
     if (error) {

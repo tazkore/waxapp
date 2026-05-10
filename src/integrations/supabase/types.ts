@@ -1371,6 +1371,7 @@ export type Database = {
           id: string
           items: Json
           order_number: string
+          origin_domain: string | null
           shipping_address: string | null
           status: string
           total: number
@@ -1386,6 +1387,7 @@ export type Database = {
           id?: string
           items?: Json
           order_number: string
+          origin_domain?: string | null
           shipping_address?: string | null
           status?: string
           total?: number
@@ -1401,6 +1403,7 @@ export type Database = {
           id?: string
           items?: Json
           order_number?: string
+          origin_domain?: string | null
           shipping_address?: string | null
           status?: string
           total?: number

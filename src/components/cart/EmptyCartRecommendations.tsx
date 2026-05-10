@@ -1,46 +1,40 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, Plus, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCartStore, type Product } from '@/store/cartStore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 
+const fetchRecommendations = async (): Promise<Product[]> => {
+  const { data, error } = await supabase
+    .from('products')
+    .select('id,name,price,image_url,category')
+    .gt('stock', 0)
+    .order('created_at', { ascending: false })
+    .limit(4);
+  if (error) throw error;
+  return (data ?? []).map((p: any) => ({
+    id: p.id,
+    title: p.name,
+    price: Number(p.price),
+    image: p.image_url,
+    category: p.category || 'general',
+  }));
+};
+
 const EmptyCartRecommendations = () => {
-  const [items, setItems] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const addItem = useCartStore((s) => s.addItem);
 
-  const loadRecommendations = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data, error: dbError } = await supabase
-        .from('products')
-        .select('id,name,price,image_url,category')
-        .gt('stock', 0)
-        .order('created_at', { ascending: false })
-        .limit(4);
-      if (dbError) throw dbError;
-      setItems(
-        (data ?? []).map((p: any) => ({
-          id: p.id,
-          title: p.name,
-          price: Number(p.price),
-          image: p.image_url,
-          category: p.category || 'general',
-        }))
-      );
-    } catch (e: any) {
-      setError(e?.message || 'Error desconocido');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data: items = [], isLoading: loading, error, refetch } = useQuery({
+    queryKey: ['cart-recommendations'],
+    queryFn: fetchRecommendations,
+    staleTime: 5 * 60 * 1000,   // 5 minutes fresh — no refetch on drawer reopen
+    gcTime: 30 * 60 * 1000,     // keep in cache 30 min
+    retry: 1,
+  });
 
-  useEffect(() => {
-    loadRecommendations();
-  }, [loadRecommendations]);
+  const handleRetry = useCallback(() => { refetch(); }, [refetch]);
 
   if (!loading && !error && items.length === 0) return null;
 
@@ -79,7 +73,7 @@ const EmptyCartRecommendations = () => {
           <AlertCircle className="h-4 w-4 text-destructive" aria-hidden="true" />
           <p className="text-xs text-foreground">No pudimos cargar recomendaciones</p>
           <button
-            onClick={loadRecommendations}
+            onClick={handleRetry}
             className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             Reintentar
