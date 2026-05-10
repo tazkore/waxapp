@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Trash2, ShoppingBag, HelpCircle, Minus, Plus, Lock } from 'lucide-react';
+import EmptyCartChecklist from './cart/EmptyCartChecklist';
+import EmptyCartRecommendations from './cart/EmptyCartRecommendations';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useCartStore } from '@/store/cartStore';
@@ -34,6 +36,7 @@ const CartDrawer = () => {
   const navigate = useNavigate();
   const count = totalItems();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const emptyCtaRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (isOpen && !hasSeenCartOnboarding()) {
@@ -41,6 +44,13 @@ const CartDrawer = () => {
       return () => clearTimeout(t);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && items.length === 0) {
+      const t = setTimeout(() => emptyCtaRef.current?.focus(), 200);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen, items.length]);
 
   const handleRemove = (item: typeof items[number], key: string) => {
     const snapshot = { ...item };
@@ -97,28 +107,42 @@ const CartDrawer = () => {
 
           <div className="flex-1 overflow-y-auto">
             {items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-4 px-6 py-20 text-center">
+              <section
+                role="region"
+                aria-label="Carrito vacío"
+                aria-live="polite"
+                className="flex flex-col items-center gap-5 px-6 py-10 text-center"
+              >
                 <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-                  <ShoppingBag className="h-10 w-10 text-muted-foreground" />
+                  <ShoppingBag className="h-10 w-10 text-muted-foreground" aria-hidden="true" />
+                  <span className="sr-only">Tu carrito está vacío</span>
                 </div>
                 <div className="space-y-1">
                   <h3 className="font-display text-lg font-semibold text-foreground">
-                    Tu carrito está esperando
+                    Empieza tu ritual premium
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Descubre nuestros productos premium.
+                    Envío gratis desde $1,500 · Pago seguro · Lab certificado
                   </p>
                 </div>
-                <Button
-                  onClick={() => {
-                    setCartOpen(false);
-                    navigate('/tienda');
-                  }}
-                  className="bg-primary text-primary-foreground hover:brightness-110"
-                >
-                  Explorar Productos
-                </Button>
-              </div>
+                <div className="flex flex-col items-center gap-1">
+                  <Button
+                    ref={emptyCtaRef}
+                    onClick={() => {
+                      setCartOpen(false);
+                      navigate('/tienda');
+                    }}
+                    className="bg-primary text-primary-foreground hover:brightness-110 hover:neon-glow"
+                  >
+                    Descubrir productos →
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground">
+                    Más de 2,500 clientes activos este mes
+                  </span>
+                </div>
+                <EmptyCartChecklist />
+                <EmptyCartRecommendations />
+              </section>
             ) : (
               <ul className="space-y-3 p-4">
                 <AnimatePresence initial={false}>
