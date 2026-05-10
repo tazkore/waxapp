@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, ArrowLeft, X, ShoppingBag, Trash2, CreditCard } from 'lucide-react';
+import { ArrowRight, ArrowLeft, X, ShoppingBag, Truck, Tag, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const STORAGE_KEY = 'wax_cart_onboarding_seen';
@@ -8,18 +8,23 @@ const STORAGE_KEY = 'wax_cart_onboarding_seen';
 const STEPS = [
   {
     icon: ShoppingBag,
-    title: 'Agrega productos',
-    body: 'Explora la tienda y haz clic en "Agregar al carrito" desde cualquier producto. Verás un contador en el ícono superior.',
+    title: 'Arma tu carrito',
+    body: 'Agrega productos desde la tienda con el botón "Agregar al carrito". Aquí podrás ajustar cantidades con + / − o eliminar con el ícono de papelera.',
   },
   {
-    icon: Trash2,
-    title: 'Quita lo que no quieras',
-    body: 'En el panel del carrito puedes eliminar artículos con el ícono de la papelera o ajustar cantidades.',
+    icon: Truck,
+    title: 'Envío gratis a partir de $1,500',
+    body: 'La barra superior te indica cuánto te falta para alcanzar envío gratis. Por debajo, el envío estándar es de solo $99 MXN.',
+  },
+  {
+    icon: Tag,
+    title: 'Cupones y WAX Points',
+    body: 'En el checkout puedes aplicar tu cupón de descuento y canjear tus WAX Points (1 punto = $1 MXN) para reducir tu total.',
   },
   {
     icon: CreditCard,
-    title: 'Finaliza tu compra',
-    body: 'Cuando estés listo, haz clic en “Proceder al Pago Seguro”. Te llevamos a un checkout de 3 pasos: dirección, envío y pago.',
+    title: 'Pago 100% seguro',
+    body: 'Haz clic en "Proceder al Pago Seguro" para entrar al checkout de 3 pasos: dirección, envío y pago con tarjeta o transferencia.',
   },
 ];
 
