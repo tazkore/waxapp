@@ -25,6 +25,7 @@ export type SiteIdentity = {
   canonicalBase: string;        // e.g. "https://vapewax.com.mx"
   colors: SiteColors;
   seoVariant: 'A' | 'B';        // controls description rewriting to avoid duplicate-content penalties
+  hreflang: string;             // BCP 47 language tag, e.g. 'es-MX'
 };
 
 const DEFAULT_SITE: SiteIdentity = {
