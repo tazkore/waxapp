@@ -47,6 +47,16 @@ const SiteImporterSection = () => {
   const [importedIds, setImportedIds] = useState<string[]>([]);
   const [storeName, setStoreName] = useState("");
   const [storeSlug, setStoreSlug] = useState("");
+
+  // Dry-run + duplicates flow
+  const [dryRun, setDryRun] = useState<{
+    would_create: number;
+    would_skip: number;
+    duplicates: ImportDuplicate[];
+  } | null>(null);
+  const [showDupes, setShowDupes] = useState(false);
+  const [lastReport, setLastReport] = useState<ImportReportData | null>(null);
+
   const { toast } = useToast();
 
   const fail = (e: any, ctx: string) => {
