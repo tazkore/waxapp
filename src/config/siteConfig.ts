@@ -96,6 +96,7 @@ const SITES: SiteIdentity[] = [
     ogImage: '/placeholder.svg',
     canonicalBase: 'https://extraccionwax.com',
     seoVariant: 'B',
+    hreflang: 'es-MX',
     colors: {
       primary: '210 100% 56%',    // electric blue
       secondary: '38 100% 50%',
@@ -115,5 +116,13 @@ export const getSiteByHost = (hostname: string | undefined | null): SiteIdentity
     DEFAULT_SITE
   );
 };
+
+/**
+ * Domains that share the same content and should declare each other as hreflang
+ * alternates (excludes www.* aliases to avoid duplicate alternates).
+ */
+export const HREFLANG_ALTERNATES: SiteIdentity[] = SITES.filter(
+  (s) => !s.hostname.startsWith('www.')
+);
 
 export { DEFAULT_SITE, SITES };
