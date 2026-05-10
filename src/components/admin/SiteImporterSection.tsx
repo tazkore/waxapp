@@ -437,10 +437,58 @@ const SiteImporterSection = () => {
               ))}
             </div>
             {products.length > 0 && (
-              <Button onClick={() => importProducts(false)} disabled={selectedProducts.size === 0 || busy !== null}>
-                {busy === "import" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-                Importar {selectedProducts.size} productos
-              </Button>
+              <div className="space-y-3 pt-2 border-t border-border">
+                {/* Dry-run summary */}
+                {dryRun && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/30 p-3">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground mr-1">Análisis:</span>
+                    <Badge className="bg-primary/15 text-primary border-primary/40 hover:bg-primary/15">
+                      {dryRun.would_create} se crearán
+                    </Badge>
+                    <Badge variant="outline" className="border-[hsl(var(--accent))]/40 text-[hsl(var(--accent))]">
+                      {dryRun.would_skip} duplicados
+                    </Badge>
+                    {dryRun.duplicates.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="ml-auto h-7"
+                        onClick={() => setShowDupes(true)}
+                      >
+                        Revisar duplicados
+                      </Button>
+                    )}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={analyzeDuplicates}
+                    disabled={selectedProducts.size === 0 || busy !== null}
+                  >
+                    {busy === "analyze" ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <ScanSearch className="h-4 w-4 mr-2" />
+                    )}
+                    Analizar ({selectedProducts.size})
+                  </Button>
+                  <Button
+                    onClick={() => runImport([])}
+                    disabled={selectedProducts.size === 0 || busy !== null}
+                  >
+                    {busy === "import" ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-2" />
+                    )}
+                    Importar {selectedProducts.size} productos
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Tip: usa <strong>Analizar</strong> para ver cuántos productos se crearán o duplicarán antes de importar.
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>
