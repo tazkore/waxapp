@@ -404,7 +404,7 @@ const SiteImporterSection = () => {
               ))}
             </div>
             {products.length > 0 && (
-              <Button onClick={importProducts} disabled={selectedProducts.size === 0 || busy !== null}>
+              <Button onClick={() => importProducts(false)} disabled={selectedProducts.size === 0 || busy !== null}>
                 {busy === "import" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
                 Importar {selectedProducts.size} productos
               </Button>
