@@ -98,7 +98,7 @@ const ProductDetail = () => {
       <CartDrawer />
       <ProductJsonLd
         name={product.title}
-        description={product.description}
+        description={displayDescription}
         price={currentPrice}
         sku={product.id}
         availability="InStock"
@@ -154,7 +154,7 @@ const ProductDetail = () => {
               <h1 className="text-3xl lg:text-4xl font-display font-bold text-foreground mt-2">
                 {product.title}
               </h1>
-              <p className="text-muted-foreground mt-3 leading-relaxed">{product.description}</p>
+              <p className="text-muted-foreground mt-3 leading-relaxed">{displayDescription}</p>
             </div>
 
             <div className="text-3xl font-bold text-foreground">
