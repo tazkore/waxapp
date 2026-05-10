@@ -8,8 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Globe, Wand2, Download, Palette, AlertCircle, Store } from "lucide-react";
+import { Loader2, Globe, Wand2, Download, Palette, AlertCircle, Store, FileText, FileSpreadsheet, ScanSearch } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import DuplicatesReviewDialog from "./DuplicatesReviewDialog";
+import {
+  downloadImportReportCSV,
+  downloadImportReportPDF,
+  type ImportDuplicate,
+  type ImportReportData,
+} from "@/lib/exportImportReport";
 
 type Provider = "firecrawl" | "jina" | "scrapingbee";
 
