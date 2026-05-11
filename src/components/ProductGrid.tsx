@@ -119,6 +119,8 @@ const ProductGrid = () => {
         // Already ordered newest from query
         break;
     }
+    // Inventory-first: in-stock items always before out-of-stock, preserving previous order
+    list = [...list].sort((a, b) => (b.stock > 0 ? 1 : 0) - (a.stock > 0 ? 1 : 0));
     return list;
   }, [products, active, activeBrand, debouncedQuery, sort, priceRange, minPrice, maxPrice]);
 

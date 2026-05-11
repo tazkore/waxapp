@@ -1,97 +1,64 @@
-## Objetivo
+# Plan de reingeniería WAXAPP
 
-Mejorar el flujo de importación de productos con un reporte descargable, vista previa "dry run", manejo granular de duplicados con diálogo Dark Mode Tech, y reemplazar el badge "Facturación CFDI" por "Producto 100%" con modales informativos en `TrustSignals`.
+## 1. Corrección de routing de productos
 
----
+**Archivos:** `src/components/ProductCard.tsx`, `src/components/ProductGrid.tsx`, `src/components/FeaturedCarousel.tsx`, `src/components/QuickViewDialog.tsx`, `src/pages/ProductDetail.tsx`.
 
-## 1. Modo Dry Run (vista previa antes de importar)
+- Auditar todos los `Link`/`navigate` que apunten a productos y unificar a `/producto/:id`.
+- En `ProductCard.tsx`: la tarjeta ya envuelve el contenido en `<Link>`, pero el botón "Agregar" y "Vista rápida" rompen el área clickeable. Consolidar todo en un solo `<Link>` exterior y mover los botones a posición absoluta con `stopPropagation`, garantizando que cualquier zona del card navega al detalle.
+- Si el id usado contiene clave compuesta (`id::variant`), en `ProductDetail.tsx` parsear con `id.split('::')[0]` antes de buscar el producto y preseleccionar la variante si viene en la segunda parte. Fallback a búsqueda por slug/nombre si no hay match en `products` para evitar 404.
+- Redirigir cualquier `/shop/:id` o `/tienda/:id` legacy a `/producto/:id` en `App.tsx`.
 
-**Edge Function `import-products`:**
-- Aceptar nuevo campo `dry_run: boolean` en el body.
-- Cuando `dry_run = true`: ejecutar solo la detección por SKU/nombre, **no insertar/actualizar nada**, **no descargar imágenes**, **no tocar `import_jobs`**.
-- Devolver: `{ would_create, would_update, would_skip, duplicates: [{ index, name, sku, existing_id, existing_name, reason }] }` con detalles para cada producto.
+## 2. Autenticación multi-modal
 
-**UI `SiteImporterSection`:**
-- Antes del botón "Importar X productos" añadir un nuevo paso: botón **"Analizar duplicados"** que invoca `dry_run`.
-- Mostrar un panel resumen con 3 chips Dark Mode Tech:
-  - Verde neón: `X se crearán`
-  - Ámbar: `Y duplicados`
-  - Gris: `Z se actualizarán` (si el usuario decide sobrescribir)
-- Si hay duplicados → desbloquear el botón "Revisar duplicados".
+**Archivos:** `src/pages/ClientAuth.tsx` (rediseño), `src/integrations/lovable/index.ts` (ya existe).
 
----
+- Rediseñar `ClientAuth` con `Tabs` (shadcn) bajo el título **"Elige tu forma de entrar"**:
+  - **Email + contraseña** (signup/login tradicional con `supabase.auth.signInWithPassword` / `signUp`).
+  - **Magic Link** (`supabase.auth.signInWithOtp` con `emailRedirectTo: window.location.origin + '/mi-cuenta'`).
+  - **Google** (ya existe vía `lovable.auth.signInWithOAuth('google')`).
+  - **Apple** vía `lovable.auth.signInWithOAuth('apple')` — habilitar provider con `configure_social_auth`.
+  - **GitHub:** no es soportado en Lovable Cloud nativamente. Se omite con nota al usuario en el plan (ver más abajo). Si insiste se requeriría conectar Supabase externo.
+- Estilo Dark Mode Tech: tabs con borde neón verde activo, botones OAuth con icono y borde sutil.
 
-## 2. Diálogo de duplicados con selección granular
+## 3. Home Inventory-First
 
-**Nuevo componente `DuplicatesReviewDialog.tsx`** (en `src/components/admin/`):
-- `Dialog` de shadcn con `bg-background border-primary/30`, header con ícono `AlertTriangle` ámbar.
-- Tabla scrollable con columnas: `Checkbox | Producto importado | Coincidencia existente | Razón (SKU/nombre) | Acción`.
-- Cada fila representa un duplicado; checkbox marca si se debe sobrescribir.
-- Acciones globales arriba: "Sobrescribir todos", "Omitir todos", "Invertir selección".
-- Footer: dos botones — `Cancelar` (ghost) y `Aplicar (N sobrescribir, M omitir)` (primario neón).
-- Estilos: usar tokens semánticos (`text-primary`, `bg-card`, `border-border`, `ring-primary/40`); nada de colores hardcoded.
+**Archivos:** `src/components/ProductGrid.tsx`, `src/components/ProductCard.tsx`.
 
-**Edge Function ajuste:**
-- Aceptar `overwrite_ids: string[]` (índices o SKUs de los productos a sobrescribir). Los duplicados que NO estén en la lista se omiten; los nuevos siempre se insertan.
+- En `ProductGrid`: tras cargar productos+stock desde Supabase, hacer `.sort((a,b) => (b.inStock?1:0) - (a.inStock?1:0))` para empujar agotados al final (preservando orden interno).
+- Reorganizar `ProductCard` en este orden visual:
+  1. Imagen + badge superior izquierdo: **"En Stock"** (verde neón) o **"Agotado"** (rojo).
+  2. Línea de **disponibilidad inmediata** ("Envío hoy" en ámbar) cuando `stock > 0`.
+  3. Categoría + Nombre.
+  4. Precio (con tachado si oferta).
+  5. Descripción truncada `line-clamp-2`.
+  6. Botón CTA.
 
-**UI flujo:**
-1. Usuario selecciona productos → click "Analizar duplicados" (dry-run).
-2. Si hay duplicados → abre `DuplicatesReviewDialog` con la lista.
-3. Usuario marca cuáles sobrescribir → click "Aplicar".
-4. Se invoca `import-products` real con `overwrite_ids`.
-5. Eliminar el `window.confirm` actual.
+## 4. Portal de Afiliados público `/afiliados`
 
----
+**Archivos nuevos:** `src/pages/AfiliadosLanding.tsx`. **Editar:** `src/App.tsx`, `src/components/Footer.tsx` (link).
 
-## 3. Reporte descargable (CSV + PDF)
+- Landing pública con secciones:
+  - Hero: "Gana 15% por cada venta" + CTA "Unirse al programa" → `/portal-vendedores/login` (registro existente).
+  - Beneficios (3 cards): comisión 15%, pagos rápidos, panel propio con métricas.
+  - Cómo funciona (pasos 1-2-3 usando `?ref=`).
+  - FAQ (`Accordion` shadcn) sobre tracking, cookies, pagos, links `?ref`.
+  - CTA final.
+- Registrar ruta `/afiliados` en `App.tsx` antes del catch-all.
 
-**Nuevo helper `src/lib/exportImportReport.ts`:**
-- `downloadImportReportCSV(result)` — genera CSV con secciones:
-  - Resumen (creados, actualizados, omitidos, errores, fecha, dominio origen).
-  - Detalle por producto (nombre, SKU, acción, ID resultante, mensaje).
-- `downloadImportReportPDF(result)` — usa `jsPDF` (ya disponible si no, agregar) con header marca WAX, tabla simple, paleta dark.
+## 5. Rendimiento
 
-**UI:**
-- Tras finalizar la importación (estado `done`), añadir card "Reporte de importación" con dos botones: `Descargar CSV` y `Descargar PDF`.
-- El edge function ya devuelve `imported`, `updated`, `errors`, `duplicates`, `product_ids`. Mantener estos datos en estado (`lastImportResult`) para el reporte.
+- `line-clamp-2` ya disponible vía Tailwind; aplicarlo consistentemente en `ProductCard` y `FeaturedCarousel`.
+- Confirmar `loading="lazy"` en imágenes del grid (ya está en ProductCard).
+- Sin cambios de bundle adicionales.
 
----
+## Notas técnicas
 
-## 4. TrustSignals: "Producto 100%" + modales informativos
+- **GitHub OAuth:** Lovable Cloud no lo soporta nativamente. En el UI se omitirá; si lo necesitas explícitamente requiere migrar a Supabase externo — confirma si quieres que lo plantee o lo dejamos fuera.
+- **Apple:** se habilitará vía `configure_social_auth(['google','apple'])`.
+- Sin cambios de DB; sin nuevos secrets.
 
-**`src/components/TrustSignals.tsx`:**
-- Reemplazar el item `{ icon: FileText, text: 'Facturación CFDI' }` por:
-  ```
-  { icon: BadgeCheck, text: 'Producto 100% Original',
-    info: { title, description, points[] } }
-  ```
-- Añadir el campo `info` a los **4 signals** con contenido relevante (no solo al nuevo).
-- Hacer cada `motion.div` clickeable (`button`, `cursor-pointer`, `hover:scale-105`, `focus-visible:ring-primary`).
-- Al click → abre un `Dialog` de shadcn con:
-  - Ícono grande del signal en neón verde.
-  - Título y descripción.
-  - Lista con bullets.
-  - Botón "Entendido" primario.
-- Estilos Dark Mode Tech: `bg-card`, borde `border-primary/20`, glow sutil.
+## Archivos
 
-**Contenido propuesto (editable):**
-- Efecto en < 5 Minutos → "Absorción nano-emulsión rápida..."
-- Legal y Certificado → "Cumplimos con regulación COFEPRIS..."
-- **Producto 100% Original** → "Garantía de autenticidad. Trazabilidad por lote, sellos de seguridad..."
-- Envíos Asegurados → "Cobertura total contra pérdida o daño..."
-
----
-
-## Archivos a crear/modificar
-
-**Crear:**
-- `src/components/admin/DuplicatesReviewDialog.tsx`
-- `src/components/TrustSignalInfoDialog.tsx` (o inline en TrustSignals)
-- `src/lib/exportImportReport.ts`
-
-**Modificar:**
-- `supabase/functions/import-products/index.ts` — añadir `dry_run` y `overwrite_ids`.
-- `src/components/admin/SiteImporterSection.tsx` — flujo dry-run, integración del diálogo, eliminar `window.confirm`, panel de reporte.
-- `src/components/TrustSignals.tsx` — nuevo signal y handler de modal.
-
-**Sin cambios de DB ni nuevos secrets.**
+- **Crear:** `src/pages/AfiliadosLanding.tsx`
+- **Editar:** `src/App.tsx`, `src/pages/ClientAuth.tsx`, `src/pages/ProductDetail.tsx`, `src/components/ProductCard.tsx`, `src/components/ProductGrid.tsx`, `src/components/Footer.tsx`

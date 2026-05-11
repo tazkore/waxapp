@@ -11,10 +11,11 @@ const Footer = () => (
           </p>
         </div>
 
-        <div className="flex gap-6 text-sm text-muted-foreground">
+        <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
           <a href="#legal" className="hover:text-foreground">Aviso Legal</a>
           <a href="#" className="hover:text-foreground">Política de Privacidad</a>
           <a href="#" className="hover:text-foreground">Términos de Uso</a>
+          <a href="/afiliados" className="hover:text-primary text-primary/80">Programa de Afiliados</a>
         </div>
 
         <div className="flex items-center gap-3 text-xs text-muted-foreground">

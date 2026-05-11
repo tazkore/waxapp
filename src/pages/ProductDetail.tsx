@@ -14,9 +14,13 @@ import { supabase } from '@/integrations/supabase/client';
 import useCurrentSite from '@/hooks/useCurrentSite';
 import { rewriteDescription } from '@/lib/seoVariant';
 const ProductDetail = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id: rawId } = useParams<{ id: string }>();
+  // Support composite keys like "id::variant"
+  const [baseId, variantFromUrl] = (rawId ?? '').split('::');
   const navigate = useNavigate();
-  const product = products.find((p) => p.id === id);
+  const staticProduct = products.find((p) => p.id === baseId);
+  const [dbFallback, setDbFallback] = useState<typeof products[number] | null>(null);
+  const product = staticProduct ?? dbFallback;
   const addItem = useCartStore((s) => s.addItem);
   const { site } = useCurrentSite();
   const displayDescription = rewriteDescription(product?.description, site.seoVariant, site.siteName);
@@ -24,9 +28,43 @@ const ProductDetail = () => {
   const [dbVariants, setDbVariants] = useState<ProductVariant[] | null>(null);
   const [loadingVariants, setLoadingVariants] = useState(true);
   const [productImage, setProductImage] = useState<string | null>(null);
-  const [selectedVariant, setSelectedVariant] = useState('');
+  const [selectedVariant, setSelectedVariant] = useState(variantFromUrl || '');
   const [quantity, setQuantity] = useState(1);
   const [openAccordion, setOpenAccordion] = useState<string | null>('benefits');
+  const [resolving, setResolving] = useState(!staticProduct);
+
+  // DB fallback when the id isn't in the static catalog (e.g. UUID from Supabase)
+  useEffect(() => {
+    if (staticProduct || !baseId) return;
+    let alive = true;
+    (async () => {
+      // Try by id first, then by slug
+      let row: any = null;
+      const byId = await supabase.from('products').select('id, name, description, category, price, image_url, sku').eq('id', baseId).maybeSingle();
+      row = byId.data;
+      if (!row) {
+        const bySlug = await (supabase as any).from('products').select('id, name, description, category, price, image_url, sku').eq('slug', baseId).maybeSingle();
+        row = bySlug.data;
+      }
+      if (!alive) return;
+      if (row) {
+        setDbFallback({
+          id: row.id,
+          title: row.name,
+          category: row.category ?? 'General',
+          price: Number(row.price),
+          description: row.description ?? '',
+          benefits: '',
+          usage: '',
+          legal: '',
+          variants: [],
+        } as any);
+        setProductImage(row.image_url ?? null);
+      }
+      setResolving(false);
+    })();
+    return () => { alive = false; };
+  }, [baseId, staticProduct]);
 
   // Fetch DB variants by matching product name
   useEffect(() => {
@@ -39,7 +77,7 @@ const ProductDetail = () => {
         .maybeSingle();
 
       if (dbProduct) {
-        setProductImage((dbProduct as any).image_url ?? null);
+        if (!productImage) setProductImage((dbProduct as any).image_url ?? null);
         const { data: variants } = await supabase
           .from('product_variants')
           .select('name, price, stock, image_url')
@@ -62,11 +100,19 @@ const ProductDetail = () => {
   // Set default selected variant once variants are resolved
   useEffect(() => {
     if (activeVariants.length > 0 && !selectedVariant) {
-      setSelectedVariant(activeVariants[0].name);
+      const match = variantFromUrl && activeVariants.find((v) => v.name === variantFromUrl);
+      setSelectedVariant(match ? match.name : activeVariants[0].name);
     }
-  }, [activeVariants, selectedVariant]);
+  }, [activeVariants, selectedVariant, variantFromUrl]);
 
   if (!product) {
+    if (resolving) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
