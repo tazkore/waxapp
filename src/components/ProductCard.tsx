@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Eye, ImageOff } from 'lucide-react';
+import { ShoppingCart, Eye, ImageOff, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Product, useCartStore } from '@/store/cartStore';
 import { toast } from 'sonner';
@@ -23,9 +23,13 @@ const ProductCard = ({ product, outOfStock = false }: ProductCardProps) => {
 
   const hasVariants = (product.variants?.length ?? 0) > 0;
 
-  const handleAdd = (e: React.MouseEvent) => {
+  const stop = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+  };
+
+  const handleAdd = (e: React.MouseEvent) => {
+    stop(e);
     if (outOfStock) return;
     if (hasVariants) {
       setQuickOpen(true);
@@ -36,8 +40,7 @@ const ProductCard = ({ product, outOfStock = false }: ProductCardProps) => {
   };
 
   const openQuick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+    stop(e);
     setQuickOpen(true);
   };
 
@@ -55,7 +58,7 @@ const ProductCard = ({ product, outOfStock = false }: ProductCardProps) => {
           outOfStock ? 'border-border/50 opacity-70' : 'border-border hover:border-primary/30'
         }`}
       >
-        <Link to={`/producto/${product.id}`} className="flex flex-col flex-1">
+        <Link to={`/producto/${product.id}`} className="flex flex-col flex-1" aria-label={`Ver ${product.title}`}>
           <div className="relative h-52 overflow-hidden bg-muted flex items-center justify-center">
             {img ? (
               <img
@@ -78,24 +81,30 @@ const ProductCard = ({ product, outOfStock = false }: ProductCardProps) => {
                 </span>
               </div>
             )}
+
+            {/* Stock badge top-left */}
+            {outOfStock ? (
+              <span className="absolute left-3 top-3 rounded-md bg-destructive px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-destructive-foreground">
+                Agotado
+              </span>
+            ) : (
+              <span
+                className="absolute left-3 top-3 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-black"
+                style={{ backgroundColor: '#00E676', boxShadow: '0 0 12px rgba(0,230,118,0.45)' }}
+              >
+                En Stock
+              </span>
+            )}
+
             {hasOffer && !outOfStock && (
               <span
-                className="absolute left-3 top-3 rounded-md px-2 py-0.5 text-xs font-bold text-black shadow-md"
+                className="absolute right-3 top-3 rounded-md px-2 py-0.5 text-xs font-bold text-black shadow-md"
                 style={{ backgroundColor: '#FFB300', boxShadow: '0 0 12px rgba(255,179,0,0.5)' }}
               >
                 Oferta
               </span>
             )}
-            {product.badge && !hasOffer && !outOfStock && (
-              <span className="absolute right-3 top-3 rounded-md bg-secondary px-2 py-0.5 text-xs font-bold text-secondary-foreground amber-glow">
-                {product.badge}
-              </span>
-            )}
-            {outOfStock && (
-              <span className="absolute right-3 top-3 rounded-md bg-destructive px-3 py-1 text-xs font-bold text-destructive-foreground">
-                Agotado
-              </span>
-            )}
+
             {!outOfStock && (
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
                 <button
@@ -107,15 +116,21 @@ const ProductCard = ({ product, outOfStock = false }: ProductCardProps) => {
               </div>
             )}
           </div>
+
           <div className="flex flex-1 flex-col gap-2 p-4">
+            {/* Availability line */}
+            {!outOfStock && (
+              <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#FFB300' }}>
+                <Zap className="h-3 w-3" /> Disponibilidad inmediata
+              </span>
+            )}
+
             <span className={`text-xs font-semibold uppercase tracking-wider ${categoryColors[product.category] ?? 'text-muted-foreground'}`}>
               {product.category}
             </span>
-            <h3 className="font-display text-lg font-semibold text-foreground">{product.title}</h3>
-            {product.description && (
-              <p className="text-xs text-muted-foreground line-clamp-2">{product.description}</p>
-            )}
-            <div className="mt-auto flex items-baseline gap-2">
+            <h3 className="font-display text-lg font-semibold text-foreground line-clamp-2">{product.title}</h3>
+
+            <div className="flex items-baseline gap-2">
               <span
                 className="text-xl font-bold"
                 style={hasOffer ? { color: '#FFB300' } : undefined}
@@ -129,6 +144,10 @@ const ProductCard = ({ product, outOfStock = false }: ProductCardProps) => {
               )}
               <span className="text-sm text-muted-foreground">MXN</span>
             </div>
+
+            {product.description && (
+              <p className="mt-auto text-xs text-muted-foreground line-clamp-2">{product.description}</p>
+            )}
           </div>
         </Link>
         <div className="px-4 pb-4">
