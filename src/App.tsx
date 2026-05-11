@@ -62,6 +62,9 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/tienda" element={<Index />} />
           <Route path="/shop" element={<Navigate to="/tienda" replace />} />
+          <Route path="/tienda/:id" element={<Navigate to="/producto/:id" replace />} />
+          <Route path="/shop/:id" element={<Navigate to="/producto/:id" replace />} />
+          <Route path="/afiliados" element={<AfiliadosLanding />} />
           <Route path="/orden-completada" element={<OrderComplete />} />
           <Route path="/producto/:id" element={<ProductDetail />} />
           <Route path="/checkout" element={<Checkout />} />
