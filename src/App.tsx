@@ -22,6 +22,7 @@ import LaboratoriosPage from "./pages/LaboratoriosPage.tsx";
 import MarcasPage from "./pages/MarcasPage.tsx";
 import NeshikaPage from "./pages/NeshikaPage.tsx";
 import CustomPage from "./pages/CustomPage.tsx";
+import AfiliadosLanding from "./pages/AfiliadosLanding.tsx";
 import SubStorePage from "./pages/SubStorePage.tsx";
 import SeoHead from "./components/SeoHead.tsx";
 import RedirectHandler from "./components/RedirectHandler.tsx";
