@@ -14,9 +14,13 @@ import { supabase } from '@/integrations/supabase/client';
 import useCurrentSite from '@/hooks/useCurrentSite';
 import { rewriteDescription } from '@/lib/seoVariant';
 const ProductDetail = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id: rawId } = useParams<{ id: string }>();
+  // Support composite keys like "id::variant"
+  const [baseId, variantFromUrl] = (rawId ?? '').split('::');
   const navigate = useNavigate();
-  const product = products.find((p) => p.id === id);
+  const staticProduct = products.find((p) => p.id === baseId);
+  const [dbFallback, setDbFallback] = useState<typeof products[number] | null>(null);
+  const product = staticProduct ?? dbFallback;
   const addItem = useCartStore((s) => s.addItem);
   const { site } = useCurrentSite();
   const displayDescription = rewriteDescription(product?.description, site.seoVariant, site.siteName);
