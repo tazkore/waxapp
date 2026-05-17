@@ -1,7 +1,5 @@
 {
-  "routes": [
-    { "src": "/assets/(.*)", "dest": "/assets/$1" },
-    { "src": "/(.*)\\.(.+)", "dest": "/$1.$2" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/:path*", "destination": "/index.html" }
   ]
 }
