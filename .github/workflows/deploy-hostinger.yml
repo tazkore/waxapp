@@ -3,7 +3,7 @@ name: Deploy → waxapp.mx (Hostinger)
 on:
   push:
     branches: [main]
-  workflow_dispatch:   # permite correr manualmente desde GitHub
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -31,20 +31,14 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_SUPABASE_PROJECT_ID: nytjvcykmimblubegxjq
 
-      - name: Deploy a Hostinger vía FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: Deploy a Hostinger vía SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/
-          server-dir: /public_html/
-          protocol: ftps
-          port: 21
-          timeout: 120000
-          log-level: standard
-          dangerous-clean-slate: false
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
+          local_path: ./dist/*
+          remote_path: /public_html/
+          port: 22
+          sftp_only: true
+          delete_remote_files: false
