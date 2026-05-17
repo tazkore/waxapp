@@ -1,0 +1,11 @@
+Options -MultiViews
+RewriteEngine On
+RewriteBase /
+
+# Servir archivos y directorios existentes directamente
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Todo lo demás → index.html (SPA fallback)
+RewriteRule ^ index.html [L]
