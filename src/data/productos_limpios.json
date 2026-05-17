@@ -1,0 +1,318 @@
+[
+  {
+    "id": "prod-1778988938-1",
+    "name": "Airmez matrix 25,000 hits",
+    "slug": "airmez-matrix-25000-hits",
+    "price": 125,
+    "originalPrice": 125,
+    "onSale": false,
+    "image": "",
+    "images": [],
+    "description": "Airmez matrix 25,000 hits — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Airmez matrix 25,000 hits — $125 MXN | Airmez al Mayoreo WAXAPP",
+    "category": "disposables",
+    "hits": "25,000 hits"
+  },
+  {
+    "id": "prod-1778988938-2",
+    "name": "Besos 2gr (Gold Edition) sin seguro",
+    "slug": "besos-2gr-gold-edition-sin-seguro",
+    "price": 380,
+    "originalPrice": 380,
+    "onSale": false,
+    "image": "https://evapemayoreo.com/cdn/shop/files/37092EB7-1B4A-44C3-BF80-C82D720EB8CF.jpg?v=1762153402",
+    "images": [
+      "https://evapemayoreo.com/cdn/shop/files/37092EB7-1B4A-44C3-BF80-C82D720EB8CF.jpg?v=1762153402"
+    ],
+    "description": "Besos 2gr (Gold Edition) sin seguro — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Besos 2gr (Gold Edition) sin seguro — $380 MXN | Besos al Mayoreo WAXAPP",
+    "category": "wax-pens"
+  },
+  {
+    "id": "prod-1778988938-3",
+    "name": "Besos 2gr Con seguro",
+    "slug": "besos-2gr-con-seguro",
+    "price": 455,
+    "originalPrice": 455,
+    "onSale": false,
+    "image": "https://evapemayoreo.com/cdn/shop/files/37092EB7-1B4A-44C3-BF80-C82D720EB8CF.jpg?v=1762153402",
+    "images": [
+      "https://evapemayoreo.com/cdn/shop/files/37092EB7-1B4A-44C3-BF80-C82D720EB8CF.jpg?v=1762153402"
+    ],
+    "description": "Besos 2gr Con seguro — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Besos 2gr Con seguro — $455 MXN | Besos al Mayoreo WAXAPP",
+    "category": "wax-pens"
+  },
+  {
+    "id": "prod-1778988938-4",
+    "name": "Bugatti 7,000 hits",
+    "slug": "bugatti-7000-hits",
+    "price": 85,
+    "originalPrice": 90,
+    "onSale": true,
+    "image": "",
+    "images": [],
+    "description": "Bugatti 7,000 hits — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Bugatti 7,000 hits — 6% OFF | WAXAPP Mayoreo",
+    "category": "disposables",
+    "hits": "7,000 hits"
+  },
+  {
+    "id": "prod-1778988938-5",
+    "name": "Bugatti 9,000 hits",
+    "slug": "bugatti-9000-hits",
+    "price": 85,
+    "originalPrice": 99,
+    "onSale": true,
+    "image": "https://evapemayoreo.com/cdn/shop/files/FA361605-E0A7-4B3D-A470-DAD5C9542FC1.jpg?v=1762153339",
+    "images": [
+      "https://evapemayoreo.com/cdn/shop/files/FA361605-E0A7-4B3D-A470-DAD5C9542FC1.jpg?v=1762153339"
+    ],
+    "description": "Bugatti 9,000 hits — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Bugatti 9,000 hits — 14% OFF | WAXAPP Mayoreo",
+    "category": "disposables",
+    "hits": "9,000 hits"
+  },
+  {
+    "id": "prod-1778988938-6",
+    "name": "Choiceslab dual flavor 2gr (con seguro)",
+    "slug": "choiceslab-dual-flavor-2gr-con-seguro",
+    "price": 455,
+    "originalPrice": 470,
+    "onSale": true,
+    "image": "https://evapemayoreo.com/cdn/shop/files/EEDE0300-FE31-4276-B9C1-12470B771EC4.webp?v=1774778307",
+    "images": [
+      "https://evapemayoreo.com/cdn/shop/files/EEDE0300-FE31-4276-B9C1-12470B771EC4.webp?v=1774778307"
+    ],
+    "description": "Choiceslab dual flavor 2gr (con seguro) — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Choiceslab dual flavor 2gr (con seguro) — 3% OFF | WAXAPP Mayoreo",
+    "category": "wax-pens"
+  },
+  {
+    "id": "prod-1778988938-7",
+    "name": "Choiceslab dual flavor 2gr (sin seguro)",
+    "slug": "choiceslab-dual-flavor-2gr-sin-seguro",
+    "price": 375,
+    "originalPrice": 470,
+    "onSale": true,
+    "image": "https://evapemayoreo.com/cdn/shop/files/EEDE0300-FE31-4276-B9C1-12470B771EC4.webp?v=1774778307",
+    "images": [
+      "https://evapemayoreo.com/cdn/shop/files/EEDE0300-FE31-4276-B9C1-12470B771EC4.webp?v=1774778307"
+    ],
+    "description": "Choiceslab dual flavor 2gr (sin seguro) — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Choiceslab dual flavor 2gr (sin seguro) — 20% OFF | WAXAPP Mayoreo",
+    "category": "wax-pens"
+  },
+  {
+    "id": "prod-1778988938-8",
+    "name": "Cry baby 2gr con seguro",
+    "slug": "cry-baby-2gr-con-seguro",
+    "price": 455,
+    "originalPrice": 455,
+    "onSale": false,
+    "image": "",
+    "images": [],
+    "description": "Cry baby 2gr con seguro — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Cry baby 2gr con seguro — $455 MXN | Cry al Mayoreo WAXAPP",
+    "category": "wax-pens"
+  },
+  {
+    "id": "prod-1778988938-9",
+    "name": "Cry baby 2gr sin seguro",
+    "slug": "cry-baby-2gr-sin-seguro",
+    "price": 375,
+    "originalPrice": 380,
+    "onSale": true,
+    "image": "",
+    "images": [],
+    "description": "Cry baby 2gr sin seguro — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Cry baby 2gr sin seguro — 1% OFF | WAXAPP Mayoreo",
+    "category": "wax-pens"
+  },
+  {
+    "id": "prod-1778988938-10",
+    "name": "Death row 5,000 hits (pack 10)",
+    "slug": "death-row-5000-hits-pack-10",
+    "price": 490,
+    "originalPrice": 750,
+    "onSale": true,
+    "image": "https://evapemayoreo.com/cdn/shop/files/A9A869B1-890E-4A85-9D72-786143D46456.jpg?v=1762153247",
+    "images": [
+      "https://evapemayoreo.com/cdn/shop/files/A9A869B1-890E-4A85-9D72-786143D46456.jpg?v=1762153247"
+    ],
+    "description": "Death row 5,000 hits (pack 10) — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Death row 5,000 hits (pack 10) — 35% OFF | WAXAPP Mayoreo",
+    "category": "packs",
+    "hits": "5,000 hits"
+  },
+  {
+    "id": "prod-1778988938-11",
+    "name": "Dummy x tekashi 6ix9ine 8,000 hits vape (pack 10 piezas)",
+    "slug": "dummy-x-tekashi-6ix9ine-8000-hits-vape-pack-10-piezas",
+    "price": 690,
+    "originalPrice": 1200,
+    "onSale": true,
+    "image": "https://evapemayoreo.com/cdn/shop/files/98FAF549-8453-40D2-9EF5-6A535FCB32E1.jpg?v=1762153722",
+    "images": [
+      "https://evapemayoreo.com/cdn/shop/files/98FAF549-8453-40D2-9EF5-6A535FCB32E1.jpg?v=1762153722"
+    ],
+    "description": "Dummy x tekashi 6ix9ine 8,000 hits vape (pack 10 piezas) — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Dummy x tekashi 6ix9ine 8,000 hits vape (pack 10 piezas) — 43% OFF | WAXAPP Mayoreo",
+    "category": "packs",
+    "hits": "8,000 hits"
+  },
+  {
+    "id": "prod-1778988938-12",
+    "name": "EBcreate 40,000 hits",
+    "slug": "ebcreate-40000-hits",
+    "price": 160,
+    "originalPrice": 160,
+    "onSale": false,
+    "image": "https://evapemayoreo.com/cdn/shop/files/BA876471-2878-4901-85E1-80862626E015.webp?v=1777792935",
+    "images": [
+      "https://evapemayoreo.com/cdn/shop/files/BA876471-2878-4901-85E1-80862626E015.webp?v=1777792935"
+    ],
+    "description": "EBcreate 40,000 hits — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "EBcreate 40,000 hits — $160 MXN | EBcreate al Mayoreo WAXAPP",
+    "category": "disposables",
+    "hits": "40,000 hits"
+  },
+  {
+    "id": "prod-1778988938-13",
+    "name": "Ebdesing BC5000 (Elfbar) (pack 10 pz)",
+    "slug": "ebdesing-bc5000-elfbar-pack-10-pz",
+    "price": 440,
+    "originalPrice": 440,
+    "onSale": false,
+    "image": "",
+    "images": [],
+    "description": "Ebdesing BC5000 (Elfbar) (pack 10 pz) — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Ebdesing BC5000 (Elfbar) (pack 10 pz) — $440 MXN | Ebdesing al Mayoreo WAXAPP",
+    "category": "packs"
+  },
+  {
+    "id": "prod-1778988938-14",
+    "name": "Elux 50,000 hits",
+    "slug": "elux-50000-hits",
+    "price": 195,
+    "originalPrice": 240,
+    "onSale": true,
+    "image": "",
+    "images": [],
+    "description": "Elux 50,000 hits — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Elux 50,000 hits — 19% OFF | WAXAPP Mayoreo",
+    "category": "disposables",
+    "hits": "50,000 hits"
+  },
+  {
+    "id": "prod-1778988938-15",
+    "name": "Fasta 18,000 hits",
+    "slug": "fasta-18000-hits",
+    "price": 140,
+    "originalPrice": 145,
+    "onSale": true,
+    "image": "",
+    "images": [],
+    "description": "Fasta 18,000 hits — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Fasta 18,000 hits — 3% OFF | WAXAPP Mayoreo",
+    "category": "disposables",
+    "hits": "18,000 hits"
+  },
+  {
+    "id": "prod-1778988938-16",
+    "name": "Fire XL 6000 hits",
+    "slug": "fire-xl-6000-hits",
+    "price": 65,
+    "originalPrice": 65,
+    "onSale": false,
+    "image": "https://evapemayoreo.com/cdn/shop/files/5B78D1B8-C6EA-4C27-B964-464C87ABC7DA.webp?v=1774775803",
+    "images": [
+      "https://evapemayoreo.com/cdn/shop/files/5B78D1B8-C6EA-4C27-B964-464C87ABC7DA.webp?v=1774775803"
+    ],
+    "description": "Fire XL 6000 hits — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Fire XL 6000 hits — $65 MXN | Fire al Mayoreo WAXAPP",
+    "category": "disposables",
+    "hits": "6000 hits"
+  },
+  {
+    "id": "prod-1778988938-17",
+    "name": "Fire XL 6000 hits (Pack 10pz)",
+    "slug": "fire-xl-6000-hits-pack-10pz",
+    "price": 599,
+    "originalPrice": 599,
+    "onSale": false,
+    "image": "https://evapemayoreo.com/cdn/shop/files/5B78D1B8-C6EA-4C27-B964-464C87ABC7DA.webp?v=1774775803",
+    "images": [
+      "https://evapemayoreo.com/cdn/shop/files/5B78D1B8-C6EA-4C27-B964-464C87ABC7DA.webp?v=1774775803"
+    ],
+    "description": "Fire XL 6000 hits (Pack 10pz) — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Fire XL 6000 hits (Pack 10pz) — $599 MXN | Fire al Mayoreo WAXAPP",
+    "category": "packs",
+    "hits": "6000 hits"
+  },
+  {
+    "id": "prod-1778988938-18",
+    "name": "Flonq Max 10,000 hits",
+    "slug": "flonq-max-10000-hits",
+    "price": 89,
+    "originalPrice": 89,
+    "onSale": false,
+    "image": "",
+    "images": [],
+    "description": "Flonq Max 10,000 hits — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Flonq Max 10,000 hits — $89 MXN | Flonq al Mayoreo WAXAPP",
+    "category": "disposables",
+    "hits": "10,000 hits"
+  },
+  {
+    "id": "prod-1778988938-19",
+    "name": "FLVR Crush 16,000 hits",
+    "slug": "flvr-crush-16000-hits",
+    "price": 84,
+    "originalPrice": 84,
+    "onSale": false,
+    "image": "https://evapemayoreo.com/cdn/shop/files/44CDEB4F-D23E-475E-9B77-0695DCA2CAC0.jpg?v=1762151674",
+    "images": [
+      "https://evapemayoreo.com/cdn/shop/files/44CDEB4F-D23E-475E-9B77-0695DCA2CAC0.jpg?v=1762151674"
+    ],
+    "description": "FLVR Crush 16,000 hits — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "FLVR Crush 16,000 hits — $84 MXN | FLVR al Mayoreo WAXAPP",
+    "category": "disposables",
+    "hits": "16,000 hits"
+  },
+  {
+    "id": "prod-1778988938-20",
+    "name": "Forest 1gr sin seguro  V2",
+    "slug": "forest-1gr-sin-seguro-v2",
+    "price": 199,
+    "originalPrice": 199,
+    "onSale": false,
+    "image": "https://evapemayoreo.com/cdn/shop/files/623C69BB-D4A8-4010-875E-A2A2C752E8F0.jpg?v=1762151946",
+    "images": [
+      "https://evapemayoreo.com/cdn/shop/files/623C69BB-D4A8-4010-875E-A2A2C752E8F0.jpg?v=1762151946"
+    ],
+    "description": "Forest 1gr sin seguro  V2 — disponible en WAXAPP al mayoreo.",
+    "stock": 10,
+    "seoTitle": "Forest 1gr sin seguro  V2 — $199 MXN | Forest al Mayoreo WAXAPP",
+    "category": "wax-pens"
+  }
+]

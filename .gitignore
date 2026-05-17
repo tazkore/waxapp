@@ -32,3 +32,13 @@ dist-ssr
 test-results/
 playwright-report/
 .vercel
+
+# Local build artifacts
+waxapp-hostinger.zip
+
+# Reference clone (not part of project source)
+waxapp-github-clone/
+
+# Root-level screenshots from testing
+*.png
+*.jpg
