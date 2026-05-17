@@ -25,9 +25,9 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_URL: https://nytjvcykmimblubegxjq.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55dGp2Y3lrbWltYmx1YmVneGpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5NzIyMjUsImV4cCI6MjA5NDU0ODIyNX0.MwAH5E14FwaTiu-z5zB5YIitqeuscs_PTLWDXyNhStA
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55dGp2Y3lrbWltYmx1YmVneGpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5NzIyMjUsImV4cCI6MjA5NDU0ODIyNX0.MwAH5E14FwaTiu-z5zB5YIitqeuscs_PTLWDXyNhStA
           VITE_SUPABASE_PROJECT_ID: nytjvcykmimblubegxjq
 
       - name: Push dist/ a branch hostinger-deploy
