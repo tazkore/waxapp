@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { lovable } from '@/integrations/lovable/index';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -87,14 +86,16 @@ const AdminLogin = () => {
   };
 
   const handleGoogleLogin = async () => {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/admin/login`,
+        queryParams: { access_type: 'offline', prompt: 'consent' },
+      },
     });
-    if (result.error) {
+    if (error) {
       toast({ title: 'Error', description: 'No se pudo iniciar sesión con Google.', variant: 'destructive' });
     }
-    if (result.redirected) return;
-    navigate('/admin');
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {

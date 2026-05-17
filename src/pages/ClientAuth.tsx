@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { lovable } from '@/integrations/lovable/index';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -118,15 +117,16 @@ const ClientAuth = () => {
   };
 
   const handleOAuth = async (provider: 'google' | 'apple') => {
-    const result = await lovable.auth.signInWithOAuth(provider, {
-      redirect_uri: window.location.origin,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/mi-cuenta`,
+        queryParams: provider === 'google' ? { access_type: 'offline', prompt: 'consent' } : undefined,
+      },
     });
-    if (result.error) {
+    if (error) {
       toast({ title: 'Error', description: `No se pudo iniciar sesión con ${provider === 'google' ? 'Google' : 'Apple'}.`, variant: 'destructive' });
-      return;
     }
-    if (result.redirected) return;
-    navigate('/mi-cuenta');
   };
 
   return (
