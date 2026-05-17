@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Trash2, ShoppingBag, HelpCircle, Minus, Plus, Lock } from 'lucide-react';
 import EmptyCartChecklist from './cart/EmptyCartChecklist';
 import EmptyCartRecommendations from './cart/EmptyCartRecommendations';
+import { FomoTimer } from './FomoTimer';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useCartStore } from '@/store/cartStore';
@@ -104,6 +105,7 @@ const CartDrawer = () => {
             </div>
           </SheetHeader>
 
+          {items.length > 0 && <FomoTimer />}
           {items.length > 0 && <FreeShippingBar subtotalAfterDiscounts={subAfter} />}
 
           <div className="flex-1 overflow-y-auto">

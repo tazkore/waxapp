@@ -31,3 +31,4 @@ dist-ssr
 # Test artifacts
 test-results/
 playwright-report/
+.vercel
