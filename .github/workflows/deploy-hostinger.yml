@@ -6,9 +6,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  build-and-push-dist:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -28,14 +30,13 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_SUPABASE_PROJECT_ID: nytjvcykmimblubegxjq
 
-      - name: Deploy via lftp
-        env:
-          FTP_HOST: ${{ secrets.FTP_HOST }}
-          FTP_USER: ${{ secrets.FTP_USER }}
-          FTP_PASS: ${{ secrets.FTP_PASSWORD }}
+      - name: Push dist/ a branch hostinger-deploy
         run: |
-          sudo apt-get install -y lftp -qq
-          lftp \
-            -u "$FTP_USER,$FTP_PASS" \
-            -e "set ftp:ssl-allow no; set ftp:passive-mode yes; set net:timeout 30; set net:max-retries 3; mirror --reverse --delete --no-perms ./dist/ /public_html/; bye" \
-            "$FTP_HOST"
+          git config user.email "deploy@waxapp.mx"
+          git config user.name "WAXAPP Deploy Bot"
+          git checkout --orphan hostinger-deploy
+          git rm -rf . --quiet || true
+          cp -r dist/. .
+          git add -A
+          git commit -m "deploy: build $(date +'%Y-%m-%d %H:%M') from main@$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
+          git push origin hostinger-deploy --force
