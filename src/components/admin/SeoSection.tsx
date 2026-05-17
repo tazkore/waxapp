@@ -30,6 +30,7 @@ import {
   Power,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { getSetting, setSetting } from '@/lib/siteSettings';
 
 interface SeoPage {
   id: string;
@@ -111,6 +112,13 @@ const SeoSection = () => {
   };
 
   useEffect(() => { fetchPages(); fetchRedirects(); }, []);
+
+  useEffect(() => {
+    getSetting('seo_global', { sitemap_enabled: true, robots_noindex: true }).then((v) => {
+      setGlobalSitemap(v.sitemap_enabled ?? true);
+      setGlobalRobots(v.robots_noindex ?? true);
+    });
+  }, []);
 
   const selectPage = (page: SeoPage) => {
     setSelectedPage(page);
@@ -620,14 +628,30 @@ const SeoSection = () => {
                 <p className="text-sm font-medium text-foreground">Auto-Generar Sitemap.xml</p>
                 <p className="text-[11px] text-muted-foreground">Genera automáticamente el sitemap con todas las páginas indexadas</p>
               </div>
-              <Switch checked={globalSitemap} onCheckedChange={setGlobalSitemap} />
+              <Switch
+                checked={globalSitemap}
+                onCheckedChange={async (v) => {
+                  setGlobalSitemap(v);
+                  const { error } = await setSetting('seo_global', { sitemap_enabled: v, robots_noindex: globalRobots });
+                  if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+                  else toast({ title: 'Guardado', description: `Sitemap ${v ? 'activado' : 'desactivado'}` });
+                }}
+              />
             </div>
             <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/30">
               <div>
                 <p className="text-sm font-medium text-foreground">Indexar en Google (robots.txt)</p>
                 <p className="text-[11px] text-muted-foreground">Permitir/Bloquear el rastreo de bots en todo el sitio</p>
               </div>
-              <Switch checked={globalRobots} onCheckedChange={setGlobalRobots} />
+              <Switch
+                checked={globalRobots}
+                onCheckedChange={async (v) => {
+                  setGlobalRobots(v);
+                  const { error } = await setSetting('seo_global', { sitemap_enabled: globalSitemap, robots_noindex: v });
+                  if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+                  else toast({ title: 'Guardado', description: `Indexación ${v ? 'habilitada' : 'bloqueada'}` });
+                }}
+              />
             </div>
           </div>
         </CardContent>

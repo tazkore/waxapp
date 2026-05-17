@@ -62,14 +62,29 @@ const ThemeAppearanceSection = () => {
 
   useEffect(() => {
     supabase.from('theme_settings').select('*').order('updated_at', { ascending: false }).limit(1).maybeSingle()
-      .then(({ data }) => { setData(data ?? {}); setLoading(false); });
+      .then(({ data }) => {
+        setData(data ?? {});
+        setLoading(false);
+        if (data) {
+          const varMap: Record<string, string> = {
+            color_primary: '--primary',
+            color_secondary: '--secondary',
+            color_background: '--background',
+            color_foreground: '--foreground',
+            color_accent: '--accent',
+          };
+          Object.entries(varMap).forEach(([dbKey, cssVar]) => {
+            if ((data as any)[dbKey]) document.documentElement.style.setProperty(cssVar, (data as any)[dbKey]);
+          });
+        }
+      });
   }, []);
 
   const previewColor = (key: string, value: string) => {
     setData({ ...data, [key]: value });
     // Live preview
     const cssVar = key.replace('color_', '--');
-    document.documentElement.style.setProperty(cssVar === '--primary' ? '--primary' : cssVar, value);
+    document.documentElement.style.setProperty(cssVar, value);
   };
 
   const save = async () => {

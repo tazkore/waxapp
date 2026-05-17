@@ -27,25 +27,31 @@ const ImportedProductsPreviewSection = () => {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [edits, setEdits] = useState<Record<string, Partial<DraftProduct>>>({});
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 50;
   const { toast } = useToast();
 
-  const load = async () => {
+  const load = async (targetPage = 0) => {
     setLoading(true);
-    const { data, error } = await supabase
+    const from = targetPage * PAGE_SIZE;
+    const { data, error, count } = await supabase
       .from("products")
-      .select("id,name,price,category,image_url,sku,description,stock,created_at")
+      .select("id,name,price,category,image_url,sku,description,stock,created_at", { count: "exact" })
       .eq("is_active", false)
       .order("created_at", { ascending: false })
-      .limit(500);
+      .range(from, from + PAGE_SIZE - 1);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       setItems(data || []);
+      setTotalCount(count ?? 0);
+      setPage(targetPage);
     }
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(0); }, []);
 
   const filtered = items.filter((p) =>
     !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -96,7 +102,7 @@ const ImportedProductsPreviewSection = () => {
     }
     toast({ title: `${ids.length} productos activados`, description: "Ya son visibles en la tienda" });
     setSelected(new Set());
-    load();
+    load(0);
   };
 
   const remove = async () => {
@@ -126,7 +132,7 @@ const ImportedProductsPreviewSection = () => {
             Revisa título, precio, imagen y categoría antes de publicarlos en la tienda. Solo se muestran productos inactivos.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={() => load(0)} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} /> Recargar
         </Button>
       </div>
@@ -139,7 +145,7 @@ const ImportedProductsPreviewSection = () => {
             onChange={(e) => setSearch(e.target.value)}
             className="max-w-sm"
           />
-          <Badge variant="outline">{filtered.length} borradores</Badge>
+          <Badge variant="outline">{totalCount} borradores</Badge>
           <Badge variant="outline" className="border-primary/40 text-primary">{selected.size} seleccionados</Badge>
           <div className="ml-auto flex gap-2">
             <Button variant="outline" size="sm" onClick={toggleAll} disabled={filtered.length === 0}>
@@ -240,6 +246,25 @@ const ImportedProductsPreviewSection = () => {
                       className="text-xs"
                     />
                   </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground uppercase">SKU</label>
+                    <Input
+                      value={cur.sku || ""}
+                      onChange={(ev) => setEdit(p.id, "sku", ev.target.value || null)}
+                      placeholder="—"
+                      className="text-xs h-7"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground uppercase">Descripción</label>
+                    <textarea
+                      value={cur.description || ""}
+                      onChange={(ev) => setEdit(p.id, "description", ev.target.value || null)}
+                      rows={2}
+                      className="w-full text-xs rounded-md border border-input bg-background px-3 py-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                      placeholder="—"
+                    />
+                  </div>
                   <div className="flex gap-2 pt-1">
                     {dirty && (
                       <Button size="sm" variant="outline" className="flex-1" onClick={() => persistEdit(p.id)}>
@@ -256,7 +281,7 @@ const ImportedProductsPreviewSection = () => {
                           toast({ title: "Error", description: error.message, variant: "destructive" });
                         } else {
                           toast({ title: "Activado", description: cur.name });
-                          load();
+                          load(0);
                         }
                       }}
                     >
@@ -267,6 +292,21 @@ const ImportedProductsPreviewSection = () => {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {totalCount > PAGE_SIZE && (
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <Button variant="outline" size="sm" onClick={() => load(page - 1)} disabled={page === 0 || loading}>
+            Anterior
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Página {page + 1} de {Math.ceil(totalCount / PAGE_SIZE)}
+          </span>
+          <Button variant="outline" size="sm" onClick={() => load(page + 1)}
+            disabled={(page + 1) * PAGE_SIZE >= totalCount || loading}>
+            Siguiente
+          </Button>
         </div>
       )}
     </div>
