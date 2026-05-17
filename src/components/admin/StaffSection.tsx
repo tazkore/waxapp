@@ -108,9 +108,10 @@ const StaffSection = () => {
       headers: { Authorization: `Bearer ${session?.access_token}` },
     });
     if (res.error) {
-      toast({ title: 'Error', description: 'No se pudieron cargar los usuarios.', variant: 'destructive' });
+      toast({ title: 'Error al cargar usuarios', description: 'La función manage-users no está disponible. Verifica que el Edge Function esté desplegado.', variant: 'destructive' });
+      setUsers([]);
     } else {
-      setUsers(res.data as ManagedUser[]);
+      setUsers((res.data as ManagedUser[]) ?? []);
     }
     setLoading(false);
   };
