@@ -14,9 +14,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import type { Tables } from '@/integrations/supabase/types';
 
-type Client = Tables<'clients'>;
+interface Client {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  total_spent: number;
+  loyalty_points: number;
+  membership_tier: string;
+  last_order_date?: string | null;
+  affiliate_ref?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
 
 const tierColor: Record<string, string> = {
   Bronze: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
@@ -41,7 +52,7 @@ const InlinePointsEditor = ({ client, onUpdate }: { client: Client; onUpdate: (n
   const save = async () => {
     const n = Math.max(0, parseInt(value) || 0);
     setSaving(true);
-    const { error } = await supabase.from('clients').update({ loyalty_points: n }).eq('id', client.id);
+    const { error } = await supabase.from('customer_profiles').update({ loyalty_points: n }).eq('id', client.id);
     setSaving(false);
     if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
     else { onUpdate(n); setEditing(false); toast({ title: 'WAX Points actualizados' }); }
@@ -87,7 +98,7 @@ const ClientsSection = () => {
 
   const fetchClients = () => {
     setLoading(true);
-    supabase.from('clients').select('*').order('total_spent', { ascending: false }).then(({ data, error }) => {
+    supabase.from('customer_profiles').select('*').order('total_spent', { ascending: false }).then(({ data, error }) => {
       if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
       else setClients(data ?? []);
       setLoading(false);
@@ -138,7 +149,7 @@ const ClientsSection = () => {
     };
 
     if (editingClient) {
-      const { data, error } = await supabase.from('clients').update(payload).eq('id', editingClient.id).select().single();
+      const { data, error } = await supabase.from('customer_profiles').update(payload).eq('id', editingClient.id).select().single();
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       } else {
@@ -147,7 +158,7 @@ const ClientsSection = () => {
         setEditOpen(false);
       }
     } else {
-      const { data, error } = await supabase.from('clients').insert(payload).select().single();
+      const { data, error } = await supabase.from('customer_profiles').insert(payload).select().single();
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       } else {
@@ -162,7 +173,7 @@ const ClientsSection = () => {
   /* ── Delete ── */
   const confirmDelete = async () => {
     if (!deleteClient) return;
-    const { error } = await supabase.from('clients').delete().eq('id', deleteClient.id);
+    const { error } = await supabase.from('customer_profiles').delete().eq('id', deleteClient.id);
     if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
     else {
       setClients(prev => prev.filter(c => c.id !== deleteClient.id));
