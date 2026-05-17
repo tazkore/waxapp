@@ -39,10 +39,11 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
           server-dir: /public_html/
-          protocol: ftp
+          protocol: ftps
           port: 21
-          timeout: 60000
-          log-level: minimal
+          timeout: 120000
+          log-level: standard
+          dangerous-clean-slate: false
           exclude: |
             **/.git*
             **/.git*/**
