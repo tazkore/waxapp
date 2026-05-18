@@ -8,39 +8,36 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const ok = (reply: string) =>
+    new Response(JSON.stringify({ reply }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
   try {
     const { messages } = await req.json();
     if (!Array.isArray(messages) || messages.length === 0) {
-      return new Response(JSON.stringify({ error: "messages required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return ok("Hola, escríbeme algo para ayudarte.");
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabase = createClient(supabaseUrl, anonKey);
 
-    // Read API key: env var first, then site_settings table
+    // Read API key: env var first, then site_settings
     let GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     if (!GOOGLE_AI_API_KEY) {
-      const adminClient = createClient(supabaseUrl, serviceRoleKey);
-      const { data: setting } = await adminClient
+      const { data: setting } = await supabase
         .from("site_settings")
         .select("value")
         .eq("key", "google_ai_api_key")
-        .single();
+        .maybeSingle();
       if (setting?.value) {
-        GOOGLE_AI_API_KEY = typeof setting.value === "string"
-          ? setting.value
-          : JSON.stringify(setting.value).replace(/^"|"$/g, "");
+        GOOGLE_AI_API_KEY = typeof setting.value === "string" ? setting.value : String(setting.value);
       }
     }
 
     if (!GOOGLE_AI_API_KEY) {
-      throw new Error("GOOGLE_AI_API_KEY no configurada. Agrégala en site_settings o como Edge Function secret.");
+      return ok("Lo siento, el chatbot no está configurado aún. Escríbenos a info@waxapp.mx");
     }
 
-    const supabase = createClient(supabaseUrl, anonKey);
     const [{ data: kb }, { data: products }] = await Promise.all([
       supabase.from("chatbot_kb").select("title,category,content").eq("is_active", true).limit(50),
       supabase.from("products").select("name,slug,description,price,category,stock,image_url").eq("is_active", true).limit(40),
@@ -75,10 +72,7 @@ ${productCatalog}`;
       `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`,
       {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${GOOGLE_AI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${GOOGLE_AI_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "gemini-2.0-flash",
           messages: [{ role: "system", content: systemPrompt }, ...messages],
@@ -87,28 +81,19 @@ ${productCatalog}`;
     );
 
     if (response.status === 429) {
-      return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intenta en un momento." }), {
-        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return ok("Estoy recibiendo muchas consultas en este momento. Intenta de nuevo en unos segundos o escríbenos a info@waxapp.mx.");
     }
+
     if (!response.ok) {
-      const t = await response.text();
-      console.error("Google AI error:", response.status, t);
-      return new Response(JSON.stringify({ error: "Error del servicio AI." }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.error("Google AI error:", response.status, await response.text());
+      return ok("Tuve un problema técnico. Puedes escribirnos directamente a info@waxapp.mx.");
     }
 
     const data = await response.json();
-    const reply = data?.choices?.[0]?.message?.content ?? "Lo siento, no pude generar una respuesta.";
-
-    return new Response(JSON.stringify({ reply }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const reply = data?.choices?.[0]?.message?.content ?? "Lo siento, no pude generar una respuesta. Escríbenos a info@waxapp.mx.";
+    return ok(reply);
   } catch (e) {
     console.error("chatbot error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return ok("Ocurrió un error. Por favor escríbenos a info@waxapp.mx.");
   }
 });
