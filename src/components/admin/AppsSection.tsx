@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AppWindow, Search, CheckCircle2, Loader2, Store, Package } from 'lucide-react';
+import { AppWindow, Search, CheckCircle2, Loader2, Store, Package, CreditCard, Mail, ShoppingBag, BarChart3, MessageCircle, Truck, FileText, Headphones, Puzzle, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -32,6 +32,32 @@ const categoryLabels: Record<string, string> = {
   other: 'Otro',
 };
 
+const categoryColors: Record<string, string> = {
+  pagos: 'bg-emerald-500/10 text-emerald-400', payments: 'bg-emerald-500/10 text-emerald-400',
+  email: 'bg-blue-500/10 text-blue-400',
+  marketplace: 'bg-orange-500/10 text-orange-400',
+  analytics: 'bg-purple-500/10 text-purple-400', marketing: 'bg-purple-500/10 text-purple-400',
+  mensajeria: 'bg-cyan-500/10 text-cyan-400', messaging: 'bg-cyan-500/10 text-cyan-400',
+  envios: 'bg-yellow-500/10 text-yellow-400',
+  facturacion: 'bg-rose-500/10 text-rose-400',
+  soporte: 'bg-indigo-500/10 text-indigo-400',
+  automation: 'bg-teal-500/10 text-teal-400',
+  other: 'bg-muted text-muted-foreground',
+};
+
+const categoryIcons: Record<string, any> = {
+  pagos: CreditCard, payments: CreditCard,
+  email: Mail,
+  marketplace: ShoppingBag,
+  analytics: BarChart3, marketing: BarChart3,
+  mensajeria: MessageCircle, messaging: MessageCircle,
+  envios: Truck,
+  facturacion: FileText,
+  soporte: Headphones,
+  automation: Puzzle,
+  other: AppWindow,
+};
+
 const AppCard = ({
   app,
   onToggle,
@@ -46,8 +72,8 @@ const AppCard = ({
       {app.icon_url ? (
         <img src={app.icon_url} alt={app.name} className="w-10 h-10 rounded-md object-contain bg-muted p-1 shrink-0" />
       ) : (
-        <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center shrink-0">
-          <AppWindow className="w-5 h-5 text-muted-foreground" />
+        <div className={`w-10 h-10 rounded-md flex items-center justify-center shrink-0 ${categoryColors[app.category] ?? 'bg-muted text-muted-foreground'}`}>
+          {(() => { const Icon = categoryIcons[app.category] ?? AppWindow; return <Icon className="w-5 h-5" />; })()}
         </div>
       )}
       <div className="flex-1 min-w-0">
@@ -107,7 +133,7 @@ const AppsSection = () => {
     const newInstalled = !app.is_installed;
     const { error } = await supabase
       .from('integrations')
-      .update({ is_installed: newInstalled, is_active: newInstalled ? false : false })
+      .update({ is_installed: newInstalled })
       .eq('id', app.id);
 
     if (error) {
