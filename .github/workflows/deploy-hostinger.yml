@@ -6,11 +6,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-push-dist:
+  build-and-deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    permissions:
-      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -30,13 +28,15 @@ jobs:
           VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55dGp2Y3lrbWltYmx1YmVneGpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5NzIyMjUsImV4cCI6MjA5NDU0ODIyNX0.MwAH5E14FwaTiu-z5zB5YIitqeuscs_PTLWDXyNhStA
           VITE_SUPABASE_PROJECT_ID: nytjvcykmimblubegxjq
 
-      - name: Push dist/ a branch hostinger-deploy
-        run: |
-          git config user.email "deploy@waxapp.mx"
-          git config user.name "WAXAPP Deploy Bot"
-          git checkout --orphan hostinger-deploy
-          git rm -rf . --quiet || true
-          cp -r dist/. .
-          git add -A
-          git commit -m "deploy: build $(date +'%Y-%m-%d %H:%M') from main@$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
-          git push origin hostinger-deploy --force
+      - name: Deploy → Hostinger via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.HOSTINGER_FTP_HOST }}
+          username: ${{ secrets.HOSTINGER_FTP_USER }}
+          password: ${{ secrets.HOSTINGER_FTP_PASS }}
+          local-dir: ./dist/
+          server-dir: /public_html/
+          dangerous-clean-slate: true
+          exclude: |
+            **/.git*
+            **/.git*/**
