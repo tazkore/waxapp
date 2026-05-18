@@ -8,7 +8,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -31,33 +31,18 @@ jobs:
       - name: Install lftp
         run: sudo apt-get install -y lftp
 
-      - name: Debug FTP structure
+      - name: Deploy via lftp to public_html
         run: |
           lftp -u "$FTP_USER,$FTP_PASS" ftp://$FTP_HOST <<'FTPEOF'
           set ssl:verify-certificate no
           set ftp:passive-mode true
-          echo "=== FTP ROOT ==="
-          ls -la
-          echo "=== looking for public_html ==="
-          ls public_html/ 2>/dev/null && echo "public_html EXISTS" || echo "public_html NOT FOUND at root"
-          quit
-          FTPEOF
-        env:
-          FTP_USER: ${{ secrets.HOSTINGER_FTP_USER }}
-          FTP_PASS: ${{ secrets.HOSTINGER_FTP_PASS }}
-          FTP_HOST: ${{ secrets.HOSTINGER_FTP_HOST }}
-
-      - name: Deploy via lftp mirror
-        run: |
-          lftp -u "$FTP_USER,$FTP_PASS" ftp://$FTP_HOST <<'FTPEOF'
-          set ssl:verify-certificate no
-          set ftp:passive-mode true
-          set mirror:parallel-transfer-count 5
+          set mirror:parallel-transfer-count 4
           set net:max-retries 3
-          # Try public_html/ first (if FTP root is domain dir)
-          ls public_html/ 2>/dev/null && \
-            mirror -R --delete --verbose=2 dist/ public_html/ || \
-            mirror -R --delete --verbose=2 dist/ /
+          set net:reconnect-interval-base 5
+          # Ensure public_html exists
+          mkdir -p public_html
+          # Upload all dist/ files to public_html/ (no delete to preserve Hostinger config)
+          mirror -R --verbose=1 dist/ public_html/
           quit
           FTPEOF
         env:
