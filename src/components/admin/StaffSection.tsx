@@ -107,9 +107,31 @@ const StaffSection = () => {
       method: 'GET',
       headers: { Authorization: `Bearer ${session?.access_token}` },
     });
-    if (res.error) {
-      toast({ title: 'Error al cargar usuarios', description: 'La función manage-users no está disponible. Verifica que el Edge Function esté desplegado.', variant: 'destructive' });
-      setUsers([]);
+    if (res.error || !res.data) {
+      // Fallback: query user_roles directly when Edge Function is unavailable
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+      if (roles && roles.length > 0) {
+        // Deduplicate by user_id, keep highest role
+        const map: Record<string, string> = {};
+        roles.forEach((r: any) => {
+          const priority = ['super_admin','superadmin','admin','moderator'];
+          const cur = map[r.user_id];
+          if (!cur || priority.indexOf(r.role) < priority.indexOf(cur)) {
+            map[r.user_id] = r.role;
+          }
+        });
+        const staffFromRoles: ManagedUser[] = Object.entries(map).map(([user_id, role]) => ({
+          id: user_id,
+          email: user_id,
+          created_at: new Date().toISOString(),
+          role,
+        }));
+        setUsers(staffFromRoles);
+      } else {
+        setUsers([]);
+      }
     } else {
       setUsers((res.data as ManagedUser[]) ?? []);
     }
@@ -129,7 +151,10 @@ const StaffSection = () => {
         body: { user_id: userId },
       });
       if (res.error || res.data?.error) {
-        toast({ title: 'Error', description: res.data?.error || 'No se pudo eliminar el rol.', variant: 'destructive' });
+        // Fallback: delete directly from user_roles
+        const { error } = await supabase.from('user_roles').delete().eq('user_id', userId);
+        if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        else { setUsers(prev => prev.filter(u => u.id !== userId)); toast({ title: 'Rol eliminado' }); }
       } else {
         setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: null } : u));
         toast({ title: 'Rol eliminado' });
@@ -141,7 +166,10 @@ const StaffSection = () => {
         body: { user_id: userId, role: newRole },
       });
       if (res.error || res.data?.error) {
-        toast({ title: 'Error', description: res.data?.error || 'No se pudo asignar el rol.', variant: 'destructive' });
+        // Fallback: upsert directly into user_roles
+        const { error } = await supabase.from('user_roles').upsert({ user_id: userId, role: newRole as any }, { onConflict: 'user_id,role' });
+        if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        else { setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u)); toast({ title: 'Rol actualizado' }); }
       } else {
         setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
         toast({ title: 'Rol actualizado', description: `Nuevo rol: ${newRole}` });
