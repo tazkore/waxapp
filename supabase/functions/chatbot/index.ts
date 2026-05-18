@@ -16,13 +16,31 @@ Deno.serve(async (req) => {
       });
     }
 
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
-    if (!GOOGLE_AI_API_KEY) throw new Error("GOOGLE_AI_API_KEY no está configurada. Agrégala en Supabase Dashboard → Settings → Edge Functions → Secrets.");
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, anonKey);
 
+    // Read API key: env var first, then site_settings table
+    let GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    if (!GOOGLE_AI_API_KEY) {
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+      const { data: setting } = await adminClient
+        .from("site_settings")
+        .select("value")
+        .eq("key", "google_ai_api_key")
+        .single();
+      if (setting?.value) {
+        GOOGLE_AI_API_KEY = typeof setting.value === "string"
+          ? setting.value
+          : JSON.stringify(setting.value).replace(/^"|"$/g, "");
+      }
+    }
+
+    if (!GOOGLE_AI_API_KEY) {
+      throw new Error("GOOGLE_AI_API_KEY no configurada. Agrégala en site_settings o como Edge Function secret.");
+    }
+
+    const supabase = createClient(supabaseUrl, anonKey);
     const [{ data: kb }, { data: products }] = await Promise.all([
       supabase.from("chatbot_kb").select("title,category,content").eq("is_active", true).limit(50),
       supabase.from("products").select("name,slug,description,price,category,stock,image_url").eq("is_active", true).limit(40),
@@ -62,7 +80,7 @@ ${productCatalog}`;
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gemini-2.0-flash-exp",
+          model: "gemini-2.0-flash",
           messages: [{ role: "system", content: systemPrompt }, ...messages],
         }),
       }
@@ -76,7 +94,7 @@ ${productCatalog}`;
     if (!response.ok) {
       const t = await response.text();
       console.error("Google AI error:", response.status, t);
-      return new Response(JSON.stringify({ error: "Error del servicio AI. Verifica la API key de Google AI." }), {
+      return new Response(JSON.stringify({ error: "Error del servicio AI." }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
