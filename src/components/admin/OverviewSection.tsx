@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
-import { DollarSign, ShoppingCart, TrendingUp, Loader2, Percent, Package, CalendarDays } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { DollarSign, ShoppingCart, TrendingUp, Loader2, Percent, Package, CalendarDays, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -48,7 +49,7 @@ const OverviewSection = ({ onNavigate }: OverviewSectionProps) => {
     const fetchData = async () => {
       const [ordersRes, clientsRes, productsRes] = await Promise.all([
         supabase.from('orders').select('total, status, created_at, items'),
-        supabase.from('clients').select('id', { count: 'exact', head: true }),
+        supabase.from('customer_profiles').select('id', { count: 'exact', head: true }),
         supabase.from('products').select('id', { count: 'exact', head: true }),
       ]);
       setOrders(ordersRes.data ?? []);
@@ -140,9 +141,12 @@ const OverviewSection = ({ onNavigate }: OverviewSectionProps) => {
   }, [filteredOrders]);
 
   const kpiCards = [
-    { label: 'Ventas del Período', value: `$${kpis.totalSales.toLocaleString()}`, icon: DollarSign, color: 'text-primary', section: 'orders' },
-    { label: 'Pedidos', value: kpis.totalOrders, icon: ShoppingCart, color: 'text-secondary', section: 'orders' },
-    { label: 'Ticket Promedio', value: `$${kpis.avgTicket.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: TrendingUp, color: 'text-foreground', section: 'orders' },
+    { label: 'Ventas del Período', value: `$${kpis.totalSales.toLocaleString('es-MX')}`, icon: DollarSign, color: 'text-primary', section: 'orders' },
+    { label: 'Pedidos', value: kpis.totalOrders, icon: ShoppingCart, color: 'text-blue-400', section: 'orders' },
+    { label: 'Clientes Registrados', value: clientCount, icon: Users, color: 'text-purple-400', section: 'clients' },
+    { label: 'Productos Activos', value: productCount, icon: Package, color: 'text-orange-400', section: 'products' },
+    { label: 'Pedidos Activos', value: kpis.activeOrders, icon: TrendingUp, color: 'text-primary', section: 'orders' },
+    { label: 'Ticket Promedio', value: `$${kpis.avgTicket.toLocaleString('es-MX', { maximumFractionDigits: 0 })}`, icon: DollarSign, color: 'text-foreground', section: 'orders' },
     { label: 'Tasa de Entrega', value: `${kpis.conversionRate.toFixed(1)}%`, icon: Percent, color: 'text-primary', section: 'clients' },
   ];
 
@@ -169,23 +173,29 @@ const OverviewSection = ({ onNavigate }: OverviewSectionProps) => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpiCards.map((k) => (
-          <Card
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+        {kpiCards.map((k, i) => (
+          <motion.div
             key={k.label}
-            className={`bg-card border-border ${onNavigate ? 'cursor-pointer hover:border-primary/50 transition-colors' : ''}`}
-            onClick={() => onNavigate?.(k.section)}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.06 }}
           >
-            <CardContent className="p-6 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-muted">
-                <k.icon className={`h-5 w-5 ${k.color}`} />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{k.label}</p>
-                <p className={`text-xl font-bold ${k.color}`}>{k.value}</p>
-              </div>
-            </CardContent>
-          </Card>
+            <Card
+              className={`bg-card border-border h-full ${onNavigate ? 'cursor-pointer hover:border-primary/40 transition-colors' : ''}`}
+              onClick={() => onNavigate?.(k.section)}
+            >
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2.5 rounded-lg bg-muted shrink-0">
+                  <k.icon className={`h-4 w-4 ${k.color}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground truncate">{k.label}</p>
+                  <p className={`text-xl font-bold ${k.color}`}>{k.value}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
         ))}
       </div>
 
