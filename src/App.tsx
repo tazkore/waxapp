@@ -9,6 +9,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
+import Home from "./pages/Home.tsx";
+import Catalogo from "./pages/Catalogo.tsx";
+import { CartSheet } from "./components/CartSheet.tsx";
 import ProductDetail from "./pages/ProductDetail.tsx";
 import Checkout from "./pages/Checkout.tsx";
 import Admin from "./pages/Admin.tsx";
@@ -63,9 +66,11 @@ const App = () => (
           <AgeGate />
           <AffiliateRefTracker />
           <PromoCountdownBanner />
+          <CartSheet />
         <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/tienda" element={<Index />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/tienda" element={<Home />} />
+          <Route path="/catalogo" element={<Catalogo />} />
           <Route path="/shop" element={<Navigate to="/tienda" replace />} />
           <Route path="/tienda/:id" element={<LegacyProductRedirect />} />
           <Route path="/shop/:id" element={<LegacyProductRedirect />} />

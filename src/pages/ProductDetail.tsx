@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Minus, Plus, ArrowLeft, ChevronDown, Loader2 } from 'lucide-react';
+import { ShoppingCart, Minus, Plus, ArrowLeft, ChevronDown, Loader2, Package } from 'lucide-react';
+import { formatMXN } from '@/lib/utils';
 import { products } from '@/data/products';
 import { useCartStore, ProductVariant } from '@/store/cartStore';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import Navbar from '@/components/Navbar';
-import CartDrawer from '@/components/CartDrawer';
+// CartDrawer replaced by global CartSheet in App.tsx
 import Footer from '@/components/Footer';
 import ProductJsonLd from '@/components/ProductJsonLd';
 import { supabase } from '@/integrations/supabase/client';
@@ -141,7 +142,6 @@ const ProductDetail = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <CartDrawer />
       <ProductJsonLd
         name={product.title}
         description={displayDescription}
@@ -293,9 +293,86 @@ const ProductDetail = () => {
         </div>
       </div>
 
+      {/* Recomendaciones */}
+      <RelatedProducts currentId={baseId} category={product.category} />
+
       <Footer />
     </div>
   );
 };
+
+/* ── Related Products ─────────────────────────────────── */
+interface RelatedProduct { id: string; name: string; price: number; image_url?: string | null; category?: string | null; stock: number; }
+
+function RelatedProducts({ currentId, category }: { currentId: string; category?: string }) {
+  const [related, setRelated] = useState<RelatedProduct[]>([]);
+  const addItem = useCartStore((s) => s.addItem);
+
+  useEffect(() => {
+    if (!category) return;
+    (async () => {
+      const { data } = await supabase
+        .from('products')
+        .select('id, name, price, image_url, category, stock')
+        .eq('is_active', true)
+        .eq('category', category)
+        .neq('id', currentId)
+        .gt('stock', 0)
+        .limit(4);
+      setRelated((data as RelatedProduct[]) ?? []);
+    })();
+  }, [currentId, category]);
+
+  if (related.length === 0) return null;
+
+  return (
+    <section className="py-12 border-t border-border/30">
+      <div className="container mx-auto px-4">
+        <div className="mb-6">
+          <p className="text-xs uppercase tracking-widest text-primary font-semibold mb-1">Descubre más</p>
+          <h2 className="text-xl font-bold text-foreground">También te puede gustar</h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {related.map((p, i) => (
+            <motion.div
+              key={p.id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 }}
+            >
+              <Link to={`/producto/${p.id}`} className="group block">
+                <div className="rounded-xl bg-card border border-border hover:border-primary/40 transition-all hover:-translate-y-0.5 overflow-hidden">
+                  <div className="aspect-square bg-muted overflow-hidden">
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="h-10 w-10 text-muted-foreground/20" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <p className="text-xs text-muted-foreground/70 uppercase tracking-wide mb-0.5">{p.category}</p>
+                    <p className="text-sm font-semibold text-foreground line-clamp-2 leading-snug">{p.name}</p>
+                    <p className="text-sm font-bold text-primary mt-1.5 tabular-nums">{formatMXN(p.price)}</p>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        addItem({ id: p.id, title: p.name, price: p.price, image: p.image_url ?? undefined, category: p.category ?? '' });
+                      }}
+                      className="w-full mt-2.5 py-1.5 text-xs font-bold rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all"
+                    >
+                      Agregar
+                    </button>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default ProductDetail;
