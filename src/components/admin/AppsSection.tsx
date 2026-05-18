@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AppWindow, ExternalLink, Loader2, Settings as SettingsIcon } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AppWindow, Search, CheckCircle2, Loader2, Store, Package } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Integration {
   id: string;
@@ -16,77 +19,190 @@ interface Integration {
   is_installed: boolean;
 }
 
+const categoryLabels: Record<string, string> = {
+  pagos: 'Pagos', payments: 'Pagos',
+  email: 'Email',
+  marketplace: 'Marketplace',
+  analytics: 'Analytics', marketing: 'Marketing',
+  mensajeria: 'Mensajería', messaging: 'Mensajería',
+  envios: 'Envíos',
+  facturacion: 'Facturación',
+  soporte: 'Soporte',
+  automation: 'Automatización',
+  other: 'Otro',
+};
+
+const AppCard = ({
+  app,
+  onToggle,
+  toggling,
+}: {
+  app: Integration;
+  onToggle: (app: Integration) => void;
+  toggling: string | null;
+}) => (
+  <Card className="bg-card border-border hover:border-primary/30 transition-colors flex flex-col">
+    <CardHeader className="flex flex-row items-center gap-3 pb-3">
+      {app.icon_url ? (
+        <img src={app.icon_url} alt={app.name} className="w-10 h-10 rounded-md object-contain bg-muted p-1 shrink-0" />
+      ) : (
+        <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center shrink-0">
+          <AppWindow className="w-5 h-5 text-muted-foreground" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <CardTitle className="text-base text-foreground truncate">{app.name}</CardTitle>
+        <span className="text-xs text-muted-foreground capitalize">
+          {categoryLabels[app.category] ?? app.category}
+        </span>
+      </div>
+      {app.is_installed && (
+        <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+      )}
+    </CardHeader>
+    <CardContent className="flex flex-col flex-1 space-y-3">
+      <p className="text-sm text-muted-foreground line-clamp-2 flex-1">
+        {app.description || 'Sin descripción'}
+      </p>
+      <Button
+        size="sm"
+        variant={app.is_installed ? 'outline' : 'default'}
+        className="w-full"
+        onClick={() => onToggle(app)}
+        disabled={toggling === app.id}
+      >
+        {toggling === app.id ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+        ) : null}
+        {app.is_installed ? 'Desinstalar' : 'Instalar'}
+      </Button>
+    </CardContent>
+  </Card>
+);
+
 const AppsSection = () => {
   const [apps, setApps] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [toggling, setToggling] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from('integrations')
-        .select('id,slug,name,description,category,icon_url,is_active,is_installed')
-        .eq('is_installed', true)
-        .order('name');
+  const fetchApps = async () => {
+    const { data, error } = await supabase
+      .from('integrations')
+      .select('id,slug,name,description,category,icon_url,is_active,is_installed')
+      .order('name');
+    if (error) {
+      toast({ title: 'Error', description: 'No se pudieron cargar las apps.', variant: 'destructive' });
+    } else {
       setApps((data as Integration[]) || []);
-      setLoading(false);
-    })();
-  }, []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchApps(); }, []);
+
+  const toggleInstall = async (app: Integration) => {
+    setToggling(app.id);
+    const newInstalled = !app.is_installed;
+    const { error } = await supabase
+      .from('integrations')
+      .update({ is_installed: newInstalled, is_active: newInstalled ? false : false })
+      .eq('id', app.id);
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({
+        title: newInstalled ? 'App instalada' : 'App desinstalada',
+        description: app.name,
+      });
+      setApps(prev => prev.map(a => a.id === app.id ? { ...a, is_installed: newInstalled } : a));
+    }
+    setToggling(null);
+  };
+
+  const filtered = apps.filter(a =>
+    !search || a.name.toLowerCase().includes(search.toLowerCase()) || (a.description ?? '').toLowerCase().includes(search.toLowerCase())
+  );
+  const installed = filtered.filter(a => a.is_installed);
+  const available = filtered.filter(a => !a.is_installed);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <AppWindow className="h-6 w-6 text-primary" /> Aplicaciones instaladas
+            <Store className="h-6 w-6 text-primary" /> App Store
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Apps que ya conectaste a tu tienda. Para instalar más, ve al Hub de Integraciones.
+            Explora e instala integraciones para conectar tu tienda con otros servicios.
           </p>
+        </div>
+        <div className="relative w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar apps..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9 bg-muted border-border"
+          />
         </div>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-      ) : apps.length === 0 ? (
-        <Card className="bg-card border-border">
-          <CardContent className="text-center py-12 text-muted-foreground">
-            No hay apps instaladas. Visita Integraciones para conectar nuevas.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {apps.map((a) => (
-            <Card key={a.id} className="bg-card border-border hover:border-primary/40 transition">
-              <CardHeader className="flex flex-row items-center gap-3 pb-3">
-                {a.icon_url ? (
-                  <img src={a.icon_url} alt={a.name} className="w-10 h-10 rounded-md object-contain bg-muted p-1" />
-                ) : (
-                  <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
-                    <AppWindow className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <CardTitle className="text-base text-foreground truncate">{a.name}</CardTitle>
-                  <Badge
-                    variant="outline"
-                    className={a.is_active ? 'border-primary/30 text-primary mt-1' : 'border-border text-muted-foreground mt-1'}
-                  >
-                    {a.is_active ? 'Activa' : 'Pausada'}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground line-clamp-2 min-h-[40px]">{a.description || 'Sin descripción'}</p>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="flex-1 gap-1">
-                    <SettingsIcon className="w-3 h-3" /> Configurar
-                  </Button>
-                  <Button size="sm" variant="ghost" className="px-2"><ExternalLink className="w-3 h-3" /></Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="flex justify-center py-20">
+          <Loader2 className="h-7 w-7 animate-spin text-primary" />
         </div>
+      ) : (
+        <Tabs defaultValue="store">
+          <TabsList className="mb-4">
+            <TabsTrigger value="store" className="gap-2">
+              <Store className="h-4 w-4" /> Tienda
+              {available.length > 0 && (
+                <Badge variant="secondary" className="ml-1 text-xs">{available.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="installed" className="gap-2">
+              <Package className="h-4 w-4" /> Instaladas
+              {installed.length > 0 && (
+                <Badge variant="secondary" className="ml-1 text-xs">{installed.length}</Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="store">
+            {available.length === 0 ? (
+              <Card className="bg-card border-border">
+                <CardContent className="text-center py-12 text-muted-foreground">
+                  {search ? 'Sin resultados para tu búsqueda.' : 'Todas las apps disponibles ya están instaladas.'}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {available.map(app => (
+                  <AppCard key={app.id} app={app} onToggle={toggleInstall} toggling={toggling} />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="installed">
+            {installed.length === 0 ? (
+              <Card className="bg-card border-border">
+                <CardContent className="text-center py-12 text-muted-foreground">
+                  No hay apps instaladas. Ve a la Tienda para instalar nuevas.
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {installed.map(app => (
+                  <AppCard key={app.id} app={app} onToggle={toggleInstall} toggling={toggling} />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
