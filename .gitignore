@@ -36,6 +36,12 @@ playwright-report/
 # Local build artifacts
 waxapp-hostinger.zip
 
+# Playwright MCP snapshots
+.playwright-mcp/
+
+# Docs internal
+docs/
+
 # Reference clone (not part of project source)
 waxapp-github-clone/
 
