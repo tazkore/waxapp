@@ -28,15 +28,39 @@ jobs:
           VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55dGp2Y3lrbWltYmx1YmVneGpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5NzIyMjUsImV4cCI6MjA5NDU0ODIyNX0.MwAH5E14FwaTiu-z5zB5YIitqeuscs_PTLWDXyNhStA
           VITE_SUPABASE_PROJECT_ID: nytjvcykmimblubegxjq
 
-      - name: Deploy → Hostinger via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.HOSTINGER_FTP_HOST }}
-          username: ${{ secrets.HOSTINGER_FTP_USER }}
-          password: ${{ secrets.HOSTINGER_FTP_PASS }}
-          local-dir: ./dist/
-          server-dir: /public_html/
-          dangerous-clean-slate: true
-          exclude: |
-            **/.git*
-            **/.git*/**
+      - name: Install lftp
+        run: sudo apt-get install -y lftp
+
+      - name: Debug FTP structure
+        run: |
+          lftp -u "$FTP_USER,$FTP_PASS" ftp://$FTP_HOST <<'FTPEOF'
+          set ssl:verify-certificate no
+          set ftp:passive-mode true
+          echo "=== FTP ROOT ==="
+          ls -la
+          echo "=== looking for public_html ==="
+          ls public_html/ 2>/dev/null && echo "public_html EXISTS" || echo "public_html NOT FOUND at root"
+          quit
+          FTPEOF
+        env:
+          FTP_USER: ${{ secrets.HOSTINGER_FTP_USER }}
+          FTP_PASS: ${{ secrets.HOSTINGER_FTP_PASS }}
+          FTP_HOST: ${{ secrets.HOSTINGER_FTP_HOST }}
+
+      - name: Deploy via lftp mirror
+        run: |
+          lftp -u "$FTP_USER,$FTP_PASS" ftp://$FTP_HOST <<'FTPEOF'
+          set ssl:verify-certificate no
+          set ftp:passive-mode true
+          set mirror:parallel-transfer-count 5
+          set net:max-retries 3
+          # Try public_html/ first (if FTP root is domain dir)
+          ls public_html/ 2>/dev/null && \
+            mirror -R --delete --verbose=2 dist/ public_html/ || \
+            mirror -R --delete --verbose=2 dist/ /
+          quit
+          FTPEOF
+        env:
+          FTP_USER: ${{ secrets.HOSTINGER_FTP_USER }}
+          FTP_PASS: ${{ secrets.HOSTINGER_FTP_PASS }}
+          FTP_HOST: ${{ secrets.HOSTINGER_FTP_HOST }}
