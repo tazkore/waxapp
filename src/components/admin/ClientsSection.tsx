@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Loader2, Search, MessageSquare, Plus, Pencil, Trash2, Download, Upload, FileSpreadsheet, TrendingUp, Users, Crown, DollarSign, CreditCard, Building2 } from 'lucide-react';
+import { Loader2, Search, MessageSquare, Plus, Pencil, Trash2, Download, Upload, FileSpreadsheet, TrendingUp, Users, Crown, DollarSign, CreditCard, Building2, Receipt, ShoppingBag, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import ClientImportDialog from './ClientImportDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import WholesaleCreditTab from './WholesaleCreditTab';
@@ -73,6 +73,124 @@ const InlinePointsEditor = ({ client, onUpdate }: { client: Client; onUpdate: (n
   );
 };
 
+/* ── Payment history dialog ────────────────────── */
+interface PaymentTx {
+  id: string;
+  gateway_slug: string;
+  amount: number;
+  status: string;
+  method: string | null;
+  reference: string | null;
+  external_id: string | null;
+  paid_at: string | null;
+  created_at: string;
+}
+
+const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; cls: string }> = {
+  paid:       { label: 'Pagado',    icon: <CheckCircle2 className="h-3.5 w-3.5" />, cls: 'text-green-400 bg-green-400/10 border-green-400/30' },
+  authorized: { label: 'Autorizado', icon: <CheckCircle2 className="h-3.5 w-3.5" />, cls: 'text-primary bg-primary/10 border-primary/30' },
+  pending:    { label: 'Pendiente', icon: <Clock className="h-3.5 w-3.5" />, cls: 'text-amber-400 bg-amber-400/10 border-amber-400/30' },
+  failed:     { label: 'Fallido',   icon: <XCircle className="h-3.5 w-3.5" />, cls: 'text-destructive bg-destructive/10 border-destructive/30' },
+  cancelled:  { label: 'Cancelado', icon: <XCircle className="h-3.5 w-3.5" />, cls: 'text-muted-foreground bg-muted/20 border-border/50' },
+  refunded:   { label: 'Reembolso', icon: <Receipt className="h-3.5 w-3.5" />, cls: 'text-blue-400 bg-blue-400/10 border-blue-400/30' },
+};
+
+const ClientPaymentsDialog = ({ client, onClose }: { client: Client; onClose: () => void }) => {
+  const [transactions, setTransactions] = useState<PaymentTx[]>([]);
+  const [loadingTx, setLoadingTx] = useState(true);
+  const [tab, setTab] = useState<'all' | 'pending' | 'paid'>('all');
+
+  useEffect(() => {
+    (async () => {
+      setLoadingTx(true);
+      const { data } = await supabase
+        .from('payment_transactions')
+        .select('id, gateway_slug, amount, status, method, reference, external_id, paid_at, created_at')
+        .eq('customer_email', client.email)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      setTransactions((data ?? []) as PaymentTx[]);
+      setLoadingTx(false);
+    })();
+  }, [client.email]);
+
+  const filtered = transactions.filter(t => {
+    if (tab === 'pending') return ['pending', 'authorized'].includes(t.status);
+    if (tab === 'paid') return t.status === 'paid';
+    return true;
+  });
+
+  const totalPaid = transactions.filter(t => t.status === 'paid').reduce((s, t) => s + Number(t.amount), 0);
+  const totalPending = transactions.filter(t => t.status === 'pending').reduce((s, t) => s + Number(t.amount), 0);
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl bg-card border-border/50 max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-primary" />
+            Pagos de {client.name}
+            <Badge variant="outline" className="ml-2 text-xs">{client.email}</Badge>
+          </DialogTitle>
+          <div className="flex gap-4 pt-2">
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">Cobrado total</p>
+              <p className="text-xl font-bold text-primary font-display">${totalPaid.toLocaleString('es-MX')}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">Pendiente</p>
+              <p className="text-xl font-bold text-amber-400 font-display">${totalPending.toLocaleString('es-MX')}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">Transacciones</p>
+              <p className="text-xl font-bold text-foreground font-display">{transactions.length}</p>
+            </div>
+          </div>
+        </DialogHeader>
+
+        {/* Filter tabs */}
+        <div className="flex gap-1 bg-muted/30 rounded-lg p-1 w-fit">
+          {(['all', 'pending', 'paid'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`px-3 py-1 text-xs rounded font-medium transition-colors ${tab === t ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+              {t === 'all' ? 'Todos' : t === 'pending' ? 'Pendientes' : 'Pagados'}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+          {loadingTx ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-8 text-sm text-muted-foreground">Sin transacciones{tab !== 'all' ? ' en esta categoría' : ''}</div>
+          ) : filtered.map(tx => {
+            const cfg = STATUS_CONFIG[tx.status] ?? STATUS_CONFIG.failed;
+            return (
+              <div key={tx.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/40 bg-card/50 hover:border-primary/30 transition-colors">
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-medium ${cfg.cls}`}>
+                  {cfg.icon} {cfg.label}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-foreground capitalize">{tx.gateway_slug}</span>
+                    {tx.reference && <span className="text-[10px] text-muted-foreground font-mono truncate">{tx.reference}</span>}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(tx.paid_at ?? tx.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                <p className="text-sm font-bold text-foreground font-display shrink-0">
+                  ${Number(tx.amount).toLocaleString('es-MX')}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const ClientsSection = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,6 +213,9 @@ const ClientsSection = () => {
 
   // Import dialog
   const [importOpen, setImportOpen] = useState(false);
+
+  // Payments dialog
+  const [paymentsClient, setPaymentsClient] = useState<Client | null>(null);
 
   const fetchClients = () => {
     setLoading(true);
@@ -396,6 +517,9 @@ const ClientsSection = () => {
                       <MessageSquare className="h-4 w-4" />
                       {notes[c.id] && <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary" />}
                     </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-amber-400" onClick={() => setPaymentsClient(c)} title="Ver pagos">
+                      <Receipt className="h-4 w-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteClient(c)} title="Eliminar">
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -502,6 +626,10 @@ const ClientsSection = () => {
       </Dialog>
 
       <ClientImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={fetchClients} />
+
+      {paymentsClient && (
+        <ClientPaymentsDialog client={paymentsClient} onClose={() => setPaymentsClient(null)} />
+      )}
 
         </TabsContent>
         <TabsContent value="credito_mayoreo">

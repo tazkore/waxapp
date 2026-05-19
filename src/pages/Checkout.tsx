@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Check, Package, Truck, CreditCard, MapPin, Loader2, ShieldCheck } from 'lucide-react';
@@ -409,7 +410,19 @@ const Checkout = () => {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-foreground">Dirección *</Label>
-                    <Input value={shipping.address} onChange={e => setShipping({...shipping, address: e.target.value})} className="bg-muted border-border" placeholder="Calle y número exterior" />
+                    <AddressAutocomplete
+                      value={shipping.address}
+                      onChange={v => setShipping(prev => ({ ...prev, address: v }))}
+                      onSelect={fields => setShipping(prev => ({
+                        ...prev,
+                        address: fields.address,
+                        city: fields.city || prev.city,
+                        state: fields.state || prev.state,
+                        postalCode: fields.postalCode || prev.postalCode,
+                      }))}
+                      className="bg-muted border-border"
+                      placeholder="Calle y número exterior"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-foreground">Número interior / Colonia / Referencias</Label>

@@ -288,7 +288,16 @@ const ProductsSection = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filtered.map((p) => (
-                <ProductCard key={p.id} product={p} onEdit={() => setEditing(p)} score={seoScore(p)} />
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  onEdit={() => setEditing(p)}
+                  score={seoScore(p)}
+                  onToggleActive={async () => {
+                    await supabase.from("products").update({ is_active: !p.is_active }).eq("id", p.id);
+                    load();
+                  }}
+                />
               ))}
             </div>
           )}
@@ -342,17 +351,26 @@ const StatCard = ({ label, value, accent = "primary", subtext }: { label: string
   </Card>
 );
 
+/* ---------------- Strain badge map ---------------- */
+const STRAIN_COLORS: Record<string, string> = {
+  Hybrid: 'text-primary border-primary/40 bg-primary/10',
+  Indica: 'text-[hsl(263_80%_70%)] border-[hsl(263_80%_60%/0.4)] bg-[hsl(263_80%_60%/0.1)]',
+  Sativa: 'text-amber-400 border-amber-400/40 bg-amber-400/10',
+  'Live Resin': 'text-cyan-400 border-cyan-400/40 bg-cyan-400/10',
+};
+
 /* ---------------- Product Card ---------------- */
 
-const ProductCard = ({ product: p, onEdit, score }: { product: Product; onEdit: () => void; score: number }) => {
+const ProductCard = ({ product: p, onEdit, score, onToggleActive }: { product: Product; onEdit: () => void; score: number; onToggleActive?: () => void }) => {
   const scoreColor = score >= 80 ? "text-primary" : score >= 50 ? "text-amber-400" : "text-destructive";
   const scoreBar = score >= 80 ? "bg-primary" : score >= 50 ? "bg-amber-400" : "bg-destructive";
   const outOfStock = (p.stock ?? 0) <= 0;
+  const strainClass = p.strain_type ? (STRAIN_COLORS[p.strain_type] ?? 'text-muted-foreground border-border bg-muted/20') : null;
 
   return (
-    <Card className="group overflow-hidden border-border/50 bg-card/60 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-200 flex flex-col">
-      {/* Image 16:9 */}
-      <div className="relative aspect-[16/10] bg-gradient-to-br from-muted/40 to-muted/10 overflow-hidden">
+    <Card className="group overflow-hidden border-border/50 bg-card/60 hover:border-primary/40 hover:shadow-[0_0_30px_-8px_hsl(var(--primary)/0.3)] transition-all duration-300 flex flex-col">
+      {/* Image */}
+      <div className="relative aspect-[4/3] bg-gradient-to-br from-muted/40 to-muted/10 overflow-hidden">
         {p.image_url ? (
           <img
             src={p.image_url}
@@ -366,29 +384,31 @@ const ProductCard = ({ product: p, onEdit, score }: { product: Product; onEdit: 
             Sin imagen
           </div>
         )}
-        {/* Badges over image */}
+        {/* Top-left: strain + featured */}
         <div className="absolute top-2 left-2 flex flex-wrap gap-1">
-          {!p.is_active && (
-            <Badge variant="outline" className="text-[10px] bg-background/80 backdrop-blur border-border/60">
-              Borrador
-            </Badge>
+          {strainClass && (
+            <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${strainClass}`}>
+              {p.strain_type}
+            </span>
           )}
           {p.is_featured && (
-            <Badge className="text-[10px] bg-amber-400/90 text-black hover:bg-amber-400">
-              Destacado
-            </Badge>
-          )}
-          {p.noindex && (
-            <Badge variant="outline" className="text-[10px] bg-background/80 backdrop-blur text-amber-400 border-amber-400/40">
-              noindex
-            </Badge>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border bg-amber-400/20 text-amber-400 border-amber-400/40">★</span>
           )}
         </div>
+        {/* Top-right: active toggle */}
+        <div className="absolute top-2 right-2">
+          <button
+            onClick={e => { e.stopPropagation(); onToggleActive?.(); }}
+            className={`text-[9px] font-bold px-2 py-0.5 rounded-full border transition-all backdrop-blur ${
+              p.is_active ? 'bg-primary/20 border-primary/50 text-primary' : 'bg-muted/80 border-border/60 text-muted-foreground'
+            }`}
+          >
+            {p.is_active ? 'Activo' : 'Borrador'}
+          </button>
+        </div>
         {outOfStock && (
-          <div className="absolute top-2 right-2">
-            <Badge variant="outline" className="text-[10px] bg-destructive/90 text-destructive-foreground border-destructive">
-              Agotado
-            </Badge>
+          <div className="absolute bottom-2 left-2">
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border bg-destructive/20 text-destructive border-destructive/40">Sin stock</span>
           </div>
         )}
       </div>
