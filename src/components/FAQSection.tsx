@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search } from 'lucide-react';
+import { Search, ArrowLeft } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   Accordion,
@@ -66,6 +67,13 @@ const FAQSection = () => {
   return (
     <section id="faq" className="py-24 px-4 md:px-8 bg-background scroll-mt-20">
       <div className="max-w-3xl mx-auto">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-6"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Volver al Inicio
+        </Link>
+
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -125,6 +133,15 @@ const FAQSection = () => {
             </Accordion>
           )}
         </motion.div>
+
+        <div className="mt-10 flex justify-center">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 rounded-lg border border-border px-5 py-2.5 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-all"
+          >
+            <ArrowLeft className="h-4 w-4" /> Volver al Inicio
+          </Link>
+        </div>
       </div>
     </section>
   );

@@ -116,10 +116,12 @@ const SeoSection = () => {
   useEffect(() => { fetchPages(); fetchRedirects(); }, []);
 
   useEffect(() => {
-    getSetting('seo_global', { sitemap_enabled: true, robots_noindex: true }).then((v) => {
-      setGlobalSitemap(v.sitemap_enabled ?? true);
-      setGlobalRobots(v.robots_noindex ?? true);
-    });
+    getSetting('seo_global', { sitemap_enabled: true, robots_noindex: true })
+      .then((v) => {
+        setGlobalSitemap(v.sitemap_enabled ?? true);
+        setGlobalRobots(v.robots_noindex ?? true);
+      })
+      .catch(() => {});
   }, []);
 
   const selectPage = (page: SeoPage) => {
@@ -280,15 +282,13 @@ const SeoSection = () => {
       total += 4;
       if (p.meta_title && p.meta_title.length <= 60) score++;
       if (p.meta_description && p.meta_description.length <= 160) score++;
-      if (p.keywords.length > 0) score++;
+      if ((p.keywords ?? []).length > 0) score++;
       if (p.is_indexed) score++;
     });
     return Math.round((score / total) * 100);
   };
 
   const healthScore = calculateHealth();
-  const metaTitleLen = editData.meta_title.length;
-  const metaDescLen = editData.meta_description.length;
 
   if (loading) {
     return (
@@ -297,6 +297,9 @@ const SeoSection = () => {
       </div>
     );
   }
+
+  const metaTitleLen = (editData.meta_title ?? '').length;
+  const metaDescLen = (editData.meta_description ?? '').length;
 
   return (
     <div className="space-y-6">

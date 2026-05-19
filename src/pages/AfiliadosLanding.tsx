@@ -31,6 +31,16 @@ const AfiliadosLanding = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
+      {/* Breadcrumb */}
+      <div className="container mx-auto px-4 pt-24 pb-0">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+        >
+          ← Inicio
+        </Link>
+      </div>
+
       {/* Hero */}
       <section className="relative pt-32 pb-20 overflow-hidden">
         <div className="absolute inset-0 -z-10 opacity-30" style={{ background: 'radial-gradient(circle at 30% 20%, rgba(0,230,118,0.18), transparent 60%), radial-gradient(circle at 70% 60%, rgba(255,179,0,0.12), transparent 50%)' }} />
