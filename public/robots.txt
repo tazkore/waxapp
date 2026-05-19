@@ -26,4 +26,4 @@ Disallow: /reset-password
 Sitemap: https://waxapp.mx/sitemap.xml
 Sitemap: https://vapewax.com.mx/sitemap.xml
 Sitemap: https://extraccionwax.com/sitemap.xml
-Sitemap: https://nammhqyeletjuwgkceir.supabase.co/functions/v1/generate-sitemap
+Sitemap: https://nytjvcykmimblubegxjq.supabase.co/functions/v1/generate-sitemap

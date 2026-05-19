@@ -5,13 +5,23 @@ import { Flame } from 'lucide-react';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const img = (path: string) => `${SUPABASE_URL}/storage/v1/object/public/media/${path}`;
 
-const showcase = [
+type Strain = 'Hybrid' | 'Indica' | 'Sativa' | 'Live Resin';
+
+const strainColor: Record<Strain, string> = {
+  Hybrid: 'text-primary border-primary/30',
+  Indica: 'text-[hsl(263_80%_70%)] border-[hsl(263_80%_60%/0.3)]',
+  Sativa: 'text-amber-400 border-amber-400/30',
+  'Live Resin': 'text-cyan-400 border-cyan-400/30',
+};
+
+const showcase: { name: string; flavor: string; badge: string; image: string; accent: string; strain: Strain }[] = [
   {
     name: 'KRT Live Diamonds',
     flavor: 'Horchata · Hybrid',
     badge: '2G',
     image: img('products/krt-horchata.jpg'),
     accent: 'from-amber-500/30 to-yellow-700/10',
+    strain: 'Hybrid',
   },
   {
     name: 'BOUTIQ Switch',
@@ -19,6 +29,7 @@ const showcase = [
     badge: '2.0G Dual',
     image: img('products/boutiq-switch-bubblegum.webp'),
     accent: 'from-cyan-500/30 to-fuchsia-500/10',
+    strain: 'Hybrid',
   },
   {
     name: 'ELF THC',
@@ -26,6 +37,7 @@ const showcase = [
     badge: '3000MG',
     image: img('products/elfthc-grape-slurp.webp'),
     accent: 'from-fuchsia-500/30 to-purple-700/10',
+    strain: 'Indica',
   },
   {
     name: 'ELF THC',
@@ -33,6 +45,7 @@ const showcase = [
     badge: '3000MG',
     image: img('products/elfthc-octane-orange.webp'),
     accent: 'from-orange-500/30 to-red-600/10',
+    strain: 'Hybrid',
   },
   {
     name: 'ELF THC',
@@ -40,6 +53,7 @@ const showcase = [
     badge: '3000MG',
     image: img('products/elfthc-razz-tiger.webp'),
     accent: 'from-sky-500/30 to-blue-700/10',
+    strain: 'Sativa',
   },
   {
     name: 'FUME Extracts',
@@ -47,8 +61,11 @@ const showcase = [
     badge: '2ML',
     image: img('products/fume-blue-raspberry.webp'),
     accent: 'from-blue-500/30 to-indigo-700/10',
+    strain: 'Live Resin',
   },
 ];
+
+const [hero, ...rest] = showcase;
 
 const BrandShowcase = () => {
   return (
@@ -62,6 +79,8 @@ const BrandShowcase = () => {
           backgroundSize: '48px 48px',
         }}
       />
+      {/* Violet radial hint */}
+      <div className="absolute bottom-0 right-0 w-[40vw] h-[40vw] rounded-full bg-[hsl(263_80%_60%/0.04)] blur-[100px] pointer-events-none" />
 
       <div className="container mx-auto px-4 relative">
         <div className="text-center mb-14">
@@ -80,17 +99,58 @@ const BrandShowcase = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-          {showcase.map((p, i) => (
+        {/* Hero card — first product, full width horizontal */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ duration: 0.6 }}
+          className="group relative rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/50 transition-all duration-700 hover:shadow-[0_0_60px_-15px_hsl(var(--primary)/0.5)] mb-6"
+        >
+          <div className={`absolute inset-0 bg-gradient-to-br ${hero.accent} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+          <div className="relative flex flex-col md:flex-row">
+            {/* Text side */}
+            <div className="flex-1 flex flex-col justify-center gap-4 p-8 md:p-12">
+              <span className={`self-start px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider border ${strainColor[hero.strain]}`}>
+                {hero.strain}
+              </span>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">{hero.name}</p>
+              <h3 className="font-display text-2xl md:text-3xl font-bold text-foreground group-hover:text-primary transition-colors duration-300">
+                {hero.flavor}
+              </h3>
+              <span className="self-start px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+                {hero.badge}
+              </span>
+              <Link
+                to="/tienda"
+                className="self-start mt-2 px-6 py-2.5 bg-primary text-primary-foreground font-display font-bold text-xs uppercase tracking-wide hover:shadow-[0_0_30px_hsl(var(--primary)/0.4)] transition-all duration-300"
+              >
+                Ver producto
+              </Link>
+            </div>
+            {/* Image side */}
+            <div className="relative w-full md:w-80 aspect-square flex items-center justify-center bg-gradient-to-b from-muted/30 to-background overflow-hidden">
+              <img
+                src={hero.image}
+                alt={`${hero.name} ${hero.flavor}`}
+                loading="lazy"
+                className="w-full h-full object-contain p-8 group-hover:scale-105 transition-transform duration-700"
+              />
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Rest: 5-col compact grid */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {rest.map((p, i) => (
             <motion.div
               key={p.image}
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-50px' }}
               transition={{ duration: 0.5, delay: i * 0.06 }}
-              className="group relative rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/50 transition-all hover:shadow-[0_0_40px_-10px_hsl(var(--primary)/0.4)]"
+              className="group relative rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/50 transition-all duration-700 hover:shadow-[0_0_60px_-15px_hsl(var(--primary)/0.5)]"
             >
-              {/* Accent glow */}
               <div className={`absolute inset-0 bg-gradient-to-br ${p.accent} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
 
               <div className="relative aspect-[4/5] flex items-center justify-center bg-gradient-to-b from-muted/30 to-background overflow-hidden">
@@ -105,11 +165,14 @@ const BrandShowcase = () => {
                 </span>
               </div>
 
-              <div className="relative p-4 md:p-5 border-t border-border">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
-                  {p.name}
-                </p>
-                <p className="font-display text-sm md:text-base font-bold text-foreground line-clamp-2">
+              <div className="relative p-4 border-t border-border">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground truncate">{p.name}</p>
+                  <span className={`shrink-0 ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold border ${strainColor[p.strain]}`}>
+                    {p.strain}
+                  </span>
+                </div>
+                <p className="font-display text-sm font-bold text-foreground line-clamp-2">
                   {p.flavor}
                 </p>
               </div>

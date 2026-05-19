@@ -12,14 +12,18 @@ interface SignalInfo {
 
 interface Signal {
   icon: LucideIcon;
-  text: string;
+  value: string;
+  unit: string;
+  label: string;
   info: SignalInfo;
 }
 
 const signals: Signal[] = [
   {
     icon: Zap,
-    text: 'Efecto en < 5 Minutos',
+    value: '< 5',
+    unit: 'min',
+    label: 'Efecto activo',
     info: {
       title: 'Absorción ultra rápida',
       description:
@@ -33,7 +37,9 @@ const signals: Signal[] = [
   },
   {
     icon: ShieldCheck,
-    text: 'Legal y Certificado',
+    value: '90',
+    unit: '%',
+    label: 'Biodisponibilidad',
     info: {
       title: 'Cumplimiento legal completo',
       description:
@@ -47,7 +53,9 @@ const signals: Signal[] = [
   },
   {
     icon: BadgeCheck,
-    text: 'Producto 100% Original',
+    value: '100',
+    unit: '%',
+    label: 'Original & Legal',
     info: {
       title: 'Garantía de autenticidad',
       description:
@@ -62,7 +70,9 @@ const signals: Signal[] = [
   },
   {
     icon: Package,
-    text: 'Envíos Asegurados',
+    value: '1-3',
+    unit: 'días',
+    label: 'Entrega nacional',
     info: {
       title: 'Logística protegida',
       description:
@@ -83,8 +93,8 @@ const TrustSignals = () => {
 
   return (
     <>
-      <section className="border-y border-border bg-card py-8">
-        <div className="container mx-auto grid grid-cols-2 gap-6 px-4 md:grid-cols-4">
+      <section className="border-y border-border bg-card">
+        <div className="container mx-auto grid grid-cols-2 md:grid-cols-4">
           {signals.map((s, i) => {
             const Icon = s.icon;
             return (
@@ -94,15 +104,25 @@ const TrustSignals = () => {
                 onClick={() => setActive(s)}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                whileHover={{ y: -2 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="group flex flex-col items-center gap-2 text-center rounded-lg p-3 transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
-                aria-label={`Más información sobre ${s.text}`}
+                className={[
+                  'group flex flex-col items-center gap-2 py-8 px-4 text-center',
+                  'hover:bg-primary/5 transition-all duration-300 cursor-pointer',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                  i < 3 ? 'border-r border-border/50' : '',
+                ].join(' ')}
+                aria-label={`Más información sobre ${s.label}`}
               >
-                <Icon className="h-8 w-8 text-primary transition-transform group-hover:scale-110" />
-                <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
-                  {s.text}
+                <Icon className="h-5 w-5 text-primary/60 mb-1 group-hover:text-primary transition-colors" />
+                <div className="flex items-end gap-1 leading-none">
+                  <span className="font-display text-4xl md:text-5xl font-bold text-foreground group-hover:text-primary transition-colors">
+                    {s.value}
+                  </span>
+                  <span className="font-display text-lg text-primary mb-0.5">{s.unit}</span>
+                </div>
+                <span className="text-xs text-muted-foreground uppercase tracking-widest font-medium">
+                  {s.label}
                 </span>
               </motion.button>
             );
@@ -121,7 +141,9 @@ const TrustSignals = () => {
                   </div>
                   <div className="text-left">
                     <DialogTitle className="text-lg">{active.info.title}</DialogTitle>
-                    <p className="text-xs text-muted-foreground mt-0.5">{active.text}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {active.value}{active.unit} · {active.label}
+                    </p>
                   </div>
                 </div>
                 <DialogDescription className="text-sm pt-3 text-foreground/80">
