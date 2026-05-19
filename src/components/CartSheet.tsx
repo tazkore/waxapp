@@ -34,7 +34,7 @@ export function CartSheet() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) return;
       const { data } = await supabase
-        .from("clients")
+        .from("customer_profiles")
         .select("loyalty_points")
         .eq("email", user.email)
         .maybeSingle();

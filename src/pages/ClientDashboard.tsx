@@ -75,9 +75,8 @@ const ClientDashboard = () => {
           .order('created_at', { ascending: false });
         setOrders(orderData ?? []);
 
-        // Fetch loyalty points (from clients table) and referrals
         const { data: clientRow } = await supabase
-          .from('clients').select('*').eq('email', user.email).maybeSingle();
+          .from('customer_profiles').select('*').eq('email', user.email).maybeSingle();
         setClient(clientRow);
 
         const { data: refRows } = await supabase

@@ -23,7 +23,7 @@ const LoyaltyRedeemCard = ({ email }: Props) => {
   useEffect(() => {
     if (!email) return;
     supabase
-      .from('clients')
+      .from('customer_profiles')
       .select('loyalty_points')
       .eq('email', email.toLowerCase())
       .maybeSingle()

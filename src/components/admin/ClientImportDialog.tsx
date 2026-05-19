@@ -161,7 +161,7 @@ const ClientImportDialog = ({ open, onOpenChange, onImported }: Props) => {
         membership_tier: 'Bronze',
       }));
 
-      const { data, error } = await supabase.from('clients').upsert(chunk, { onConflict: 'email', ignoreDuplicates: true }).select();
+      const { data, error } = await supabase.from('customer_profiles').upsert(chunk, { onConflict: 'email', ignoreDuplicates: true }).select();
       if (error) {
         errors += chunk.length;
       } else {
