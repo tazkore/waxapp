@@ -15,7 +15,7 @@ import ReactMarkdown from 'react-markdown';
 import {
   Sparkles, Plus, Edit, Trash2, Loader2, Eye, ArrowLeft,
   CheckCircle2, AlertCircle, BarChart3, Globe, FileText,
-  X, Save, RefreshCw, ListFilter, Layers,
+  X, Save, RefreshCw, ListFilter, Layers, Zap, StopCircle,
 } from 'lucide-react';
 
 interface BlogPost {
@@ -492,8 +492,112 @@ const BatchGenerator = ({ onDone }: { onDone: () => void }) => {
   );
 };
 
+// ─── Auto Blog Generator ─────────────────────────────────────────────
+const AutoBlogPanel = ({ onNewPost }: { onNewPost: () => void }) => {
+  const [running, setRunning] = useState(false);
+  const [category, setCategory] = useState('general');
+  const [count, setCount] = useState(0);
+  const [lastTitle, setLastTitle] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const intervalRef = useState<ReturnType<typeof setInterval> | null>(null);
+
+  const generateOne = async () => {
+    setError(null);
+    try {
+      const { data, error: efErr } = await supabase.functions.invoke('generate-blog-post', {
+        body: { auto: true, category, generateImage: true },
+      });
+      if (efErr) throw efErr;
+      if (data?.error) throw new Error(data.error);
+      setCount(c => c + 1);
+      setLastTitle(data?.title ?? null);
+      onNewPost();
+    } catch (e: any) {
+      setError(e.message ?? 'Error generando artículo');
+      toast.error('Error auto-blog: ' + (e.message ?? 'desconocido'));
+    }
+  };
+
+  const start = async () => {
+    setRunning(true);
+    setCount(0);
+    await generateOne();
+    const id = setInterval(generateOne, 30_000);
+    intervalRef[1](id as any);
+  };
+
+  const stop = () => {
+    setRunning(false);
+    if (intervalRef[0]) { clearInterval(intervalRef[0]); intervalRef[1](null); }
+  };
+
+  useEffect(() => () => { if (intervalRef[0]) clearInterval(intervalRef[0]); }, []);
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 space-y-4">
+        <div className="flex items-start gap-3">
+          <Zap className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Auto-Publicación con IA + Firecrawl</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Genera y publica artículos automáticamente cada 30 segundos (2 por minuto). Usa Firecrawl para detectar temas trending y Gemini para redactar. Se publican directamente.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <Select value={category} onValueChange={setCategory} disabled={running}>
+            <SelectTrigger className="w-44 h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+
+          {!running ? (
+            <Button onClick={start} className="gap-2 bg-primary text-primary-foreground h-9">
+              <Zap className="h-4 w-4" /> Iniciar Auto-Blog
+            </Button>
+          ) : (
+            <Button onClick={stop} variant="destructive" className="gap-2 h-9">
+              <StopCircle className="h-4 w-4" /> Detener
+            </Button>
+          )}
+        </div>
+
+        {running && (
+          <div className="flex items-center gap-3 pt-1">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span className="text-sm text-primary font-medium">{count} artículos publicados esta sesión</span>
+            {lastTitle && <span className="text-xs text-muted-foreground truncate">Último: "{lastTitle}"</span>}
+          </div>
+        )}
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        {!running && count > 0 && (
+          <p className="text-xs text-green-500">✓ Sesión anterior: {count} artículos publicados</p>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Generar 1 artículo ahora</p>
+        <div className="flex gap-2">
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="w-36 h-8"><SelectValue /></SelectTrigger>
+            <SelectContent>{CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+          </Select>
+          <Button size="sm" variant="outline" onClick={generateOne} className="gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" /> Generar 1
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Main Blog Section ───────────────────────────────────────────────
-type View = 'list' | 'editor' | 'batch';
+type View = 'list' | 'editor' | 'batch' | 'auto';
 
 const BlogSection = () => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -591,6 +695,21 @@ const BlogSection = () => {
     );
   }
 
+  // ── Auto view ──
+  if (view === 'auto') {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => { fetchPosts(); setView('list'); }} className="gap-1.5">
+            <ArrowLeft className="h-4 w-4" /> Volver
+          </Button>
+          <h2 className="text-lg font-bold text-foreground">Auto-Blog con IA</h2>
+        </div>
+        <AutoBlogPanel onNewPost={fetchPosts} />
+      </div>
+    );
+  }
+
   // ── List view ──
   return (
     <div className="space-y-6">
@@ -600,16 +719,25 @@ const BlogSection = () => {
           <h1 className="text-2xl font-bold text-foreground">Blog & Contenido SEO</h1>
           <p className="text-sm text-muted-foreground">Crea artículos optimizados para buscadores con IA.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button
             variant="outline"
+            size="sm"
+            onClick={() => setView('auto')}
+            className="gap-2 border-primary/40 text-primary hover:bg-primary/5"
+          >
+            <Zap className="h-3.5 w-3.5" /> Auto-Blog
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setView('batch')}
             className="gap-2"
           >
-            <Layers className="h-4 w-4" /> Generación en lote
+            <Layers className="h-3.5 w-3.5" /> Lote
           </Button>
-          <Button onClick={openNew} className="gap-2 bg-primary text-primary-foreground">
-            <Plus className="h-4 w-4" /> Nuevo artículo
+          <Button size="sm" onClick={openNew} className="gap-2 bg-primary text-primary-foreground">
+            <Plus className="h-3.5 w-3.5" /> Nuevo artículo
           </Button>
         </div>
       </div>

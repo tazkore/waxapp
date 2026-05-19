@@ -122,9 +122,19 @@ const StaffSection = () => {
             map[r.user_id] = r.role;
           }
         });
+        // Cross-reference with customer_profiles to get real emails
+        const userIds = Object.keys(map);
+        const { data: profiles } = await supabase
+          .from('customer_profiles')
+          .select('user_id, email, name')
+          .in('user_id', userIds);
+        const emailMap: Record<string, string> = {};
+        (profiles ?? []).forEach((p: any) => {
+          if (p.user_id) emailMap[p.user_id] = p.email || p.name || p.user_id.slice(0, 8) + '...';
+        });
         const staffFromRoles: ManagedUser[] = Object.entries(map).map(([user_id, role]) => ({
           id: user_id,
-          email: user_id,
+          email: emailMap[user_id] ?? user_id.slice(0, 8) + '...',
           created_at: new Date().toISOString(),
           role,
         }));
