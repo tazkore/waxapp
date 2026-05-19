@@ -124,7 +124,7 @@ const ThemeImporterSection = () => {
               Analizar
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">Tarda ~10-20s. Combina el proveedor de scraping con Lovable AI.</p>
+          <p className="text-xs text-muted-foreground">Tarda ~10-20s. Combina el proveedor de scraping con Grupoko AI.</p>
         </CardContent>
       </Card>
 

@@ -15,6 +15,7 @@ import { CartSheet } from "./components/CartSheet.tsx";
 import ProductDetail from "./pages/ProductDetail.tsx";
 import Checkout from "./pages/Checkout.tsx";
 import Admin from "./pages/Admin.tsx";
+import ThemeBuilder from "./pages/ThemeBuilder.tsx";
 import AdminLogin from "./pages/AdminLogin.tsx";
 import ClientAuth from "./pages/ClientAuth.tsx";
 import ClientDashboard from "./pages/ClientDashboard.tsx";
@@ -83,6 +84,7 @@ const App = () => (
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+          <Route path="/admin/theme-builder" element={<ProtectedRoute><ThemeBuilder /></ProtectedRoute>} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/blog/:slug" element={<BlogPost />} />
           <Route path="/cbd" element={<CbdPage />} />

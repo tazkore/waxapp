@@ -28,6 +28,8 @@ import {
   ArrowRight,
   Trash2,
   Power,
+  Link2,
+  Bot,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getSetting, setSetting } from '@/lib/siteSettings';
@@ -515,7 +517,7 @@ const SeoSection = () => {
                               {editData.meta_title || 'Título de la página'}
                             </p>
                             <p className="text-xs text-primary/60 font-mono">
-                              waxapp.lovable.app{selectedPage.page_path}
+                              {typeof window !== 'undefined' ? window.location.hostname : 'waxapp.mx'}{selectedPage.page_path}
                             </p>
                             <p className="text-xs text-muted-foreground leading-relaxed">
                               {editData.meta_description || 'Agrega una meta descripción para ver cómo aparecerá en los resultados de búsqueda.'}
@@ -560,7 +562,7 @@ const SeoSection = () => {
                             }}
                           />
                           <div className="p-3 bg-card">
-                            <p className="text-[10px] text-muted-foreground uppercase">waxapp.lovable.app</p>
+                            <p className="text-[10px] text-muted-foreground uppercase">{typeof window !== 'undefined' ? window.location.hostname : 'waxapp.mx'}</p>
                             <p className="text-sm font-medium text-foreground">{editData.meta_title || selectedPage.page_title}</p>
                             <p className="text-xs text-muted-foreground line-clamp-2">{editData.meta_description}</p>
                           </div>
@@ -595,7 +597,7 @@ const SeoSection = () => {
                         <Input
                           value={editData.canonical_url}
                           onChange={(e) => setEditData({ ...editData, canonical_url: e.target.value })}
-                          placeholder="https://waxapp.lovable.app/..."
+                          placeholder="https://waxapp.mx/..."
                           className="bg-background"
                         />
                         <p className="text-[10px] text-muted-foreground">Dejar vacío para usar la URL actual de la página.</p>
@@ -654,6 +656,46 @@ const SeoSection = () => {
               />
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Sitemap & Robots Links */}
+      <Card className="border-border bg-card">
+        <CardContent className="p-6">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-4">
+            <Link2 className="h-4 w-4" /> Archivos de Indexación
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <a
+              href="/sitemap.xml"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-3 p-4 rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors group"
+            >
+              <FileText className="h-5 w-5 text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">sitemap.xml</p>
+                <p className="text-[11px] text-muted-foreground">Generado dinámicamente con todos los productos y páginas</p>
+              </div>
+              <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            </a>
+            <a
+              href="/robots.txt"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-3 p-4 rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors group"
+            >
+              <Bot className="h-5 w-5 text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">robots.txt</p>
+                <p className="text-[11px] text-muted-foreground">Controla el acceso de bots a secciones del sitio</p>
+              </div>
+              <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            </a>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-3">
+            Google Search Console: agrega <code className="font-mono bg-muted px-1 rounded">{typeof window !== 'undefined' ? window.location.origin : 'https://waxapp.mx'}/sitemap.xml</code> para acelerar la indexación.
+          </p>
         </CardContent>
       </Card>
 

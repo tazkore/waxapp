@@ -109,7 +109,7 @@ const CsvImporter = ({ onImported }: Props) => {
         let attempt = 0;
         let currentSlug = row.slug;
         while (attempt < 4) {
-          const { error } = await supabase.from("products").insert({ ...row, slug: currentSlug });
+          const { error } = await supabase.from("products").insert({ ...row, slug: currentSlug, is_active: false });
           if (!error) { imported++; break; }
           if (error.code === "23505" && /slug/i.test(error.message)) {
             currentSlug = `${slugify(row.name)}-${rand()}${rand()}`;

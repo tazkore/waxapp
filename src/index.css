@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Cormorant+Garamond:ital,wght@0,600;1,300;1,400;1,600&family=Manrope:wght@300;400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -47,6 +47,10 @@
 
     --neon-glow: 0 0 20px hsl(145 100% 45% / 0.4), 0 0 40px hsl(145 100% 45% / 0.2);
     --amber-glow: 0 0 15px hsl(40 100% 50% / 0.4);
+
+    /* Dark Crystal additions */
+    --violet: 263 80% 60%;
+    --violet-glow: 0 0 20px hsl(263 80% 60% / 0.3), 0 0 40px hsl(263 80% 60% / 0.15);
   }
 }
 
@@ -58,13 +62,22 @@
     @apply bg-background text-foreground font-sans;
   }
   h1, h2, h3 {
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: 'Syne', sans-serif;
   }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: hsl(var(--background)); }
+  ::-webkit-scrollbar-thumb { background: hsl(var(--primary) / 0.4); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.7); }
 }
 
 @layer utilities {
   .neon-glow {
     box-shadow: var(--neon-glow);
+  }
+  .violet-glow {
+    box-shadow: var(--violet-glow);
   }
   .amber-glow {
     box-shadow: var(--amber-glow);
@@ -73,9 +86,38 @@
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(135deg, hsl(145 100% 45%), hsl(160 100% 50%));
   }
+  .text-gradient-prism {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(145 100% 50%), hsl(263 80% 72%));
+  }
+  .float-anim {
+    animation: float 4s ease-in-out infinite;
+  }
+
   @keyframes pulse-strong {
     0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 hsl(var(--primary) / 0.6); }
     50% { transform: scale(1.08); box-shadow: 0 0 0 18px hsl(var(--primary) / 0); }
   }
   .animate-pulse-strong { animation: pulse-strong 1.4s ease-in-out infinite; }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-14px); }
+  }
+
+  @keyframes marquee-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .animate-marquee-scroll {
+    animation: marquee-scroll 35s linear infinite;
+  }
+
+  @keyframes chromatic-pulse {
+    0%, 100% { box-shadow: 0 0 30px hsl(145 100% 45% / 0.2); }
+    50% { box-shadow: 0 0 50px hsl(263 80% 60% / 0.25); }
+  }
+  .animate-chromatic-pulse {
+    animation: chromatic-pulse 4s ease-in-out infinite;
+  }
 }

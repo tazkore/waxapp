@@ -29,7 +29,7 @@ type EnvConnection = {
 const empty: Partial<EnvConnection> = {
   name: "",
   description: "",
-  environment_type: "lovable",
+  environment_type: "supabase",
   project_url: "",
   anon_key_secret_name: "",
   service_key_secret_name: "",
@@ -194,7 +194,7 @@ const EnvironmentConnectionsSection = () => {
             Conexiones de Entorno
           </h2>
           <p className="text-muted-foreground text-sm mt-1 max-w-2xl">
-            Registra otros entornos (Lovable, Supabase u otros) referenciando el{" "}
+            Registra otros entornos (Supabase u otros) referenciando el{" "}
             <strong>nombre de un secret de servidor</strong> que contiene la API key. Los valores
             sensibles nunca se almacenan ni se muestran aquí: viven como variables del backend y
             solo se usan desde edge functions.
@@ -229,7 +229,7 @@ const EnvironmentConnectionsSection = () => {
                 <PlugZap className="h-5 w-5 text-primary" /> Verificar conectores
               </CardTitle>
               <CardDescription>
-                Prueba todos los proveedores configurados (Firecrawl, Resend, Clip, Lovable AI, Amazon, Jina, ScrapingBee).
+                Prueba todos los proveedores configurados (Firecrawl, Resend, Clip, Grupoko AI, Amazon, Jina, ScrapingBee).
               </CardDescription>
             </div>
             <Button onClick={runAllChecks} disabled={checkingAll}>
@@ -371,21 +371,21 @@ const EnvironmentConnectionsSection = () => {
                 <Input
                   value={editing.name ?? ""}
                   onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                  placeholder="Ej. Sitio marketing Lovable"
+                  placeholder="Ej. Sitio marketing Grupoko"
                 />
               </div>
               <div>
                 <Label>Tipo de entorno</Label>
                 <Select
-                  value={editing.environment_type ?? "lovable"}
+                  value={editing.environment_type ?? "supabase"}
                   onValueChange={(v) => setEditing({ ...editing, environment_type: v })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="lovable">Lovable</SelectItem>
                     <SelectItem value="supabase">Supabase</SelectItem>
+                    <SelectItem value="grupoko">Grupoko</SelectItem>
                     <SelectItem value="other">Otro</SelectItem>
                   </SelectContent>
                 </Select>

@@ -24,6 +24,7 @@ const FALLBACK_LINKS = [
   { label: 'CBD', href: '/cbd' },
   { label: 'Edibles', href: '/edibles' },
   { label: 'Marcas', href: '/marcas' },
+  { label: 'Promotores', href: '/afiliados' },
   { label: 'Blog', href: '/blog' },
   { label: 'FAQ', href: '/#faq' },
 ];

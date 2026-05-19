@@ -186,7 +186,7 @@ const OnboardingWizard = ({ open, onClose, onJumpToImporter }: Props) => {
             <TabsContent value="apis" className="space-y-3 pt-4">
               <p className="text-sm text-muted-foreground">Estado de conexiones para esta instancia:</p>
               {[
-                { name: "Lovable AI", desc: "IA para generación de contenido", on: true },
+                { name: "Grupoko AI (Gemini)", desc: "IA para generación de contenido", on: true },
                 { name: "Resend (Emails)", desc: "Notificaciones transaccionales", on: true },
                 { name: "Clip (Pagos)", desc: "Procesador de pagos México", on: true },
                 { name: "Firecrawl (Scraping)", desc: "Importar sitios externos con IA", on: true },

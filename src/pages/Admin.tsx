@@ -3,7 +3,46 @@ import { useNavigate } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Loader2 } from 'lucide-react';
+import { LogOut, Loader2, ChevronRight } from 'lucide-react';
+
+const SECTION_LABELS: Record<string, string> = {
+  overview: 'Dashboard',
+  orders: 'Pedidos',
+  shipping: 'Envíos',
+  clients: 'Clientes',
+  affiliates: 'Afiliados',
+  payments: 'Pagos',
+  'payment-gateways': 'Pasarelas de Pago',
+  purchasing: 'Compras B2B',
+  operations: 'Operaciones',
+  products: 'Productos',
+  inventory: 'Inventario',
+  warehouses: 'Almacenes',
+  brands: 'Marcas',
+  media: 'Multimedia',
+  banners: 'Banners',
+  blog: 'Blog',
+  channels: 'Canales de Venta',
+  amazon: 'Amazon Seller',
+  marketing: 'Hub Marketing',
+  'marketing-coupons': 'Cupones & Descuentos',
+  seo: 'SEO & Indexación',
+  apps: 'Aplicaciones',
+  integrations: 'Integraciones',
+  chatbot: 'Chatbot IA',
+  theme: 'Tema',
+  domains: 'Dominios',
+  'domains-overview': 'Resumen Dominios',
+  staff: 'Staff & Usuarios',
+  'api-keys': 'API Keys',
+  'env-connections': 'Conexiones de Entorno',
+  'access-audit': 'Auditoría de Acceso',
+  setup: 'Setup Inicial',
+  importer: 'Importar Sitio',
+  'imported-preview': 'Preview Importados',
+  'theme-importer': 'Importar Tema IA',
+  settings: 'Configuración',
+};
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
 import AdminSidebar from '@/components/admin/AdminSidebar';
@@ -42,6 +81,7 @@ import AppsSection from '@/components/admin/AppsSection';
 import ChannelsSection from '@/components/admin/ChannelsSection';
 import SubStoreAdminPanel from '@/components/admin/SubStoreAdminPanel';
 import AffiliatesSection from '@/components/admin/AffiliatesSection';
+import InstalledAppView from '@/components/admin/InstalledAppView';
 import Copyright from '@/components/Copyright';
 import { useOnboardingStatus } from '@/hooks/useOnboardingStatus';
 import { useEffect } from 'react';
@@ -97,6 +137,7 @@ const Admin = () => {
       case 'purchasing': return <PurchasingSection />;
       case 'seo': return <SeoSection />;
       case 'theme': return <ThemeSection />;
+      case 'theme-builder': { navigate('/admin/theme-builder'); return null; }
       case 'amazon': return isAdmin ? <AmazonSection /> : <OverviewSection onNavigate={setActive} />;
       case 'chatbot': return isAdmin ? <KnowledgeBaseSection /> : <OverviewSection onNavigate={setActive} />;
       case 'integrations': return isAdmin ? <IntegrationsSection /> : <OverviewSection onNavigate={setActive} />;
@@ -109,7 +150,13 @@ const Admin = () => {
       case 'imported-preview': return isAdmin ? <ImportedProductsPreviewSection /> : <OverviewSection onNavigate={setActive} />;
       case 'theme-importer': return isAdmin ? <ThemeImporterSection /> : <OverviewSection onNavigate={setActive} />;
       case 'settings': return isAdmin ? <SettingsSection /> : <OverviewSection onNavigate={setActive} />;
-      default: return <OverviewSection onNavigate={setActive} />;
+      default:
+        // Dynamic app routes: app-{slug}
+        if (active.startsWith('app-')) {
+          const slug = active.replace('app-', '');
+          return <InstalledAppView slug={slug} />;
+        }
+        return <OverviewSection onNavigate={setActive} />;
     }
   };
 
@@ -124,18 +171,22 @@ const Admin = () => {
           onSelectStore={setActiveStoreId}
         />
         <div className="flex-1 flex flex-col">
-          <header className="h-14 flex items-center border-b border-border px-4 gap-3">
-            <SidebarTrigger className="text-muted-foreground" />
-            <span className="text-sm text-muted-foreground font-medium">
-              WAXAPP<span className="text-primary">.</span> {activeStoreId ? 'Sub-tienda' : 'Admin Panel'}
-            </span>
-            <Badge variant="outline" className="ml-2 text-xs capitalize border-primary/30 text-primary">
+          <header className="h-14 flex items-center border-b border-border px-4 gap-2 bg-background/95 backdrop-blur-sm sticky top-0 z-10">
+            <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+            <div className="flex items-center gap-1.5 text-sm min-w-0">
+              <span className="text-muted-foreground/60 font-medium hidden sm:block">Admin</span>
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 hidden sm:block" />
+              <span className="text-foreground font-medium truncate">
+                {activeStoreId ? 'Sub-tienda' : (SECTION_LABELS[active] ?? 'Dashboard')}
+              </span>
+            </div>
+            <Badge variant="outline" className="ml-1 text-xs capitalize border-primary/30 text-primary hidden sm:inline-flex">
               {role}
             </Badge>
             <div className="ml-auto">
               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive gap-2" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" />
-                Cerrar Sesión
+                <span className="hidden sm:inline">Cerrar Sesión</span>
               </Button>
             </div>
           </header>

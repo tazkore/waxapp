@@ -121,7 +121,7 @@ const AmazonSection = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg bg-muted/50 border border-border p-3 text-xs text-muted-foreground space-y-1">
-                <p><strong className="text-foreground">Pasos:</strong> Estos secrets deben configurarse en Lovable Cloud → Settings → Secrets:</p>
+                <p><strong className="text-foreground">Pasos:</strong> Estos secrets deben configurarse en el panel de Supabase → Edge Functions → Secrets:</p>
                 <ul className="list-disc ml-5 space-y-0.5">
                   <li><code className="text-primary">AMAZON_LWA_CLIENT_ID</code> — Login with Amazon Client ID</li>
                   <li><code className="text-primary">AMAZON_LWA_CLIENT_SECRET</code> — Login with Amazon Client Secret</li>

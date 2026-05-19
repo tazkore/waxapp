@@ -259,13 +259,13 @@ const ApiKeysSection = () => {
         <TabsContent value="guide">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Conectar otro proyecto Lovable a esta misma base de datos</CardTitle>
+              <CardTitle className="text-base">Conectar otro proyecto al mismo Supabase</CardTitle>
               <CardDescription>Comparte datos entre dos sitios sin duplicar el backend.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
               <div>
-                <h4 className="font-semibold mb-2">1. En el otro proyecto Lovable</h4>
-                <p className="text-muted-foreground mb-2">Pídele al asistente de Lovable:</p>
+                <h4 className="font-semibold mb-2">1. En el otro proyecto</h4>
+                <p className="text-muted-foreground mb-2">Configura el cliente Supabase con:</p>
                 <pre className="bg-muted p-3 rounded text-xs font-mono whitespace-pre-wrap">
 {`Conecta este proyecto al backend Supabase existente con:
 URL: ${publicItems.find(i => i.name === 'SUPABASE_URL')?.value ?? '...'}
