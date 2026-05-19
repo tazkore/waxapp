@@ -37,7 +37,7 @@ export default function AccessAuditSection() {
   const [data, setData] = useState<AuditResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("");
-  const [auto, setAuto] = useState(true);
+  const [auto, setAuto] = useState(false);
 
   const run = async () => {
     setLoading(true);
