@@ -43,7 +43,7 @@ const SiteImporterSection = () => {
   const [products, setProducts] = useState<ExtractedProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const [branding, setBranding] = useState<any>(null);
-  const [provider, setProvider] = useState<Provider>("firecrawl");
+  const [provider, setProvider] = useState<Provider>("jina");
   const [importedIds, setImportedIds] = useState<string[]>([]);
   const [storeName, setStoreName] = useState("");
   const [storeSlug, setStoreSlug] = useState("");

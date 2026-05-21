@@ -3,7 +3,7 @@ import {
   ShoppingCart, Warehouse, PackageCheck, ShoppingBag, Brain, Image as ImageIcon,
   Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound, Network, UserCog,
   Shield, Sparkles, Wand2, Eye, Globe, Store, ChevronDown, Boxes,
-  Wallet, Layers, Radio, AppWindow, Link2, LayoutDashboard,
+  Wallet, Layers, Radio, AppWindow, Link2, LayoutDashboard, MessageCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -78,6 +78,7 @@ const groups: NavGroup[] = [
       { title: 'Hub Marketing', icon: Megaphone, key: 'marketing' },
       { title: 'Cupones & Descuentos', icon: Tag, key: 'marketing-coupons' },
       { title: 'SEO & Indexación', icon: Rocket, key: 'seo' },
+      { title: 'WhatsApp CRM (Kapso)', icon: MessageCircle, key: 'whatsapp' },
     ],
   },
   {

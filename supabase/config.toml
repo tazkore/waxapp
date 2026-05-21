@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.register-manual-payment]
 verify_jwt = false
+
+[functions.kapso-webhook]
+verify_jwt = false

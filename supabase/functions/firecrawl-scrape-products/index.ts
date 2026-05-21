@@ -13,7 +13,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const AI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
 const PRODUCT_TOOL = {
   type: "function",
@@ -133,8 +133,8 @@ Deno.serve(async (req) => {
     return errorResponse("FORBIDDEN", "Admin role required", 403);
   }
 
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  const aiAvailable = Boolean(LOVABLE_API_KEY) && use_ai;
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+  const aiAvailable = Boolean(GEMINI_API_KEY) && use_ai;
 
   // Preview mode: cap to 2 URLs and never write to import_jobs
   const limited: string[] = preview ? urls.slice(0, 2) : urls.slice(0, 30);
@@ -216,9 +216,9 @@ Deno.serve(async (req) => {
           const aiInput = markdown || html.slice(0, 14000);
           const aiRes = await fetch(AI_URL, {
             method: "POST",
-            headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+            headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
             body: JSON.stringify({
-              model: "google/gemini-2.5-flash",
+              model: "gemini-2.0-flash",
               messages: [
                 { role: "system", content: "You extract e-commerce product data from scraped page content. Only return is_product_page=true if this is clearly a product detail page (not a category, blog, or homepage). Image URLs must be absolute." },
                 { role: "user", content: `URL: ${url}\n\nCONTENT:\n${aiInput.slice(0, 12000)}` },

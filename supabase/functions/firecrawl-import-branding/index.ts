@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", ures.user.id);
-    if (!roles?.some((r: any) => r.role === "super_admin"))
+    if (!roles?.some((r: any) => ["super_admin", "admin", "moderator"].includes(r.role)))
       return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { url } = await req.json();

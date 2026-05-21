@@ -21,8 +21,8 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE);
     const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", ures.user.id);
-    const isSuper = roles?.some((r: any) => r.role === "super_admin");
-    if (!isSuper) return new Response(JSON.stringify({ error: "Forbidden: super_admin required" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const allowed = roles?.some((r: any) => ["super_admin", "admin", "moderator"].includes(r.role));
+    if (!allowed) return new Response(JSON.stringify({ error: "Forbidden: admin role required" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { url, limit = 50, provider = "firecrawl" } = await req.json();
     if (!url) throw new Error("url required");
