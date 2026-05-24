@@ -1,15 +1,11 @@
 // Lovable AI-powered global site search
 // Searches products, blog posts and SEO pages, then asks the AI to craft a helpful answer.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const { query } = await req.json().catch(() => ({ query: "" }));
@@ -20,8 +16,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -83,10 +79,10 @@ Deno.serve(async (req) => {
     // Build compact context for the AI
     const context = results
       .map(
-        (r, i) =>
-          `[${i + 1}] (${r.type}) ${r.title} — ${r.url}${
-            "price" in r && r.price ? ` — $${r.price} MXN` : ""
-          }\n${r.snippet}`,
+          (r, i) =>
+            `[${i + 1}] (${r.type}) ${r.title} — ${r.url}${
+              "price" in r && r.price ? ` — $${r.price} MXN` : ""
+            }\n${r.snippet}`,
       )
       .join("\n\n");
 
@@ -100,14 +96,14 @@ Nunca inventes productos que no estén en el contexto.`;
       context || "(sin resultados en la base)"
     }`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

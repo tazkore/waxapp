@@ -125,9 +125,7 @@ BEGIN
   END IF;
 
   -- 4. Mark as processed so it never runs twice
-  UPDATE public.orders
-  SET fulfillment_processed_at = now()
-  WHERE id = NEW.id;
+  NEW.fulfillment_processed_at := now();
 
   RETURN NEW;
 END;
@@ -143,3 +141,14 @@ WHERE t.id IN (
   ) x
   WHERE x.rn > 1
 );
+
+-- 4) Recreate triggers as BEFORE triggers to prevent recursive update issues
+DROP TRIGGER IF EXISTS trg_on_order_confirmed_insert ON public.orders;
+CREATE TRIGGER trg_on_order_confirmed_insert
+  BEFORE INSERT ON public.orders
+  FOR EACH ROW EXECUTE FUNCTION public.on_order_confirmed();
+
+DROP TRIGGER IF EXISTS trg_on_order_confirmed_update ON public.orders;
+CREATE TRIGGER trg_on_order_confirmed_update
+  BEFORE UPDATE OF status ON public.orders
+  FOR EACH ROW EXECUTE FUNCTION public.on_order_confirmed();

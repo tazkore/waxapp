@@ -258,10 +258,10 @@ const ThemeBuilder = () => {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 overflow-y-auto md:overflow-hidden">
         {/* Left panel: block list */}
         {!preview && (
-          <aside className="w-56 border-r border-border flex flex-col bg-card/50">
+          <aside className="w-full md:w-56 border-b md:border-b-0 md:border-r border-border flex flex-col bg-card/50 shrink-0">
             <div className="p-3 border-b border-border/60">
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-2">Agregar bloque</p>
               <div className="flex flex-col gap-1.5">
@@ -289,7 +289,7 @@ const ThemeBuilder = () => {
                               <div
                                 ref={prov.innerRef}
                                 {...prov.draggableProps}
-                                className={`flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer text-xs transition-colors
+                                className={`flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer text-xs transition-colors group
                                   ${selected === block.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60"}
                                   ${snap.isDragging ? "shadow-lg bg-card" : ""}`}
                                 onClick={() => setSelected(block.id)}
@@ -318,8 +318,8 @@ const ThemeBuilder = () => {
         )}
 
         {/* Center: canvas */}
-        <main className={`flex-1 overflow-y-auto p-6 bg-muted/20 ${preview ? "px-0 py-0" : ""}`}>
-          <div className={`mx-auto space-y-4 ${preview ? "max-w-none" : "max-w-3xl"}`}>
+        <main className={`flex-1 overflow-y-auto p-6 bg-muted/20 ${preview ? "p-0" : ""}`}>
+          <div className={`mx-auto ${preview ? "max-w-none space-y-0" : "max-w-3xl space-y-4"}`}>
             {blocks.length === 0 && (
               <div className="py-24 text-center text-muted-foreground">
                 <Layout className="h-12 w-12 mx-auto mb-4 text-primary/30" />
@@ -359,7 +359,7 @@ const ThemeBuilder = () => {
 
         {/* Right panel: properties */}
         {!preview && selectedBlock && (
-          <aside className="w-64 border-l border-border bg-card/50 overflow-y-auto">
+          <aside className="w-full md:w-64 border-t md:border-t-0 md:border-l border-border bg-card/50 overflow-y-auto shrink-0">
             <div className="p-4">
               <div className="flex items-center gap-2 mb-4">
                 {(() => { const Icon = blockIcon(selectedBlock.type); return <Icon className="h-4 w-4 text-primary" />; })()}

@@ -1,15 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
+const GATEWAY_URL = "https://api.resend.com";
 const FROM = "WAXAPP <noreply@updates.grupoko.com>";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -101,14 +98,12 @@ Deno.serve(async (req) => {
     let emailSent = false;
     let emailError: string | null = null;
     const resendKey = Deno.env.get("RESEND_API_KEY");
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (resendKey && lovableKey) {
+    if (resendKey) {
       try {
         const r = await fetch(`${GATEWAY_URL}/emails`, {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${lovableKey}`,
-            "X-Connection-Api-Key": resendKey,
+            "Authorization": `Bearer ${resendKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -124,7 +119,7 @@ Deno.serve(async (req) => {
         emailError = e instanceof Error ? e.message : "unknown";
       }
     } else {
-      emailError = "RESEND_API_KEY o LOVABLE_API_KEY no configurados";
+      emailError = "RESEND_API_KEY no configurado";
     }
 
     return new Response(JSON.stringify({ success: true, emailSent, emailError }), {

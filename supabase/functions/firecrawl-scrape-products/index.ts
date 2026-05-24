@@ -11,6 +11,7 @@ import {
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 };
 
 const AI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";

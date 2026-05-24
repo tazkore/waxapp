@@ -21,6 +21,9 @@ import ClientAuth from "./pages/ClientAuth.tsx";
 import ClientDashboard from "./pages/ClientDashboard.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import OrderComplete from "./pages/OrderComplete.tsx";
+import PaymentSuccess from "./pages/PaymentSuccess.tsx";
+import PaymentCancelled from "./pages/PaymentCancelled.tsx";
+import Install from "./pages/Install.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import Blog from "./pages/Blog.tsx";
@@ -77,6 +80,9 @@ const App = () => (
           <Route path="/shop/:id" element={<LegacyProductRedirect />} />
           <Route path="/afiliados" element={<AfiliadosLanding />} />
           <Route path="/orden-completada" element={<OrderComplete />} />
+          <Route path="/pago-exitoso" element={<PaymentSuccess />} />
+          <Route path="/pago-cancelado" element={<PaymentCancelled />} />
+          <Route path="/install" element={<Install />} />
           <Route path="/producto/:id" element={<ProductDetail />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/cliente" element={<ClientAuth />} />

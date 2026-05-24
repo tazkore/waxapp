@@ -1,4 +1,4 @@
-// generate-sitemap: dynamic XML sitemap with SEO pages, products and blog posts.
+﻿// generate-sitemap: dynamic XML sitemap with SEO pages, products and blog posts.
 // Multi-domain aware: resolves base URL from ?host= query or x-forwarded-host header,
 // and emits xhtml:link rel="alternate" hreflang for each sister domain.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -6,9 +6,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 }
 
-// Mirror of src/config/siteConfig.ts (kept minimal — only what the sitemap needs).
+// Mirror of src/config/siteConfig.ts (kept minimal â€” only what the sitemap needs).
 type SiteAlt = { hostname: string; canonicalBase: string; hreflang: string };
 const SITES: SiteAlt[] = [
   { hostname: 'waxapp.mx', canonicalBase: 'https://waxapp.mx', hreflang: 'es-MX' },
@@ -136,3 +137,4 @@ Deno.serve(async (req) => {
     })
   }
 })
+

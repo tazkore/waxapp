@@ -1,8 +1,9 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+﻿import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 };
 
 interface Payload {
@@ -49,18 +50,18 @@ function interpolate(s: string, c: Record<string, string>) {
 
 function trimDetails(s: string, max = 500) {
   if (!s) return '';
-  return s.length > max ? s.slice(0, max) + '…' : s;
+  return s.length > max ? s.slice(0, max) + 'â€¦' : s;
 }
 
 async function runValidation(v: Validation, c: Record<string, string>): Promise<TestResult> {
   try {
     if (!v || v.kind === 'none') {
-      return { ok: true, message: 'Credenciales guardadas (sin verificación remota disponible).' };
+      return { ok: true, message: 'Credenciales guardadas (sin verificaciÃ³n remota disponible).' };
     }
     if (v.kind === 'regex') {
       const val = c[v.field] || '';
-      if (new RegExp(v.pattern).test(val)) return { ok: true, message: 'Formato válido.' };
-      const msg = v.message || 'Formato inválido.';
+      if (new RegExp(v.pattern).test(val)) return { ok: true, message: 'Formato vÃ¡lido.' };
+      const msg = v.message || 'Formato invÃ¡lido.';
       return { ok: false, message: msg, field_errors: { [v.field]: msg } };
     }
     if (v.kind === 'http') {
@@ -95,9 +96,9 @@ async function runValidation(v: Validation, c: Record<string, string>): Promise<
       }
       return ok
         ? { ok: true, message: `Conectado correctamente (HTTP ${r.status}).`, status: r.status, latency_ms, details: trimDetails(body) }
-        : { ok: false, message: `El proveedor respondió HTTP ${r.status}.`, status: r.status, latency_ms, details: trimDetails(body), field_errors };
+        : { ok: false, message: `El proveedor respondiÃ³ HTTP ${r.status}.`, status: r.status, latency_ms, details: trimDetails(body), field_errors };
     }
-    return { ok: false, message: 'Tipo de validación desconocido.' };
+    return { ok: false, message: 'Tipo de validaciÃ³n desconocido.' };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : 'Error de red.', details: String(e) };
   }
@@ -115,7 +116,7 @@ async function legacyTest(slug: string, c: Record<string, string>): Promise<Test
       const latency_ms = Date.now() - t0;
       return r.ok
         ? { ok: true, message: 'Skydropx conectado correctamente.', status: r.status, latency_ms }
-        : { ok: false, message: `Skydropx rechazó la API Key (HTTP ${r.status}).`, status: r.status, latency_ms, details: trimDetails(body), field_errors: { api_key: 'Inválida' } };
+        : { ok: false, message: `Skydropx rechazÃ³ la API Key (HTTP ${r.status}).`, status: r.status, latency_ms, details: trimDetails(body), field_errors: { api_key: 'InvÃ¡lida' } };
     }
     case 'whatsapp_api': {
       const fe: Record<string, string> = {};
@@ -130,7 +131,7 @@ async function legacyTest(slug: string, c: Record<string, string>): Promise<Test
       const latency_ms = Date.now() - t0;
       return r.ok
         ? { ok: true, message: 'WhatsApp Business API verificada.', status: r.status, latency_ms }
-        : { ok: false, message: `WhatsApp rechazó las credenciales (HTTP ${r.status}).`, status: r.status, latency_ms, details: trimDetails(body) };
+        : { ok: false, message: `WhatsApp rechazÃ³ las credenciales (HTTP ${r.status}).`, status: r.status, latency_ms, details: trimDetails(body) };
     }
     case 'klaviyo': {
       if (!c.api_key) return { ok: false, message: 'Falta API Key', field_errors: { api_key: 'Requerido' } };
@@ -167,7 +168,7 @@ Deno.serve(async (req) => {
     );
     const token = authHeader.replace('Bearer ', '');
     const { data: claims, error: cErr } = await supaUser.auth.getClaims(token);
-    if (cErr || !claims?.claims?.sub) return json({ ok: false, message: 'Token inválido.' }, 401);
+    if (cErr || !claims?.claims?.sub) return json({ ok: false, message: 'Token invÃ¡lido.' }, 401);
     const userId = claims.claims.sub;
 
     // Verificar rol
@@ -187,7 +188,7 @@ Deno.serve(async (req) => {
     if (!body?.slug) return json({ ok: false, message: 'slug requerido' }, 400);
     const c = body.credentials || {};
 
-    // 3. Cargar definición de la app
+    // 3. Cargar definiciÃ³n de la app
     const { data: row } = await supaService
       .from('integrations')
       .select('credential_schema, validation')
@@ -206,10 +207,10 @@ Deno.serve(async (req) => {
       if (val && f.pattern) {
         try {
           if (!new RegExp(f.pattern).test(val)) {
-            field_errors[f.key] = f.pattern_message || 'Formato inválido';
+            field_errors[f.key] = f.pattern_message || 'Formato invÃ¡lido';
           }
         } catch {
-          field_errors[f.key] = 'Pattern del schema inválido';
+          field_errors[f.key] = 'Pattern del schema invÃ¡lido';
         }
       }
     }
@@ -217,7 +218,7 @@ Deno.serve(async (req) => {
       return json({ ok: false, message: 'Hay errores en los campos.', field_errors }, 400);
     }
 
-    // 5. Ejecutar validación
+    // 5. Ejecutar validaciÃ³n
     let result: TestResult;
     const v = row?.validation as Validation | undefined;
     if (v && (v.kind === 'http' || v.kind === 'regex')) {
@@ -232,3 +233,4 @@ Deno.serve(async (req) => {
     return json({ ok: false, message: e instanceof Error ? e.message : 'Error', details: String(e) }, 500);
   }
 });
+

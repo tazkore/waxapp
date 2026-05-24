@@ -20,8 +20,9 @@ export async function getWhatsAppLeads(page = 0, pageSize = 20): Promise<{ data:
   const from = page * pageSize;
   const to = from + pageSize - 1;
 
+  // Los leads de WhatsApp van a customer_profiles (no a clients que es tabla de afiliados)
   const { data, error, count } = await supabase
-    .from('clients')
+    .from('customer_profiles')
     .select('id, name, phone, email, created_at, lead_source', { count: 'exact' })
     .eq('lead_source', 'WhatsApp')
     .order('created_at', { ascending: false })
@@ -33,7 +34,7 @@ export async function getWhatsAppLeads(page = 0, pageSize = 20): Promise<{ data:
 
 export async function getAllClientPhones(): Promise<string[]> {
   const { data, error } = await supabase
-    .from('clients')
+    .from('customer_profiles')
     .select('phone')
     .not('phone', 'is', null);
 
@@ -43,7 +44,7 @@ export async function getAllClientPhones(): Promise<string[]> {
 
 export async function getWhatsAppClientPhones(): Promise<string[]> {
   const { data, error } = await supabase
-    .from('clients')
+    .from('customer_profiles')
     .select('phone')
     .eq('lead_source', 'WhatsApp')
     .not('phone', 'is', null);

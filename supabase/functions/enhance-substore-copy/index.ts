@@ -1,12 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
@@ -21,14 +19,14 @@ Deno.serve(async (req) => {
     if (!ok) return json({ error: "Forbidden" }, 403);
 
     const { snapshot, source_html_excerpt, brand_name } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) return json({ error: "AI no configurada" }, 500);
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) return json({ error: "AI no configurada" }, 500);
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResp = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: "Eres copywriter senior estilo Tesla/Apple en español MX. Tono Dark Mode Tech: minimalista, técnico, premium. No inventes productos ni precios. Mantén nombre de marca." },
           { role: "user", content: `Marca: ${brand_name ?? snapshot?.name ?? ""}\nCopy actual:\n${JSON.stringify(snapshot ?? {}, null, 2)}\n\nFragmento HTML/MD del sitio original:\n${(source_html_excerpt ?? "").slice(0, 12000)}\n\nMejora la copia para una sub-tienda independiente.` },

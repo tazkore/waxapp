@@ -58,13 +58,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Cliente con service role para verificar rol y escribir log
-    const admin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    const { data: roleData } = await admin
+    // Verificar rol usando el JWT del usuario (pasa RLS de user_roles)
+    const { data: roleData } = await userClient
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
@@ -78,6 +73,12 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Cliente service_role solo para escribir logs de auditoría (no necesita leer user_roles)
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
 
     const body = await req.json().catch(() => ({}));
     const requested: string[] = Array.isArray(body?.secret_names) ? body.secret_names : [];

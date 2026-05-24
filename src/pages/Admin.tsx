@@ -43,6 +43,7 @@ const SECTION_LABELS: Record<string, string> = {
   'theme-importer': 'Importar Tema IA',
   settings: 'Configuración',
   whatsapp: 'WhatsApp CRM (Kapso)',
+  perfil: 'Mi Perfil',
 };
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -84,6 +85,7 @@ import SubStoreAdminPanel from '@/components/admin/SubStoreAdminPanel';
 import AffiliatesSection from '@/components/admin/AffiliatesSection';
 import InstalledAppView from '@/components/admin/InstalledAppView';
 import WhatsAppCRMSection from '@/components/admin/WhatsAppCRMSection';
+import AdminProfileSection from '@/components/admin/AdminProfileSection';
 import Copyright from '@/components/Copyright';
 import { useOnboardingStatus } from '@/hooks/useOnboardingStatus';
 import { useEffect } from 'react';
@@ -153,6 +155,7 @@ const Admin = () => {
       case 'theme-importer': return isAdmin ? <ThemeImporterSection /> : <OverviewSection onNavigate={setActive} />;
       case 'settings': return isAdmin ? <SettingsSection /> : <OverviewSection onNavigate={setActive} />;
       case 'whatsapp': return <WhatsAppCRMSection />;
+      case 'perfil': return <AdminProfileSection />;
       default:
         // Dynamic app routes: app-{slug}
         if (active.startsWith('app-')) {

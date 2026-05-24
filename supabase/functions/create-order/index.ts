@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 };
 
 Deno.serve(async (req) => {
@@ -88,8 +89,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Generate order number server-side
-    const orderNumber = `WX-${Math.floor(1000 + Math.random() * 9000)}`;
+    // Generate order number server-side — timestamp base-36 + 3 random hex chars para evitar colisiones
+    const tsSegment = Date.now().toString(36).toUpperCase().slice(-5);
+    const randSegment = Math.floor(Math.random() * 0xfff).toString(16).toUpperCase().padStart(3, '0');
+    const orderNumber = `WX-${tsSegment}${randSegment}`;
 
     const { data, error } = await supabase.from("orders").insert({
       order_number: orderNumber,
@@ -173,24 +176,23 @@ Deno.serve(async (req) => {
       const { data: adminRoles } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
       if (adminRoles && adminRoles.length > 0) {
         const adminIds = adminRoles.map((r: any) => r.user_id);
-        const { data: { users: allUsers } } = await supabase.auth.admin.listUsers({ perPage: 200 });
-        const adminEmails = (allUsers ?? []).filter((u: any) => adminIds.includes(u.id)).map((u: any) => u.email).filter(Boolean);
+        const listResult = await supabase.auth.admin.listUsers({ perPage: 200 });
+        const allUsers = listResult?.data?.users ?? [];
+        const adminEmails = allUsers.filter((u: any) => adminIds.includes(u.id)).map((u: any) => u.email).filter(Boolean);
 
         if (adminEmails.length > 0) {
           const itemsHtml = items.map((i: any) =>
             `<tr><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">${i.title}${i.variant ? ` (${i.variant})` : ''}</td><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;text-align:center">${i.qty}</td><td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;text-align:right">$${(i.price * i.qty).toLocaleString()}</td></tr>`
           ).join('');
 
-          const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
           const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
-          if (LOVABLE_API_KEY && RESEND_API_KEY) {
-            await fetch("https://connector-gateway.lovable.dev/resend/emails", {
+          if (RESEND_API_KEY) {
+            await fetch("https://api.resend.com/emails", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-                "X-Connection-Api-Key": RESEND_API_KEY,
+                "Authorization": `Bearer ${RESEND_API_KEY}`,
               },
               body: JSON.stringify({
                 from: "WAXAPP <onboarding@resend.dev>",
@@ -198,13 +200,13 @@ Deno.serve(async (req) => {
                 subject: `🛒 Nuevo Pedido ${orderNumber} — $${total.toLocaleString()} MXN`,
                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:30px;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb">
                   <div style="text-align:center;margin-bottom:20px">
-                    <h1 style="color:#8B5CF6;font-size:24px;margin:0">WAXAPP</h1>
+                    <h1 style="color:#0A0A0A;font-size:24px;margin:0">WAXAPP</h1>
                     <p style="color:#6b7280;margin:4px 0 0;font-size:13px">Notificación de Nuevo Pedido</p>
                   </div>
                   <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0"/>
-                  <div style="background:#faf5ff;border-radius:10px;padding:16px;margin-bottom:20px;border-left:4px solid #8B5CF6">
+                  <div style="background:#f0fdf4;border-radius:10px;padding:16px;margin-bottom:20px;border-left:4px solid #00E676">
                     <p style="margin:0;font-size:13px;color:#6b7280">Pedido</p>
-                    <p style="margin:4px 0 0;font-size:24px;font-weight:bold;color:#8B5CF6;font-family:monospace">${orderNumber}</p>
+                    <p style="margin:4px 0 0;font-size:24px;font-weight:bold;color:#00E676;font-family:monospace">${orderNumber}</p>
                   </div>
                   <table style="width:100%;margin-bottom:16px;font-size:14px;color:#374151">
                     <tr><td style="padding:4px 0;color:#6b7280">Cliente:</td><td style="padding:4px 0;font-weight:600">${customer_name.trim()}</td></tr>

@@ -1,13 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { providerScrape, type Provider } from "../_shared/scrape-providers.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -43,8 +40,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
 
     // 1. Scrape page using selected provider
     let scraped;
@@ -64,11 +61,11 @@ Deno.serve(async (req) => {
     const snippet = (html || md).slice(0, 30000);
 
     // 2. Ask AI to extract a theme spec (HSL palette, fonts, tagline, hero copy)
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResp = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: "Eres un diseñador senior. Analiza el HTML/markdown y devuelve un design system completo en HSL." },
           { role: "user", content: `URL: ${url}\nTitle: ${meta.title ?? ""}\nDescription: ${meta.description ?? ""}\n\nHTML/MD parcial:\n${snippet}\n\nExtrae: paleta de colores principal (en HSL "H S% L%" sin hsl()), tipografías, nombre de marca, tagline corto, hero headline y subtítulo.` },

@@ -10,14 +10,10 @@
 //   7) Pexels         (PEXELS_API_KEY)
 //   8) Pixabay        (PIXABAY_KEY)
 //   9) DuckDuckGo     (no key, scrape)
-//  10) Lovable AI     (LOVABLE_API_KEY) — generation fallback
+//  10) Gemini AI      (GEMINI_API_KEY) — generation fallback
 //
 // Body: { name, brand?, category?, gtin?, count?, providers?: string[], includeAi?: boolean }
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -195,21 +191,17 @@ async function fromDuckDuckGo(query: string, count: number): Promise<string[]> {
 }
 
 async function fromAi(query: string): Promise<string[]> {
-  const key = Deno.env.get("LOVABLE_API_KEY");
+  const key = Deno.env.get("GEMINI_API_KEY");
   if (!key) return [];
   try {
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:generateImages?key=${key}`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
-        messages: [
-          {
-            role: "user",
-            content: `Generate a clean professional product photo of: ${query}. White studio background, centered, high quality, no text, no watermark.`,
-          },
-        ],
-        modalities: ["image", "text"],
+        prompt: `Generate a clean professional product photo of: ${query}. White studio background, centered, high quality, no text, no watermark.`,
+        numberOfImages: 1,
+        outputMimeType: "image/jpeg",
+        aspectRatio: "1:1",
       }),
     });
     if (!r.ok) {
@@ -217,8 +209,8 @@ async function fromAi(query: string): Promise<string[]> {
       return [];
     }
     const d = await r.json();
-    const url = d?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    return url ? [url] : [];
+    const imageBytes = d?.generatedImages?.[0]?.image?.imageBytes;
+    return imageBytes ? [`data:image/jpeg;base64,${imageBytes}`] : [];
   } catch (e) {
     console.error("ai err", e);
     return [];
@@ -386,7 +378,8 @@ async function runProvider(id: ProviderId, ctx: { query: string; gtin: string; c
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   let body: any;
   try { body = await req.json(); } catch {
@@ -442,7 +435,6 @@ Deno.serve(async (req) => {
     if (valid.length) {
       return json({ images: valid.slice(0, count), source: id, query, validated: true, tried });
     }
-    // 0 válidas → reintenta con siguiente proveedor
   }
 
   if (includeAi) {

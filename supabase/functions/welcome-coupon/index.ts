@@ -1,14 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
 
 // Returns the most recent unused WELCOME coupon for the requesting user.
 // The coupon was created automatically by the on-customer-profile trigger.
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -51,17 +48,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Send via Resend connector gateway
+    // Send via direct Resend API
     const resendKey = Deno.env.get("RESEND_API_KEY");
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     let emailSent = false;
-    if (resendKey && lovableKey && user.email) {
+    if (resendKey && user.email) {
       try {
-        const r = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
+        const r = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${lovableKey}`,
-            "X-Connection-Api-Key": resendKey,
+            "Authorization": `Bearer ${resendKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({

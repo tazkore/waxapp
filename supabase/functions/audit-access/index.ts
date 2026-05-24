@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
@@ -31,8 +31,11 @@ Deno.serve(async (req) => {
     });
   }
 
-  const token = authHeader.replace("Bearer ", "");
-  const { data: { user } } = await supabase.auth.getUser(token);
+  // Usar el JWT del usuario para auth + consulta de roles (pasa RLS de user_roles)
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user } } = await userClient.auth.getUser();
   if (!user) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
@@ -40,7 +43,10 @@ Deno.serve(async (req) => {
     });
   }
 
-  const { data: roleRows } = await supabase
+  // service_role solo para operaciones que requieren bypass de RLS
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+  const { data: roleRows } = await userClient
     .from("user_roles")
     .select("role")
     .eq("user_id", user.id);

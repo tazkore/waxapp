@@ -4,6 +4,7 @@ import {
   Bookmark, Megaphone, Newspaper, Palette, CreditCard, KeyRound, Network, UserCog,
   Shield, Sparkles, Wand2, Eye, Globe, Store, ChevronDown, Boxes,
   Wallet, Layers, Radio, AppWindow, Link2, LayoutDashboard, MessageCircle,
+  Zap, RefreshCcw,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -87,6 +88,12 @@ const groups: NavGroup[] = [
       { title: 'Aplicaciones', icon: AppWindow, key: 'apps', adminOnly: true },
       { title: 'Integraciones', icon: Puzzle, key: 'integrations', adminOnly: true },
       { title: 'Chatbot IA', icon: Brain, key: 'chatbot', adminOnly: true },
+    ],
+  },
+  {
+    id: 'profile', label: 'Mi Perfil', color: '#94a3b8',
+    items: [
+      { title: 'Mi Perfil', icon: UserCog, key: 'perfil' },
     ],
   },
   {
@@ -318,6 +325,63 @@ const AdminSidebar = ({
             </SidebarGroupContent>
           </SidebarGroup>
         )}
+
+        {/* Grupoko Edge — accesos rápidos de integraciones activas (Clip, Zapier, etc.) */}
+        {(() => {
+          const clipActive = installedApps.some((a) => a.slug === 'clip-mx' || a.slug === 'clip');
+          const zapierActive = installedApps.some((a) => a.slug === 'zapier');
+          if (!clipActive && !zapierActive) return null;
+
+          const edgeItems: { title: string; icon: React.ElementType; key: string; badge?: string }[] = [];
+          if (clipActive) {
+            edgeItems.push({ title: 'Pasarelas · Clip', icon: CreditCard, key: 'payment-gateways', badge: 'Clip' });
+            edgeItems.push({ title: 'Sincronizar Pagos', icon: RefreshCcw, key: 'payments' });
+          }
+          if (zapierActive) {
+            edgeItems.push({ title: 'Automatizaciones', icon: Zap, key: 'integrations', badge: 'Zapier' });
+          }
+
+          return (
+            <SidebarGroup>
+              <SidebarGroupLabel className="flex items-center gap-1.5 group-data-[collapsible=icon]:hidden">
+                <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#00E676' }} />
+                <span className="text-[9px] uppercase tracking-widest font-semibold flex-1" style={{ color: '#00E676' }}>
+                  Grupoko Edge
+                </span>
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {edgeItems.map((item) => {
+                    const isActive = !activeStoreId && activeSection === item.key;
+                    return (
+                      <SidebarMenuItem key={`edge-${item.key}-${item.title}`}>
+                        <SidebarMenuButton
+                          tooltip={item.title}
+                          onClick={() => { onSelectStore?.(null); onNavigate(item.key); }}
+                          className={cn(
+                            'cursor-pointer transition-all duration-150 border-l-2',
+                            isActive
+                              ? 'border-[#00E676] font-medium'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 border-transparent'
+                          )}
+                          style={isActive ? { backgroundColor: 'rgba(0,230,118,0.08)', color: '#00E676' } : {}}
+                        >
+                          <item.icon className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate flex-1">{item.title}</span>
+                          {item.badge && (
+                            <span className="text-[9px] px-1 py-0.5 rounded font-mono font-bold" style={{ backgroundColor: 'rgba(0,230,118,0.15)', color: '#00E676' }}>
+                              {item.badge}
+                            </span>
+                          )}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          );
+        })()}
 
         {/* Footer */}
         <div className="mt-auto px-3 pt-4 pb-3 group-data-[collapsible=icon]:hidden border-t border-border/40">

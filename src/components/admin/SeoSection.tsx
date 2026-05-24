@@ -294,17 +294,28 @@ const SeoSection = () => {
     setAiLoadingProduct(product.id);
     try {
       const { data, error } = await supabase.functions.invoke('product-autofill', {
-        body: { product_id: product.id, only_missing: false },
+        body: {
+          product: {
+            id: product.id,
+            name: product.name,
+            description: product.description,
+            slug: product.slug,
+            price: product.price,
+            image_url: product.image_url,
+          },
+          only_missing: false,
+        },
       });
       if (error) throw error;
-      if (!data?.meta_title) throw new Error('La IA no devolvió resultados. Intenta de nuevo.');
+      const proposal = data?.proposal ?? {};
+      if (!proposal.meta_title && !proposal.meta_description) throw new Error('La IA no devolvió resultados. Intenta de nuevo.');
       const seoPath = `/producto/${product.slug}`;
       const { error: upsertErr } = await supabase.from('seo_pages').upsert({
         page_path: seoPath,
         page_title: product.name,
-        meta_title: data.meta_title ?? null,
-        meta_description: data.meta_description ?? null,
-        keywords: data.meta_keywords ?? [],
+        meta_title: proposal.meta_title ?? null,
+        meta_description: proposal.meta_description ?? null,
+        keywords: proposal.meta_keywords ?? [],
         is_indexed: true,
         auto_sitemap: true,
       }, { onConflict: 'page_path' });

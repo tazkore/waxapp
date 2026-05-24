@@ -2,12 +2,7 @@
 // y sincroniza el estado del pedido vinculado (orders.status).
 // No requiere JWT (Clip llama desde fuera).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-clip-signature",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
 
 interface ClipEvent {
   id?: string;
@@ -77,9 +72,8 @@ const mapOrderStatus = (txStatus: string, currentOrderStatus?: string): string |
 };
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const supabase = createClient(

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,8 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, LogOut, User, Save, ArrowLeft, Package, Truck, Sparkles, Copy, Gift } from 'lucide-react';
+import { Loader2, LogOut, Save, ArrowLeft, Package, Truck, Sparkles, Copy, Gift, MapPin } from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
+import ProfileSidebar from '@/components/ProfileSidebar';
+import AvatarUpload from '@/components/AvatarUpload';
+
 
 const countries = [
   'México', 'Estados Unidos', 'España', 'Colombia', 'Argentina', 'Chile',
@@ -34,54 +38,79 @@ const tierColor: Record<string, string> = {
   VIP: 'bg-primary/20 text-primary border-primary/30',
 };
 
+type ProfileForm = {
+  full_name: string;
+  phone: string;
+  country: string;
+  address: string;
+  city: string;
+  state: string;
+  postal_code: string;
+};
+
+type ActiveTab = 'orders' | 'rewards' | 'profile';
+
 const ClientDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'rewards'>('orders');
-  const [form, setForm] = useState({ full_name: '', phone: '', country: '', address: '', city: '', state: '', postal_code: '' });
+  const [activeTab, setActiveTab] = useState<ActiveTab>('orders');
   const [client, setClient] = useState<any>(null);
   const [referrals, setReferrals] = useState<any[]>([]);
   const [generatingCode, setGeneratingCode] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<ProfileForm>({
+    defaultValues: { full_name: '', phone: '', country: '', address: '', city: '', state: '', postal_code: '' },
+  });
+  const countryVal = watch('country');
+
   useEffect(() => {
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { navigate('/cliente'); return; }
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) { navigate('/cliente'); return; }
+      setUser(authUser);
 
-      const { data } = await supabase.from('customer_profiles').select('*').eq('user_id', user.id).single();
-      if (data) {
-        setProfile(data);
-        setForm({
-          full_name: data.full_name || '',
-          phone: data.phone || '',
-          country: data.country || '',
-          address: data.address || '',
-          city: data.city || '',
-          state: data.state || '',
-          postal_code: data.postal_code || '',
-        });
+      const { data: profileData } = await supabase
+        .from('customer_profiles')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+
+      if (profileData) {
+        setProfile(profileData);
+        setAvatarUrl(profileData.avatar_url ?? null);
+        setValue('full_name', profileData.full_name ?? '');
+        setValue('phone', profileData.phone ?? '');
+        setValue('country', profileData.country ?? '');
+        setValue('address', profileData.address ?? '');
+        setValue('city', profileData.city ?? '');
+        setValue('state', profileData.state ?? '');
+        setValue('postal_code', profileData.postal_code ?? '');
       }
 
-      // Fetch orders by email
-      if (user.email) {
+      if (authUser.email) {
         const { data: orderData } = await supabase
           .from('orders')
           .select('*')
-          .eq('customer_email', user.email)
+          .eq('customer_email', authUser.email)
           .order('created_at', { ascending: false });
         setOrders(orderData ?? []);
 
         const { data: clientRow } = await supabase
-          .from('customer_profiles').select('*').eq('email', user.email).maybeSingle();
+          .from('clients')
+          .select('*')
+          .eq('email', authUser.email)
+          .maybeSingle();
         setClient(clientRow);
 
         const { data: refRows } = await supabase
           .from('wax_referrals').select('*')
-          .eq('referrer_user_id', user.id)
+          .eq('referrer_user_id', authUser.id)
           .order('created_at', { ascending: false }).limit(5);
         setReferrals(refRows ?? []);
       }
@@ -89,15 +118,13 @@ const ClientDashboard = () => {
       setLoading(false);
     };
     load();
-  }, [navigate]);
+  }, [navigate, setValue]);
 
   const generateInviteLink = async () => {
     setGeneratingCode(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No autenticado');
       const code = `WAX-${user.id.slice(0, 8).toUpperCase()}`;
-      // Idempotent insert
       await supabase.from('wax_referrals').upsert({
         referrer_user_id: user.id,
         referrer_email: user.email!,
@@ -119,25 +146,45 @@ const ClientDashboard = () => {
     }
   };
 
-  const handleSave = async () => {
-    if (!form.phone || !form.country || !form.full_name) {
-      toast({ title: 'Campos requeridos', description: 'Nombre, teléfono y país son obligatorios.', variant: 'destructive' });
-      return;
-    }
+  const onSubmit = async (data: ProfileForm) => {
+    if (!user) return;
     setSaving(true);
-    const { error } = await supabase.from('customer_profiles').update({
-      full_name: form.full_name,
-      phone: form.phone,
-      country: form.country,
-      address: form.address || null,
-      city: form.city || null,
-      state: form.state || null,
-      postal_code: form.postal_code || null,
-    }).eq('id', profile.id);
-
-    if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    else toast({ title: 'Perfil actualizado' });
-    setSaving(false);
+    try {
+      if (profile) {
+        const { error } = await supabase
+          .from('customer_profiles')
+          .update({
+            full_name: data.full_name,
+            phone: data.phone,
+            country: data.country,
+            address: data.address || null,
+            city: data.city || null,
+            state: data.state || null,
+            postal_code: data.postal_code || null,
+          })
+          .eq('id', profile.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('customer_profiles')
+          .insert({
+            user_id: user.id,
+            full_name: data.full_name,
+            phone: data.phone,
+            country: data.country,
+            address: data.address || null,
+            city: data.city || null,
+            state: data.state || null,
+            postal_code: data.postal_code || null,
+          });
+        if (error) throw error;
+      }
+      toast({ title: 'Perfil actualizado' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.message || 'Error al guardar', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -151,9 +198,17 @@ const ClientDashboard = () => {
     </div>
   );
 
+  const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
+
+  const navItems = [
+    { key: 'orders', label: 'Mis Pedidos', icon: Package, active: activeTab === 'orders', onClick: () => setActiveTab('orders') },
+    { key: 'rewards', label: 'WAX Points', icon: Sparkles, active: activeTab === 'rewards', onClick: () => setActiveTab('rewards') },
+    { key: 'profile', label: 'Mis Datos', icon: MapPin, active: activeTab === 'profile', onClick: () => setActiveTab('profile') },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="h-14 flex items-center border-b border-border px-4 gap-3">
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="h-14 flex items-center border-b border-border px-4 gap-3 bg-background/95 sticky top-0 z-20 backdrop-blur-sm">
         <Link to="/" className="text-foreground hover:text-primary">
           <ArrowLeft className="h-5 w-5" />
         </Link>
@@ -167,193 +222,223 @@ const ClientDashboard = () => {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto p-6 space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-            <User className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">{profile?.full_name}</h1>
-            <p className="text-sm text-muted-foreground">{profile?.country}</p>
-          </div>
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Profile Sidebar */}
+        <ProfileSidebar
+          userId={user?.id ?? ''}
+          avatarUrl={avatarUrl}
+          name={displayName}
+          email={user?.email}
+          role="Cliente"
+          navItems={navItems}
+          onAvatarUpdated={(url) => setAvatarUrl(url)}
+          className="hidden md:flex"
+        />
+
+        {/* Mobile tab bar */}
+        <div className="md:hidden w-full fixed bottom-0 left-0 right-0 z-20 bg-card border-t border-border flex">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.key}
+                onClick={item.onClick}
+                className={`flex-1 flex flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors ${
+                  item.active ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                <Icon className="h-5 w-5" />
+                {item.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 border-b border-border">
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === 'orders' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Package className="h-4 w-4 inline mr-2" />Mis Pedidos
-          </button>
-          <button
-            onClick={() => setActiveTab('rewards')}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === 'rewards' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Sparkles className="h-4 w-4 inline mr-2" />WAX Points
-          </button>
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === 'profile' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <User className="h-4 w-4 inline mr-2" />Mis Datos
-          </button>
-        </div>
-
-        {activeTab === 'rewards' && (
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-foreground text-base flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" /> Mis WAX Points
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 text-center">
-                <p className="text-xs uppercase tracking-widest text-muted-foreground">Saldo actual</p>
-                <p className="font-display text-5xl font-bold text-primary mt-1">{(client?.loyalty_points ?? 0).toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Equivale a <span className="text-foreground font-semibold">${(client?.loyalty_points ?? 0).toLocaleString()} MXN</span> de descuento futuro
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-1">Nivel: <Badge className={tierColor[client?.membership_tier ?? 'Bronze'] ?? ''}>{client?.membership_tier ?? 'Bronze'}</Badge></p>
-              </div>
-              <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
-                <p className="text-sm font-semibold text-foreground flex items-center gap-2"><Gift className="h-4 w-4 text-secondary" /> Invita y gana</p>
-                <p className="text-xs text-muted-foreground">Por cada amigo que complete su primera compra obtienes <strong className="text-foreground">100 WAX Points extra</strong>.</p>
-                <Button onClick={generateInviteLink} disabled={generatingCode} className="w-full gap-2 mt-2">
-                  {generatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
-                  Generar link de invitación
-                </Button>
-              </div>
-              {referrals.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Últimas invitaciones</p>
-                  <div className="rounded-lg border border-border overflow-hidden">
-                    <table className="w-full text-xs">
-                      <thead className="bg-muted/50">
-                        <tr><th className="text-left p-2 text-muted-foreground">Código</th><th className="text-left p-2 text-muted-foreground">Estado</th><th className="text-left p-2 text-muted-foreground">Fecha</th></tr>
-                      </thead>
-                      <tbody>
-                        {referrals.map((r) => (
-                          <tr key={r.id} className="border-t border-border">
-                            <td className="p-2 font-mono text-foreground">{r.code}</td>
-                            <td className="p-2 text-muted-foreground capitalize">{r.status}</td>
-                            <td className="p-2 text-muted-foreground">{new Date(r.created_at).toLocaleDateString('es-MX')}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+        {/* Main content */}
+        <main className="flex-1 p-6 md:p-8 overflow-auto pb-20 md:pb-8">
+          <div className="max-w-2xl mx-auto space-y-6">
+            {activeTab === 'orders' && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-bold text-foreground">Mis Pedidos</h2>
+                {orders.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>Aún no tienes pedidos.</p>
+                    <Button variant="outline" className="mt-4" onClick={() => navigate('/')}>Ir a la Tienda</Button>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {activeTab === 'orders' && (
-          <div className="space-y-4">
-            {orders.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>Aún no tienes pedidos.</p>
-                <Button variant="outline" className="mt-4" onClick={() => navigate('/')}>Ir a la Tienda</Button>
-              </div>
-            ) : (
-              orders.map((order) => {
-                const status = statusLabels[order.status] ?? statusLabels.pending;
-                const items = Array.isArray(order.items) ? order.items : [];
-                return (
-                  <Card key={order.id} className="bg-card border-border">
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-mono font-bold text-foreground">{order.order_number}</p>
-                          <p className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                        </div>
-                        <Badge className={status.color}>{status.label}</Badge>
-                      </div>
-                      <div className="space-y-1">
-                        {items.map((item: any, idx: number) => (
-                          <div key={idx} className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">{item.title} x{item.qty}{item.variant ? ` (${item.variant})` : ''}</span>
-                            <span className="text-foreground">${(item.price * item.qty).toLocaleString()}</span>
+                ) : (
+                  orders.map((order) => {
+                    const status = statusLabels[order.status] ?? statusLabels.pending;
+                    const items = Array.isArray(order.items) ? order.items : [];
+                    return (
+                      <Card key={order.id} className="bg-card border-border">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-mono font-bold text-foreground">{order.order_number}</p>
+                              <p className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                            </div>
+                            <Badge className={status.color}>{status.label}</Badge>
                           </div>
-                        ))}
+                          <div className="space-y-1">
+                            {items.map((item: any, idx: number) => (
+                              <div key={idx} className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">{item.title} x{item.qty}{item.variant ? ` (${item.variant})` : ''}</span>
+                                <span className="text-foreground">${(item.price * item.qty).toLocaleString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex justify-between border-t border-border pt-2">
+                            <span className="text-sm font-medium text-foreground">Total</span>
+                            <span className="font-bold text-foreground">${order.total.toLocaleString()} MXN</span>
+                          </div>
+                          {order.tracking_number && (
+                            <div className="flex items-center gap-2 text-sm text-primary">
+                              <Truck className="h-4 w-4" />
+                              <span>Guía: {order.tracking_number}</span>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            {activeTab === 'rewards' && (
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="text-foreground text-base flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" /> Mis WAX Points
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 text-center">
+                    <p className="text-xs uppercase tracking-widest text-muted-foreground">Saldo actual</p>
+                    <p className="font-display text-5xl font-bold text-primary mt-1">{(client?.loyalty_points ?? 0).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Equivale a <span className="text-foreground font-semibold">${(client?.loyalty_points ?? 0).toLocaleString()} MXN</span> de descuento futuro
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-1">Nivel: <Badge className={tierColor[client?.membership_tier ?? 'Bronze'] ?? ''}>{client?.membership_tier ?? 'Bronze'}</Badge></p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
+                    <p className="text-sm font-semibold text-foreground flex items-center gap-2"><Gift className="h-4 w-4 text-secondary" /> Invita y gana</p>
+                    <p className="text-xs text-muted-foreground">Por cada amigo que complete su primera compra obtienes <strong className="text-foreground">100 WAX Points extra</strong>.</p>
+                    <Button onClick={generateInviteLink} disabled={generatingCode} className="w-full gap-2 mt-2">
+                      {generatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+                      Generar link de invitación
+                    </Button>
+                  </div>
+                  {referrals.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Últimas invitaciones</p>
+                      <div className="rounded-lg border border-border overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted/50">
+                            <tr><th className="text-left p-2 text-muted-foreground">Código</th><th className="text-left p-2 text-muted-foreground">Estado</th><th className="text-left p-2 text-muted-foreground">Fecha</th></tr>
+                          </thead>
+                          <tbody>
+                            {referrals.map((r) => (
+                              <tr key={r.id} className="border-t border-border">
+                                <td className="p-2 font-mono text-foreground">{r.code}</td>
+                                <td className="p-2 text-muted-foreground capitalize">{r.status}</td>
+                                <td className="p-2 text-muted-foreground">{new Date(r.created_at).toLocaleDateString('es-MX')}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
-                      <div className="flex justify-between border-t border-border pt-2">
-                        <span className="text-sm font-medium text-foreground">Total</span>
-                        <span className="font-bold text-foreground">${order.total.toLocaleString()} MXN</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === 'profile' && (
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="text-foreground text-base flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-primary" /> Mis Datos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {/* Mobile-only avatar upload section */}
+                  <div className="flex md:hidden flex-col items-center justify-center pb-6 border-b border-border/50 mb-6 gap-2">
+                    <AvatarUpload
+                      userId={user?.id ?? ''}
+                      avatarUrl={avatarUrl}
+                      name={displayName}
+                      role="Cliente"
+                      onAvatarUpdated={(url) => setAvatarUrl(url)}
+                    />
+                    <div className="text-center">
+                      <p className="font-semibold text-foreground text-sm leading-tight">{displayName}</p>
+                      {user?.email && <p className="text-xs text-muted-foreground mt-0.5">{user.email}</p>}
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-foreground">Nombre completo *</Label>
+                      <Input
+                        {...register('full_name', { required: true })}
+                        className="bg-muted border-border"
+                      />
+                      {errors.full_name && <p className="text-xs text-destructive">Requerido</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-foreground">Teléfono *</Label>
+                      <Input
+                        {...register('phone', { required: true })}
+                        className="bg-muted border-border"
+                      />
+                      {errors.phone && <p className="text-xs text-destructive">Requerido</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-foreground">País *</Label>
+                      <Select
+                        value={countryVal}
+                        onValueChange={(v) => setValue('country', v, { shouldValidate: true })}
+                      >
+                        <SelectTrigger className="bg-muted border-border">
+                          <SelectValue placeholder="Selecciona tu país" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {countries.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      {errors.country && <p className="text-xs text-destructive">Requerido</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-foreground">Dirección</Label>
+                      <Input {...register('address')} className="bg-muted border-border" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label className="text-foreground">Ciudad</Label>
+                        <Input {...register('city')} className="bg-muted border-border" />
                       </div>
-                      {order.tracking_number && (
-                        <div className="flex items-center gap-2 text-sm text-primary">
-                          <Truck className="h-4 w-4" />
-                          <span>Guía: {order.tracking_number}</span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })
+                      <div className="space-y-2">
+                        <Label className="text-foreground">Estado</Label>
+                        <Input {...register('state')} className="bg-muted border-border" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-foreground">Código Postal</Label>
+                      <Input {...register('postal_code')} className="bg-muted border-border" />
+                    </div>
+                    <Button type="submit" disabled={saving} className="w-full gap-2">
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                      Guardar Cambios
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
             )}
           </div>
-        )}
-
-        {activeTab === 'profile' && (
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-foreground text-base">Mis Datos</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-foreground">Nombre completo *</Label>
-                <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="bg-muted border-border" required />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-foreground">Teléfono *</Label>
-                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="bg-muted border-border" required />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-foreground">País *</Label>
-                <Select value={form.country} onValueChange={(v) => setForm({ ...form, country: v })}>
-                  <SelectTrigger className="bg-muted border-border">
-                    <SelectValue placeholder="Selecciona tu país" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {countries.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-foreground">Dirección</Label>
-                <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="bg-muted border-border" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label className="text-foreground">Ciudad</Label>
-                  <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="bg-muted border-border" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-foreground">Estado</Label>
-                  <Input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="bg-muted border-border" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-foreground">Código Postal</Label>
-                <Input value={form.postal_code} onChange={(e) => setForm({ ...form, postal_code: e.target.value })} className="bg-muted border-border" />
-              </div>
-              <Button onClick={handleSave} disabled={saving} className="w-full gap-2">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Guardar Cambios
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

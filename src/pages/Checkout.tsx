@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Check, Package, Truck, CreditCard, MapPin, Loader2, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Package, Truck, CreditCard, MapPin, Loader2, ShieldCheck, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -85,12 +85,6 @@ const Checkout = () => {
   const [shippingMethod, setShippingMethod] = useState('standard');
   const [paymentMethod, setPaymentMethod] = useState('card');
 
-  // Card form state (for Clip SDK fields)
-  const [cardData, setCardData] = useState({
-    number: '', name: '', expMonth: '', expYear: '', cvv: '',
-  });
-  const [clipPublicKey, setClipPublicKey] = useState('');
-
   // Auth guard: require login to checkout
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
@@ -120,13 +114,6 @@ const Checkout = () => {
     });
     return () => subscription.unsubscribe();
   }, [navigate]);
-
-  // Fetch Clip public key on mount
-  useEffect(() => {
-    supabase.functions.invoke('clip-config').then(({ data }) => {
-      if (data?.public_key) setClipPublicKey(data.public_key);
-    });
-  }, []);
 
   // ============ Exit-intent + inactividad (carrito abandonado) ============
   const [exitOpen, setExitOpen] = useState(false);
@@ -205,7 +192,7 @@ const Checkout = () => {
     setPaymentError('');
 
     try {
-      // Step 1: Create order (pending) via edge function
+      // Paso 1: Crear orden (status: pending) vía Edge Function
       const { data: orderData, error: orderError } = await supabase.functions.invoke('create-order', {
         body: {
           customer_name: shipping.name,
@@ -229,137 +216,80 @@ const Checkout = () => {
       });
 
       if (orderError || !orderData?.success) {
-        throw new Error(orderData?.error || 'Failed to create order');
+        throw new Error(orderData?.error || 'Error al crear el pedido. Intenta de nuevo.');
       }
 
-      const num = orderData.order_number;
-      const orderId = orderData.order_id;
-      const serverTotal = orderData.total;
-      const serverShippingCost = orderData.shipping_cost;
+      const num: string = orderData.order_number;
+      const orderId: string = orderData.order_id;
+      const serverTotal: number = orderData.total;
 
-      // Step 2: Process payment with Clip (card only)
+      // Paso 2: Pago con Clip → Checkout redirect
       if (paymentMethod === 'card') {
-        // Tokenize card using Clip SDK
-        if (typeof ClipSDK === 'undefined') {
-          throw new Error('El SDK de pagos no se cargó. Recarga la página e intenta de nuevo.');
-        }
-
-        // Create a temporary form for Clip SDK
-        const form = document.createElement('form');
-        const fields = [
-          { name: 'card_number', value: cardData.number.replace(/\s/g, '') },
-          { name: 'card_name', value: cardData.name },
-          { name: 'card_exp_month', value: cardData.expMonth },
-          { name: 'card_exp_year', value: cardData.expYear },
-          { name: 'card_cvv', value: cardData.cvv },
-        ];
-        fields.forEach(f => {
-          const input = document.createElement('input');
-          input.name = f.name;
-          input.value = f.value;
-          form.appendChild(input);
-        });
-
-        const clip = new ClipSDK(clipPublicKey);
-        let cardToken: string;
-        try {
-          cardToken = await clip.cardToken(form);
-        } catch (tokenErr: any) {
-          throw new Error('Error al procesar la tarjeta. Verifica los datos e intenta de nuevo.');
-        }
-
-        // Process payment via our edge function
-        const { data: payData, error: payError } = await supabase.functions.invoke('process-clip-payment', {
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        const { data: clipData, error: clipError } = await supabase.functions.invoke('clip-create-checkout', {
           body: {
-            card_token: cardToken,
             order_id: orderId,
             amount: serverTotal,
             currency: 'MXN',
-            customer_email: shipping.email,
-            customer_name: shipping.name,
-            customer_phone: shipping.phone,
+            reference_number: num,
             description: `Pedido WAXAPP ${num}`,
+            success_url: `${origin}/pago-exitoso?folio=${num}&order_id=${orderId}`,
+            cancel_url: `${origin}/pago-cancelado?folio=${num}&order_id=${orderId}`,
           },
         });
 
-        if (payError || !payData?.success) {
-          throw new Error(payData?.error || 'Error al procesar el pago.');
+        if (clipError || !clipData?.success || !clipData?.checkout_url) {
+          throw new Error(clipData?.error || 'Error al iniciar el pago con Clip. Verifica la configuración.');
         }
+
+        // Guardar contexto para cuando regrese el usuario
+        sessionStorage.setItem('waxapp_pending_order', JSON.stringify({
+          orderNumber: num,
+          orderId,
+          total: serverTotal,
+          email: shipping.email,
+          items: items.map((i) => ({
+            id: i.id,
+            title: i.title,
+            quantity: i.quantity,
+            price: i.price,
+            selectedVariant: i.selectedVariant,
+          })),
+        }));
+
+        clearCart();
+        clearLoyaltyPoints();
+        // Redirigir a Clip hosted checkout
+        window.location.href = clipData.checkout_url;
+        return;
       }
 
-      setOrderNumber(num);
-
-      // Send order confirmation email (fire-and-forget)
-      const itemsHtml = items.map(i =>
-        `<tr>
-          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${i.title}${i.selectedVariant ? ` <span style="color:#9ca3af">(${i.selectedVariant})</span>` : ''}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${i.quantity}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right">$${(i.price * i.quantity).toLocaleString()}</td>
-        </tr>`
-      ).join('');
-
-      supabase.functions.invoke('send-email', {
-        body: {
-          to: shipping.email,
-          subject: `Confirmación de Pedido ${num} - WAXAPP`,
-          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:30px;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb">
-            <div style="text-align:center;margin-bottom:24px">
-              <h1 style="color:#8B5CF6;font-size:28px;margin:0">WAXAPP</h1>
-              <p style="color:#6b7280;margin:4px 0 0">Confirmación de Pedido</p>
-            </div>
-            <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0"/>
-            <h2 style="color:#1f2937;font-size:20px;margin:0 0 8px">¡Gracias por tu compra, ${shipping.name}!</h2>
-            <p style="color:#4b5563;line-height:1.6">Tu pedido ha sido recibido y está siendo procesado.</p>
-            <div style="background:#f3f4f6;border-radius:10px;padding:16px;margin:20px 0;text-align:center">
-              <p style="color:#6b7280;font-size:13px;margin:0">Número de pedido</p>
-              <p style="color:#8B5CF6;font-size:28px;font-weight:bold;font-family:monospace;margin:4px 0 0">${num}</p>
-            </div>
-            <table style="width:100%;border-collapse:collapse;margin:20px 0">
-              <thead>
-                <tr style="background:#f9fafb">
-                  <th style="padding:8px 12px;text-align:left;font-size:13px;color:#6b7280;border-bottom:2px solid #e5e7eb">Producto</th>
-                  <th style="padding:8px 12px;text-align:center;font-size:13px;color:#6b7280;border-bottom:2px solid #e5e7eb">Cant.</th>
-                  <th style="padding:8px 12px;text-align:right;font-size:13px;color:#6b7280;border-bottom:2px solid #e5e7eb">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody style="font-size:14px;color:#1f2937">${itemsHtml}</tbody>
-            </table>
-            <div style="text-align:right;margin:16px 0;padding:12px;background:#f3f4f6;border-radius:8px">
-              <span style="font-size:13px;color:#6b7280">Envío: $${serverShippingCost === 0 ? 'Gratis' : serverShippingCost.toLocaleString()}</span><br/>
-              <span style="font-size:18px;font-weight:bold;color:#1f2937">Total: $${serverTotal.toLocaleString()} MXN</span>
-            </div>
-            <div style="margin:20px 0;padding:16px;background:#faf5ff;border-radius:8px;border-left:4px solid #8B5CF6">
-              <p style="margin:0;font-size:13px;color:#6b7280"><strong>Dirección de envío:</strong></p>
-              <p style="margin:4px 0 0;font-size:14px;color:#1f2937">${shipping.address}, ${shipping.city}, ${shipping.state} ${shipping.postalCode}</p>
-            </div>
-            <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0"/>
-            <p style="color:#9ca3af;font-size:12px;text-align:center">Este correo fue enviado automáticamente por WAXAPP. Si tienes dudas, contáctanos.</p>
-          </div>`,
-        },
-      }).catch(() => {});
-
-      const snapshot = items.map((i) => ({
-        id: i.id,
-        title: i.title,
-        quantity: i.quantity,
-        price: i.price,
-        selectedVariant: i.selectedVariant,
-      }));
-      const finalTotal = serverTotal ?? total;
+      // Métodos sin pasarela (OXXO / Transferencia) → confirmar pedido directamente
       clearCart();
       clearLoyaltyPoints();
       navigate('/orden-completada', {
-        state: { orderNumber: num, items: snapshot, total: finalTotal, email: shipping.email },
+        state: {
+          orderNumber: num,
+          items: items.map((i) => ({
+            id: i.id,
+            title: i.title,
+            quantity: i.quantity,
+            price: i.price,
+            selectedVariant: i.selectedVariant,
+          })),
+          total: serverTotal,
+          email: shipping.email,
+          paymentMethod,
+        },
         replace: true,
       });
-      return;
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Ocurrió un error al procesar tu pedido.';
       console.error('Order/Payment error:', e);
-      setPaymentError(e.message || 'Ocurrió un error al procesar tu pedido.');
-      toast({ title: 'Error de pago', description: e.message || 'Intenta de nuevo.', variant: 'destructive' });
+      setPaymentError(msg);
+      toast({ title: 'Error de pago', description: msg, variant: 'destructive' });
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -547,64 +477,18 @@ const Checkout = () => {
                   </RadioGroup>
 
                   {paymentMethod === 'card' && (
-                    <div className="space-y-4 border-t border-border pt-6">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                        <ShieldCheck className="h-4 w-4 text-primary" />
-                        <span>Pago seguro procesado por Clip</span>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-foreground">Nombre en la tarjeta</Label>
-                        <Input
-                          value={cardData.name}
-                          onChange={e => setCardData({ ...cardData, name: e.target.value })}
-                          className="bg-muted border-border"
-                          placeholder="Como aparece en la tarjeta"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-foreground">Número de tarjeta</Label>
-                        <Input
-                          value={cardData.number}
-                          onChange={e => {
-                            const v = e.target.value.replace(/\D/g, '').slice(0, 16);
-                            setCardData({ ...cardData, number: v.replace(/(.{4})/g, '$1 ').trim() });
-                          }}
-                          className="bg-muted border-border font-mono"
-                          placeholder="4242 4242 4242 4242"
-                          maxLength={19}
-                        />
-                      </div>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-foreground">Mes</Label>
-                          <Input
-                            value={cardData.expMonth}
-                            onChange={e => setCardData({ ...cardData, expMonth: e.target.value.replace(/\D/g, '').slice(0, 2) })}
-                            className="bg-muted border-border text-center"
-                            placeholder="MM"
-                            maxLength={2}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-foreground">Año</Label>
-                          <Input
-                            value={cardData.expYear}
-                            onChange={e => setCardData({ ...cardData, expYear: e.target.value.replace(/\D/g, '').slice(0, 2) })}
-                            className="bg-muted border-border text-center"
-                            placeholder="AA"
-                            maxLength={2}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-foreground">CVV</Label>
-                          <Input
-                            value={cardData.cvv}
-                            onChange={e => setCardData({ ...cardData, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-                            className="bg-muted border-border text-center"
-                            placeholder="123"
-                            maxLength={4}
-                            type="password"
-                          />
+                    <div className="border-t border-border pt-6 space-y-3">
+                      <div className="rounded-xl border border-border bg-muted/30 p-5 flex items-start gap-4">
+                        <ShieldCheck className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                        <div className="text-sm">
+                          <p className="font-medium text-foreground">Pago seguro con Clip</p>
+                          <p className="text-muted-foreground text-xs mt-1">
+                            Serás redirigido al portal de pago seguro de Clip. Acepta Visa, Mastercard y Amex.
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">payclip.com — cifrado SSL/TLS 256 bits</span>
+                          </div>
                         </div>
                       </div>
 
@@ -622,10 +506,15 @@ const Checkout = () => {
                     </Button>
                     <Button
                       onClick={handleConfirm}
-                      disabled={invalidVariants || loading || (paymentMethod === 'card' && (!cardData.number || !cardData.name || !cardData.expMonth || !cardData.expYear || !cardData.cvv))}
+                      disabled={invalidVariants || loading}
                       className="gap-2 bg-primary text-primary-foreground px-8"
                     >
-                      {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Procesando...</> : `Pagar $${total.toLocaleString()} MXN`}
+                      {loading
+                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Procesando...</>
+                        : paymentMethod === 'card'
+                          ? <><ExternalLink className="h-4 w-4" /> Pagar ${total.toLocaleString()} MXN con Clip</>
+                          : `Confirmar pedido — $${total.toLocaleString()} MXN`
+                      }
                     </Button>
                   </div>
                 </motion.div>

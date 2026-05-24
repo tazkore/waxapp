@@ -1,12 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -53,18 +50,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
     // 1. Generate article via tool calling
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResp = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "gemini-2.5-pro",
         messages: [
           {
             role: "system",
@@ -108,7 +105,7 @@ Deno.serve(async (req) => {
         });
       }
       if (aiResp.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos agotados. Agrega fondos en Settings → Workspace → Usage." }), {
+        return new Response(JSON.stringify({ error: "Créditos agotados. Agrega fondos en Settings." }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -133,29 +130,25 @@ Deno.serve(async (req) => {
     let cover_image_url: string | null = null;
     if (generateImage) {
       try {
-        const imgResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const imgResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:generateImages?key=${GEMINI_API_KEY}`, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash-image",
-            messages: [{
-              role: "user",
-              content: `Imagen de portada minimalista, dark mode tech (Tesla/Apple), tonos verde neón #00E676 y negro profundo, sin texto, para artículo: ${post.title}`,
-            }],
-            modalities: ["image", "text"],
+            prompt: `Imagen de portada minimalista, dark mode tech (Tesla/Apple), tonos verde neón #00E676 y negro profundo, sin texto, para artículo: ${post.title}`,
+            numberOfImages: 1,
+            outputMimeType: "image/png",
+            aspectRatio: "16:9",
           }),
         });
         if (imgResp.ok) {
           const imgJson = await imgResp.json();
-          const dataUrl: string | undefined = imgJson?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-          if (dataUrl?.startsWith("data:image/")) {
-            const [meta, b64] = dataUrl.split(",");
-            const mime = meta.match(/data:(.*?);/)?.[1] ?? "image/png";
-            const ext = mime.includes("png") ? "png" : "jpg";
-            const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+          const imageBytes = imgJson?.generatedImages?.[0]?.image?.imageBytes;
+          if (imageBytes) {
+            const mime = "image/png";
+            const ext = "png";
+            const bytes = Uint8Array.from(atob(imageBytes), (c) => c.charCodeAt(0));
             const path = `blog/${Date.now()}-${post.slug}.${ext}`;
 
             const adminClient = createClient(
