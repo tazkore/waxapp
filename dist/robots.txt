@@ -1,0 +1,87 @@
+# WAXAPP — robots.txt optimizado para SEO
+# https://waxapp.mx
+
+# Googlebot: máxima crawleabilidad
+User-agent: Googlebot
+Allow: /
+Allow: /tienda
+Allow: /catalogo
+Allow: /producto/
+Allow: /blog/
+Allow: /blog
+Allow: /marcas
+Allow: /sobre-nosotros
+Allow: /contacto
+Allow: /afiliados
+Allow: /sitemap.xml
+Disallow: /admin
+Disallow: /admin/
+Disallow: /cliente
+Disallow: /mi-cuenta
+Disallow: /checkout
+Disallow: /reset-password
+Disallow: /api/
+
+# Bingbot
+User-agent: Bingbot
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /cliente
+Disallow: /mi-cuenta
+Disallow: /checkout
+Disallow: /reset-password
+Crawl-delay: 1
+
+# Crawlers sociales — siempre permitir para OG tags y previews
+User-agent: Twitterbot
+Allow: /
+User-agent: facebookexternalhit
+Allow: /
+User-agent: LinkedInBot
+Allow: /
+User-agent: WhatsApp
+Allow: /
+User-agent: TelegramBot
+Allow: /
+User-agent: Slackbot
+Allow: /
+
+# Bots SEO — limitar velocidad
+User-agent: SemrushBot
+Crawl-delay: 10
+User-agent: AhrefsBot
+Crawl-delay: 10
+User-agent: MJ12bot
+Disallow: /
+User-agent: DotBot
+Disallow: /
+User-agent: PetalBot
+Disallow: /
+
+# Regla general
+User-agent: *
+Allow: /
+Allow: /tienda
+Allow: /catalogo
+Allow: /producto/
+Allow: /blog/
+Allow: /blog
+Allow: /marcas
+Allow: /sobre-nosotros
+Allow: /contacto
+Allow: /afiliados
+Disallow: /admin
+Disallow: /admin/
+Disallow: /cliente
+Disallow: /mi-cuenta
+Disallow: /checkout
+Disallow: /reset-password
+Disallow: /api/
+Crawl-delay: 1
+
+# Sitemaps
+Sitemap: https://waxapp.mx/sitemap.xml
+Sitemap: https://vapewax.com.mx/sitemap.xml
+Sitemap: https://extraccionwax.com/sitemap.xml
+Sitemap: https://nytjvcykmimblubegxjq.supabase.co/functions/v1/generate-sitemap
