@@ -212,6 +212,7 @@ const Checkout = () => {
           loyalty_points_used: loyaltyPointsApplied || 0,
           affiliate_code: localStorage.getItem('waxapp_affiliate_ref') || undefined,
           origin_domain: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
+          payment_method: paymentMethod,
         },
       });
 
