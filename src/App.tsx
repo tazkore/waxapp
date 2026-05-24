@@ -44,6 +44,7 @@ import AffiliateRefTracker from "./components/AffiliateRefTracker.tsx";
 import AffiliatePortal from "./pages/AffiliatePortal.tsx";
 import AffiliateLogin from "./pages/AffiliateLogin.tsx";
 import PromoCountdownBanner from "./components/PromoCountdownBanner.tsx";
+import ChatbotWidget from "./components/ChatbotWidget.tsx";
 import { useCartStore } from "./store/cartStore";
 
 const queryClient = new QueryClient();
@@ -71,6 +72,7 @@ const App = () => (
           <AffiliateRefTracker />
           <PromoCountdownBanner />
           <CartSheet />
+          <ChatbotWidget />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/tienda" element={<Home />} />

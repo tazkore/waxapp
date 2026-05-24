@@ -9,10 +9,15 @@ interface Msg { role: 'user' | 'assistant'; content: string }
 
 const STORAGE_KEY = 'waxa_chat_history';
 
-const ChatbotWidget = () => {
+interface ChatbotWidgetProps {
+  defaultName?: string;
+}
+
+const ChatbotWidget = ({ defaultName }: ChatbotWidgetProps) => {
   const [open, setOpen] = useState(false);
   const [pulsing, setPulsing] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [userName, setUserName] = useState(defaultName || '');
   const [messages, setMessages] = useState<Msg[]>(() => {
     if (typeof window === 'undefined') return [];
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
@@ -20,6 +25,40 @@ const ChatbotWidget = () => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Escuchar evento personalizado para abrir el chat
+  useEffect(() => {
+    const handleOpen = () => {
+      setOpen(true);
+      setPulsing(false);
+      setShowHint(false);
+    };
+    window.addEventListener('open-waxa-chat', handleOpen);
+    return () => window.removeEventListener('open-waxa-chat', handleOpen);
+  }, []);
+
+  // Cargar nombre del usuario desde Supabase
+  useEffect(() => {
+    if (defaultName) {
+      setUserName(defaultName);
+      return;
+    }
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('customer_profiles')
+          .select('full_name')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (profile?.full_name) {
+          const firstName = profile.full_name.split(' ')[0];
+          setUserName(firstName);
+        }
+      }
+    };
+    fetchUser();
+  }, [defaultName]);
 
   // Heartbeat after 10s
   useEffect(() => {
@@ -60,7 +99,9 @@ const ChatbotWidget = () => {
 
   const greeting: Msg = {
     role: 'assistant',
-    content: '¡Hola! Soy Waxa, tu asistente. ¿Buscas algún producto, tienes dudas sobre nuestros nano-suplementos o quieres una recomendación?',
+    content: userName
+      ? `¡Hola ${userName}! Soy Waxa, tu asistente de soporte. ¿En qué te puedo ayudar hoy con tus pedidos o productos?`
+      : '¡Hola! Soy Waxa, tu asistente. ¿Buscas algún producto, tienes dudas sobre nuestros nano-suplementos o quieres una recomendación?',
   };
   const display = messages.length ? messages : [greeting];
 
