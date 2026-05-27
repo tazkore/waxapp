@@ -908,6 +908,7 @@ export type Database = {
           id: string
           phone: string
           postal_code: string | null
+          preferences: Json | null
           state: string | null
           updated_at: string
           user_id: string
@@ -922,6 +923,7 @@ export type Database = {
           id?: string
           phone: string
           postal_code?: string | null
+          preferences?: Json | null
           state?: string | null
           updated_at?: string
           user_id: string
@@ -936,6 +938,7 @@ export type Database = {
           id?: string
           phone?: string
           postal_code?: string | null
+          preferences?: Json | null
           state?: string | null
           updated_at?: string
           user_id?: string
@@ -1370,6 +1373,9 @@ export type Database = {
           created_at: string
           customer_email: string
           customer_name: string
+          discount_tier: string | null
+          discount_amount: number | null
+          extras: Json | null
           fulfillment_processed_at: string | null
           id: string
           items: Json
@@ -1381,12 +1387,16 @@ export type Database = {
           total: number
           tracking_number: string | null
           updated_at: string
+          voucher_metadata: Json | null
         }
         Insert: {
           admin_notes?: string | null
           created_at?: string
           customer_email: string
           customer_name: string
+          discount_tier?: string | null
+          discount_amount?: number | null
+          extras?: Json | null
           fulfillment_processed_at?: string | null
           id?: string
           items?: Json
@@ -1398,12 +1408,16 @@ export type Database = {
           total?: number
           tracking_number?: string | null
           updated_at?: string
+          voucher_metadata?: Json | null
         }
         Update: {
           admin_notes?: string | null
           created_at?: string
           customer_email?: string
           customer_name?: string
+          discount_tier?: string | null
+          discount_amount?: number | null
+          extras?: Json | null
           fulfillment_processed_at?: string | null
           id?: string
           items?: Json
@@ -1415,8 +1429,56 @@ export type Database = {
           total?: number
           tracking_number?: string | null
           updated_at?: string
+          voucher_metadata?: Json | null
         }
         Relationships: []
+      }
+      payment_vouchers: {
+        Row: {
+          id: string
+          order_id: string
+          order_number: string
+          payment_method: string
+          reference_number: string | null
+          barcode_url: string | null
+          expiration_date: string | null
+          clip_payload: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          order_number: string
+          payment_method?: string
+          reference_number?: string | null
+          barcode_url?: string | null
+          expiration_date?: string | null
+          clip_payload?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          order_number?: string
+          payment_method?: string
+          reference_number?: string | null
+          barcode_url?: string | null
+          expiration_date?: string | null
+          clip_payload?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_vouchers_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_gateways: {
         Row: {

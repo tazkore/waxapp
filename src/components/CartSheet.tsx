@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Minus, Plus, Trash2, Tag, Star, ShoppingBag, X, ArrowRight } from "lucide-react";
+import { Minus, Plus, Trash2, Tag, Star, ShoppingBag, X, ArrowRight, Gift, Zap, TrendingUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FreeShippingBar } from "@/components/FreeShippingBar";
 import { useCartStore } from "@/store/cartStore";
 import { formatMXN } from "@/lib/utils";
@@ -21,6 +22,7 @@ export function CartSheet() {
     subtotal, shippingCost, total,
     discountCode, discountAmount, discountLoading, applyDiscount, clearDiscount,
     loyaltyPointsApplied, setLoyaltyPoints, clearLoyaltyPoints,
+    tieredDiscount, tieredDiscountPct, extras, extrasAmount, setExtras, nextTierInfo,
   } = useCartStore();
 
   const navigate = useNavigate();
@@ -68,6 +70,23 @@ export function CartSheet() {
   const waxPointsToEarn = Math.floor(subtotal() / 10);
   const itemCount = items.reduce((s, i) => s + i.quantity, 0);
 
+  // Tiered discount progress bar
+  const sub = subtotal();
+  const nextTier = nextTierInfo();
+  const TIERS_ALL = [
+    { min: 1000, pct: 5 },
+    { min: 2000, pct: 10 },
+    { min: 3500, pct: 15 },
+  ];
+  const currentTierIdx = TIERS_ALL.reduce((idx, t, i) => (sub >= t.min ? i : idx), -1);
+  const prevTierMin = currentTierIdx >= 0 ? TIERS_ALL[currentTierIdx].min : 0;
+  const nextTierMin = nextTier ? nextTier.threshold : TIERS_ALL[TIERS_ALL.length - 1].min;
+  const progressRange = nextTierMin - prevTierMin;
+  const progressVal = Math.min(sub - prevTierMin, progressRange);
+  const progressPct = progressRange > 0 ? Math.round((progressVal / progressRange) * 100) : 100;
+
+  const extrasTotal = extrasAmount();
+
   return (
     <Sheet open={isOpen} onOpenChange={(open) => setCartOpen(open)}>
       <SheetContent side="right" className="flex flex-col p-0 w-full sm:max-w-sm bg-card border-border">
@@ -86,6 +105,42 @@ export function CartSheet() {
 
         {/* Free shipping bar */}
         <FreeShippingBar />
+
+        {/* Tiered Discount Progress Bar */}
+        {items.length > 0 && (
+          <div className="px-5 py-2 space-y-1.5 border-b border-border/30 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="text-[11px] font-semibold text-foreground">Descuento por volumen</span>
+              </div>
+              {tieredDiscountPct > 0 && (
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30"
+                >
+                  <span className="text-[10px] text-emerald-500 font-semibold">✓ {tieredDiscountPct}% desbloqueado</span>
+                </motion.div>
+              )}
+            </div>
+            {/* Progress bar */}
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <motion.div
+                className="h-full rounded-full bg-emerald-500"
+                animate={{ width: progressPct + '%' }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+              />
+            </div>
+            {nextTier ? (
+              <p className="text-[10px] text-muted-foreground">
+                Agrega <span className="text-foreground font-semibold">{formatMXN(nextTier.remaining)}</span> MXN más para desbloquear {nextTier.pct}%
+              </p>
+            ) : (
+              <p className="text-[10px] text-emerald-500 font-semibold">🎉 ¡Máximo descuento por volumen desbloqueado!</p>
+            )}
+          </div>
+        )}
 
         {/* Items list */}
         <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
@@ -179,6 +234,76 @@ export function CartSheet() {
           </AnimatePresence>
         </div>
 
+        {/* Extras / Upselling */}
+        {items.length > 0 && (
+          <div className="px-5 py-3 border-t border-border/30 space-y-2 bg-muted/20">
+            <p className="text-xs font-semibold text-foreground">Agrega a tu pedido</p>
+            {/* Gift wrap */}
+            <div
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/50 bg-card cursor-pointer hover:border-primary/40 transition-colors"
+              onClick={() => setExtras({ giftWrap: !extras.giftWrap })}
+            >
+              <Checkbox
+                id="gift-wrap"
+                checked={extras.giftWrap}
+                onCheckedChange={(v) => setExtras({ giftWrap: !!v })}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <Gift className="h-4 w-4 text-pink-500 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-foreground">Envoltura de regalo</p>
+                <p className="text-[10px] text-muted-foreground">Empaque especial con tarjeta</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-foreground tabular-nums">+$50</span>
+                <AnimatePresence>
+                  {extras.giftWrap && (
+                    <motion.div
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                    >
+                      <Badge className="text-[9px] px-1.5 py-0 bg-pink-500 text-white">✓</Badge>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Priority shipping */}
+            <div
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/50 bg-card cursor-pointer hover:border-primary/40 transition-colors"
+              onClick={() => setExtras({ priorityShipping: !extras.priorityShipping })}
+            >
+              <Checkbox
+                id="priority-shipping"
+                checked={extras.priorityShipping}
+                onCheckedChange={(v) => setExtras({ priorityShipping: !!v })}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <Zap className="h-4 w-4 text-amber-500 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-foreground">Envío prioritario</p>
+                <p className="text-[10px] text-muted-foreground">Entrega en 24–48 horas</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-foreground tabular-nums">+$100</span>
+                <AnimatePresence>
+                  {extras.priorityShipping && (
+                    <motion.div
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                    >
+                      <Badge className="text-[9px] px-1.5 py-0 bg-amber-500 text-white">✓</Badge>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         {items.length > 0 && (
           <div className="px-5 pt-3 pb-5 space-y-3 border-t border-border/50 bg-card">
@@ -267,6 +392,12 @@ export function CartSheet() {
                 <span>Subtotal ({itemCount} {itemCount === 1 ? 'art.' : 'arts.'})</span>
                 <span className="tabular-nums">{formatMXN(subtotal())}</span>
               </div>
+              {tieredDiscountPct > 0 && (
+                <div className="flex justify-between text-xs text-emerald-500">
+                  <span>Descuento por volumen ({tieredDiscountPct}%)</span>
+                  <span className="tabular-nums">−{formatMXN(tieredDiscount)}</span>
+                </div>
+              )}
               {discountAmount > 0 && (
                 <div className="flex justify-between text-xs text-primary">
                   <span>Descuento ({discountCode})</span>
@@ -277,6 +408,12 @@ export function CartSheet() {
                 <div className="flex justify-between text-xs text-primary">
                   <span>WAX Points</span>
                   <span className="tabular-nums">−{formatMXN(loyaltyPointsApplied)}</span>
+                </div>
+              )}
+              {extrasTotal > 0 && (
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Extras ({[extras.giftWrap && 'regalo', extras.priorityShipping && 'prioritario'].filter(Boolean).join(', ')})</span>
+                  <span className="tabular-nums">+{formatMXN(extrasTotal)}</span>
                 </div>
               )}
               <div className="flex justify-between text-xs text-muted-foreground">

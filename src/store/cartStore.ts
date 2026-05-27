@@ -25,6 +25,12 @@ export interface Product {
 
 export const FREE_SHIPPING_THRESHOLD = 1500;
 
+const TIERS = [
+  { min: 1000, pct: 5 },
+  { min: 2000, pct: 10 },
+  { min: 3500, pct: 15 },
+];
+
 interface CartItem extends Product {
   quantity: number;
   selectedVariant?: string;
@@ -39,6 +45,12 @@ interface CartState {
   discountError: string | null;
   discountLoading: boolean;
   loyaltyPointsApplied: number;
+  tieredDiscount: number;
+  tieredDiscountPct: number;
+  extras: { giftWrap: boolean; priorityShipping: boolean };
+  extrasAmount: () => number;
+  setExtras: (extras: { giftWrap?: boolean; priorityShipping?: boolean }) => void;
+  nextTierInfo: () => { threshold: number; pct: number; remaining: number } | null;
   addItem: (product: Product, quantity?: number, variant?: string) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -81,9 +93,45 @@ export const useCartStore = create<CartState>()(
   persist(
     (set, get) => {
       const sync = () => scheduleServerPush(() => get().items);
+
+      const getActiveTierPct = (sub: number): number => {
+        let pct = 0;
+        for (const tier of TIERS) {
+          if (sub >= tier.min) pct = tier.pct;
+        }
+        return pct;
+      };
+
       return {
         items: [],
         isOpen: false,
+        extras: { giftWrap: false, priorityShipping: false },
+
+        // Computed tier values — kept as plain numbers; recomputed on every access via getters
+        get tieredDiscountPct() {
+          return getActiveTierPct(get().subtotal());
+        },
+        get tieredDiscount() {
+          const sub = get().subtotal();
+          return sub * getActiveTierPct(sub) / 100;
+        },
+
+        extrasAmount: () => {
+          const { giftWrap, priorityShipping } = get().extras;
+          return (giftWrap ? 50 : 0) + (priorityShipping ? 100 : 0);
+        },
+
+        setExtras: (extras) => {
+          set((state) => ({ extras: { ...state.extras, ...extras } }));
+        },
+
+        nextTierInfo: () => {
+          const sub = get().subtotal();
+          const next = TIERS.find((t) => sub < t.min);
+          if (!next) return null;
+          return { threshold: next.min, pct: next.pct, remaining: next.min - sub };
+        },
+
         addItem: (product, quantity = 1, variant) => {
           set((state) => {
             const existing = state.items.find((i) =>
@@ -104,7 +152,6 @@ export const useCartStore = create<CartState>()(
           sync();
         },
         removeItem: (id) => {
-          // `id` may be a plain product id OR a composite "id::variant" key.
           set((state) => ({
             items: state.items.filter((i) => {
               const composite = `${i.id}::${i.selectedVariant ?? ''}`;
@@ -131,7 +178,15 @@ export const useCartStore = create<CartState>()(
           sync();
         },
         clearCart: () => {
-          set({ items: [], discountCode: null, discountAmount: 0, discountType: null, discountError: null, loyaltyPointsApplied: 0 });
+          set({
+            items: [],
+            discountCode: null,
+            discountAmount: 0,
+            discountType: null,
+            discountError: null,
+            loyaltyPointsApplied: 0,
+            extras: { giftWrap: false, priorityShipping: false },
+          });
           sync();
         },
         toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
@@ -140,17 +195,20 @@ export const useCartStore = create<CartState>()(
         subtotal: () => get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
         shippingCost: () => {
           const sub = get().items.reduce((s, i) => s + i.price * i.quantity, 0);
-          const disc = get().discountAmount || 0;
-          const pts = get().loyaltyPointsApplied || 0;
           if (sub === 0) return 0;
-          return sub - disc - pts >= FREE_SHIPPING_THRESHOLD ? 0 : 99;
+          const tierPct = getActiveTierPct(sub);
+          if (sub >= FREE_SHIPPING_THRESHOLD || tierPct >= 15) return 0;
+          return 99;
         },
         total: () => {
           const sub = get().items.reduce((s, i) => s + i.price * i.quantity, 0);
           const disc = get().discountAmount || 0;
           const pts = get().loyaltyPointsApplied || 0;
-          const ship = sub === 0 ? 0 : (sub - disc - pts >= FREE_SHIPPING_THRESHOLD ? 0 : 99);
-          return Math.max(0, sub - disc - pts) + ship;
+          const tierPct = getActiveTierPct(sub);
+          const tieredDisc = sub * tierPct / 100;
+          const extras = (get().extras.giftWrap ? 50 : 0) + (get().extras.priorityShipping ? 100 : 0);
+          const ship = sub === 0 ? 0 : (sub >= FREE_SHIPPING_THRESHOLD || tierPct >= 15 ? 0 : 99);
+          return Math.max(0, sub - disc - pts - tieredDisc) + ship + extras;
         },
         hasInvalidVariants: () =>
           get().items.some((i) => (i.variants?.length ?? 0) > 0 && !i.selectedVariant),
@@ -234,7 +292,13 @@ export const useCartStore = create<CartState>()(
       name: 'wax-cart-storage',
       version: 1,
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ items: state.items, discountCode: state.discountCode, discountAmount: state.discountAmount, discountType: state.discountType }),
+      partialize: (state) => ({
+        items: state.items,
+        discountCode: state.discountCode,
+        discountAmount: state.discountAmount,
+        discountType: state.discountType,
+        extras: state.extras,
+      }),
     }
   )
 );

@@ -46,6 +46,7 @@ import AffiliateLogin from "./pages/AffiliateLogin.tsx";
 import PromoCountdownBanner from "./components/PromoCountdownBanner.tsx";
 import ChatbotWidget from "./components/ChatbotWidget.tsx";
 import { useCartStore } from "./store/cartStore";
+import CustomerPortal from "./pages/CustomerPortal.tsx";
 
 const queryClient = new QueryClient();
 
@@ -103,7 +104,8 @@ const App = () => (
           <Route path="/s/:slug" element={<SubStorePage />} />
           <Route path="/portal-vendedores/login" element={<AffiliateLogin />} />
           <Route path="/portal-vendedores" element={<AffiliatePortal />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL ":" ROUTE */}
+          <Route path="/mi-espacio" element={<CustomerPortal />} />
           <Route path="/:slug" element={<CustomPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

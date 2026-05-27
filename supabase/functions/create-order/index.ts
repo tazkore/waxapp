@@ -33,6 +33,8 @@ Deno.serve(async (req) => {
       loyalty_points_used,
       origin_domain,
       payment_method,
+      extras,
+      tiered_discount_pct,
     } = body;
 
     // Input validation
@@ -91,25 +93,46 @@ Deno.serve(async (req) => {
 
     // Calculate total server-side from item prices
     const subtotal = items.reduce((sum: number, item: any) => sum + item.price * item.qty, 0);
-    const shippingCost = shipping_method === "express" ? 250 : shipping_method === "standard" ? 99 : 0;
 
-    // Apply loyalty points (1 pt = $1 MXN), capped at subtotal and at user's available balance
+    // Server-side tier validation — ignore client-sent value, recompute
+    const TIERS = [{min: 1000, pct: 5}, {min: 2000, pct: 10}, {min: 3500, pct: 15}];
+    const activeTier = [...TIERS].reverse().find(t => subtotal >= t.min);
+    const serverTierPct = activeTier?.pct ?? 0;
+    const tierDiscountAmount = +(subtotal * serverTierPct / 100).toFixed(2);
+
+    // Extras
+    const safeExtras = (typeof extras === 'object' && extras !== null) ? extras : {};
+    const giftWrapFee = safeExtras.giftWrap === true ? 50 : 0;
+    const priorityFee = safeExtras.priorityShipping === true ? 100 : 0;
+    const extrasTotal = giftWrapFee + priorityFee;
+
+    // If client sent a tiered_discount_pct that doesn't match server computation, reject
+    if (typeof tiered_discount_pct === 'number' && tiered_discount_pct !== serverTierPct) {
+      return new Response(JSON.stringify({ error: 'Discount mismatch — possible tampering' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const baseShipping = shipping_method === 'express' ? 250 : shipping_method === 'standard' ? 99 : 0;
+    const shippingCost = (serverTierPct >= 15 || subtotal >= 1500) ? 0 : baseShipping;
+
+    // Apply loyalty points
     let pointsToRedeem = 0;
     if (Number.isInteger(loyalty_points_used) && loyalty_points_used > 0) {
       const { data: clientRow } = await supabase
-        .from("clients")
-        .select("id, loyalty_points")
-        .eq("email", customer_email.trim().toLowerCase())
+        .from('clients')
+        .select('id, loyalty_points')
+        .eq('email', customer_email.trim().toLowerCase())
         .maybeSingle();
       const available = Number(clientRow?.loyalty_points ?? 0);
       pointsToRedeem = Math.min(loyalty_points_used, available, subtotal);
     }
 
-    const total = Math.max(0, subtotal - pointsToRedeem) + shippingCost;
+    const total = Math.max(0, subtotal - tierDiscountAmount - pointsToRedeem) + shippingCost + extrasTotal;
 
     if (total <= 0) {
-      return new Response(JSON.stringify({ error: "Total must be greater than 0" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ error: 'Total must be greater than 0' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -130,6 +153,9 @@ Deno.serve(async (req) => {
       origin_domain: typeof origin_domain === "string" && origin_domain.length > 0 && origin_domain.length <= 255
         ? origin_domain.toLowerCase()
         : null,
+      discount_tier: activeTier ? `${serverTierPct}%` : null,
+      discount_amount: tierDiscountAmount,
+      extras: safeExtras,
     }).select().single();
 
     if (error) {
@@ -137,6 +163,21 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Failed to create order" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Persist OXXO reference as payment_voucher for reprint
+    if (resolvedPaymentMethod === 'oxxo') {
+      try {
+        const oxxoRef = generateOxxoReference(orderNumber);
+        await supabase.from('payment_vouchers').insert({
+          order_id: data.id,
+          order_number: orderNumber,
+          payment_method: 'oxxo',
+          reference_number: oxxoRef,
+          expiration_date: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
+          clip_payload: { generated: 'local', method: 'oxxo_pay' },
+        });
+      } catch (e) { console.error('voucher insert error:', e); }
     }
 
     // Redeem loyalty points (deduct from balance)
@@ -406,6 +447,9 @@ Deno.serve(async (req) => {
       order_number: orderNumber,
       total,
       shipping_cost: shippingCost,
+      discount_tier: activeTier ? `${serverTierPct}%` : null,
+      discount_amount: tierDiscountAmount,
+      extras_total: extrasTotal,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -26,7 +26,7 @@ const steps = [
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, subtotal, clearCart, discountCode, discountAmount, shippingCost: storeShipping, total: storeTotal, hasInvalidVariants, setCartOpen, loyaltyPointsApplied, clearLoyaltyPoints } = useCartStore();
+  const { items, subtotal, clearCart, discountCode, discountAmount, shippingCost: storeShipping, total: storeTotal, hasInvalidVariants, setCartOpen, loyaltyPointsApplied, clearLoyaltyPoints, extras, tieredDiscountPct } = useCartStore();
   const invalidVariants = hasInvalidVariants();
   const [step, setStep] = useState(1);
   const [confirmed, setConfirmed] = useState(false);
@@ -213,6 +213,8 @@ const Checkout = () => {
           affiliate_code: localStorage.getItem('waxapp_affiliate_ref') || undefined,
           origin_domain: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
           payment_method: paymentMethod,
+          tiered_discount_pct: tieredDiscountPct(),
+          extras: extras,
         },
       });
 
@@ -544,6 +546,11 @@ const Checkout = () => {
               <div className="border-t border-border pt-3 space-y-3">
                 <LoyaltyRedeemCard email={shipping.email} />
                 <OrderSummary />
+                {tieredDiscountPct() > 0 && (
+                  <p className="text-xs text-green-500 font-medium">
+                    🏷 Descuento por volumen {tieredDiscountPct()}% aplicado
+                  </p>
+                )}
                 <p className="mt-2 text-[11px] text-muted-foreground">
                   Envío seleccionado: <strong className="text-foreground">${shippingCost.toLocaleString()} MXN</strong> (paso 2). Total con envío: <strong className="text-foreground">${total.toLocaleString()} MXN</strong>
                 </p>
