@@ -12,7 +12,10 @@ async function getClipCredentials(supabase: any) {
       .in("key", ["clip_public_key", "clip_secret_key"]);
 
     (rows ?? []).forEach((r: any) => {
-      const v = typeof r.value === "string" ? r.value : String(r.value);
+      // value may be stored as JSON string with surrounding quotes
+      const v = typeof r.value === "string"
+        ? r.value.replace(/^"|"$/g, "")
+        : String(r.value).replace(/^"|"$/g, "");
       if (r.key === "clip_public_key") publicKey = v;
       if (r.key === "clip_secret_key") secretKey = v;
     });
@@ -34,19 +37,22 @@ Deno.serve(async (req) => {
 
     if (!publicKey || !secretKey) {
       console.error("Clip credentials not configured");
-      return new Response(JSON.stringify({ error: "Pasarela de pago no configurada" }), {
+      return new Response(JSON.stringify({ error: "Pasarela de pago no configurada. Contacta al administrador." }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const body = await req.json();
-    const { card_token, order_id, amount, currency, customer_email, customer_name, customer_phone, description } = body;
+    const {
+      order_id,
+      amount,
+      currency,
+      reference_number,
+      description,
+      success_url,
+      cancel_url,
+    } = body;
 
-    if (!card_token || typeof card_token !== "string") {
-      return new Response(JSON.stringify({ error: "card_token requerido" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
     if (!order_id || typeof order_id !== "string") {
       return new Response(JSON.stringify({ error: "order_id requerido" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -58,57 +64,79 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Basic auth: base64(public_key:secret_key)
+    // Clip Checkout API uses Basic auth: base64(api_key:api_secret)
     const basicAuth = btoa(`${publicKey}:${secretKey}`);
 
-    const clipResponse = await fetch("https://api.payclip.com/payments", {
+    // POST to Clip Checkout hosted page API
+    const clipPayload: Record<string, unknown> = {
+      amount: +amount.toFixed(2),
+      currency: currency || "MXN",
+      purchase_description: description || `Pedido WAXAPP ${reference_number || order_id}`,
+      redirection_url: {
+        success: success_url || "",
+        error: cancel_url || "",
+        cancel: cancel_url || "",
+      },
+      // Clip uses reference to link payment to order
+      reference: reference_number || order_id,
+    };
+
+    console.log("Calling Clip v2/checkout:", JSON.stringify({ amount: clipPayload.amount, reference: clipPayload.reference }));
+
+    const clipResponse = await fetch("https://api.payclip.com/v2/checkout", {
       method: "POST",
       headers: {
         "Authorization": `Basic ${basicAuth}`,
         "Content-Type": "application/json",
+        "Accept": "application/json",
       },
-      body: JSON.stringify({
-        amount,
-        currency: currency || "MXN",
-        description: description || "Pedido WAXAPP",
-        payment_method: { token: card_token },
-        customer: {
-          email: customer_email || "",
-          first_name: customer_name?.split(" ")[0] || "",
-          last_name: customer_name?.split(" ").slice(1).join(" ") || "",
-          phone: customer_phone || "",
-        },
-      }),
+      body: JSON.stringify(clipPayload),
     });
 
     const clipData = await clipResponse.json();
+    console.log("Clip response status:", clipResponse.status, "body:", JSON.stringify(clipData));
 
     if (!clipResponse.ok) {
-      console.error("Clip payment error:", JSON.stringify(clipData));
-      const errorMsg = clipData?.message || clipData?.detail || "Pago fallido";
+      const errorMsg = clipData?.message || clipData?.error || clipData?.detail || "Error al crear sesión de pago";
+      console.error("Clip checkout error:", JSON.stringify(clipData));
       return new Response(JSON.stringify({ error: errorMsg, clip_error: clipData }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Payment successful — update order
-    await supabase.from("orders").update({ status: "paid" }).eq("id", order_id);
-    await supabase.from("order_status_history").insert({
-      order_id,
-      previous_status: "pending",
-      new_status: "paid",
-      changed_by: "sistema (Clip)",
-      notes: `Pago procesado vía Clip. ID: ${clipData.id || clipData.receipt_no || "N/A"}`,
-    });
+    // Clip returns payment_request_id and a checkout URL
+    // Response shape: { payment_request_id, redirect_url or checkout_url }
+    const checkoutUrl = clipData.redirect_url || clipData.checkout_url || clipData.url
+      || (clipData.payment_request_id
+        ? `https://checkout.clip.mx/${clipData.payment_request_id}`
+        : null);
+
+    if (!checkoutUrl) {
+      console.error("Clip did not return a checkout URL:", JSON.stringify(clipData));
+      return new Response(JSON.stringify({
+        error: "Clip no devolvió una URL de pago. Intenta de nuevo.",
+        clip_response: clipData,
+      }), {
+        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Store payment_request_id in voucher_metadata for webhook reconciliation (don't overwrite extras)
+    if (clipData.payment_request_id) {
+      await supabase
+        .from("orders")
+        .update({ voucher_metadata: { clip_payment_request_id: clipData.payment_request_id } })
+        .eq("id", order_id);
+    }
 
     return new Response(JSON.stringify({
       success: true,
-      payment_id: clipData.id || clipData.receipt_no,
-      status: clipData.status,
+      checkout_url: checkoutUrl,
+      payment_request_id: clipData.payment_request_id,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
-    console.error("process-clip-payment error:", error);
+    console.error("clip-create-checkout error:", error);
     return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
